@@ -1,72 +1,101 @@
 # TeamUp — Skill-Based Team Formation Platform
-## Landing Page Desktop Application (Java2D / AWT)
 
-Built in strict compliance with the **TeamUp Landing Page – Product Requirements Document (PRD v1.0, Dribbble Edition)**.
-*Team:* Sadia Rimi, Sanjida Mostak, Md. Shakib Akando
+## Desktop Application (Java2D / Pure AWT)
+
+Built in strict compliance with the **TeamUp Landing Page – Product Requirements Document (PRD v1.0, Dribbble Edition)** and interactive **Student Workspace Dashboard**.
+_Team:_ Sadia Rimi, Sanjida Mostak, Md. Shakib Akando
 
 ---
 
-### 1. Technology Constraints & Architecture
+### 1. Clean Project Architecture & Folder Structure
+
+```
+teamup/
+├── src/                        # Clean application source code
+│   ├── Main.java               # Entry point
+│   ├── LandingWindow.java      # Main 60 FPS double-buffered frame & view manager
+│   ├── Theme.java              # Color tokens, fonts, and dark/light system
+│   ├── Anim.java               # Motion solvers (spring physics, cursor lag, ease tweens)
+│   ├── Draw.java               # Vector graphics & icon rendering library
+│   ├── Elastic.java            # Spring physics engine
+│   ├── LeadStore.java          # Thread-safe persistent storage with CSV sanitization
+│   ├── Section.java            # Section contract interface
+│   ├── dashboard/              # Dedicated dashboard modules
+│   │   └── StudentDashboard.java # Student workspace overview dashboard
+│   ├── sections/               # Modular landing page sections
+│   │   ├── Hero.java           # Eyebrow, staggered words, squiggle, masonry grid, marquee
+│   │   ├── NavBar.java         # Sticky glass navigation with dashboard toggle
+│   │   ├── Problem.java        # Pain-point interactive cards
+│   │   ├── HowItWorks.java     # 4-step timeline with gradient badges
+│   │   ├── Features.java       # Bento pastel grid with micro-animations
+│   │   ├── MatchDemo.java      # Live interactive candidate re-ranking simulation
+│   │   ├── Audience.java       # Role tabs (Students, Developers, Freelancers...)
+│   │   ├── Compare.java        # Side-by-side feature matrix
+│   │   ├── NumbersStrip.java   # Count-up metric counters
+│   │   ├── Faq.java            # Animated accordion list
+│   │   ├── Cta.java            # Dark contrast band with lead capture
+│   │   └── Footer.java         # Dark footer band with navigation links
+│   └── widgets/                # Reusable UI components
+│       ├── Modal.java          # Glassmorphic Login & Registration dialog
+│       ├── TextBox.java        # Custom text box with cursor & password eye toggle
+│       ├── Dropdown.java       # Frosted glass popup dropdown selector
+│       ├── Button.java         # Primary & ghost button components
+│       ├── Chip.java           # Interactive toggle chips
+│       └── Accordion.java      # Smooth expandable accordion item
+├── bin/                        # Compiled bytecode output (.class files, gitignored)
+├── data/                       # Local persistent data storage
+│   └── leads.csv               # Registered leads
+├── tests/                      # Unit and integration test scripts
+│   └── TestLeadStore.java
+├── build.bat / build.sh        # One-click build scripts (src -> bin, Java 8 compatible)
+├── run.bat / run.sh            # One-click launcher scripts (with auto-build)
+├── .gitignore                  # Git rules ignoring bin/, *.class, and jdk/
+└── README.md
+```
+
+---
+
+### 2. Technology Constraints
+
 - **Pure Core Java**: Rendered entirely with Java2D (`java.awt.Frame`, `java.awt.Canvas`, double buffering `BufferStrategy`, and `Graphics2D`).
 - **Zero Third-Party Dependencies**: No Maven, Gradle, Spring, JavaFX, or Swing (`javax.swing`).
 - **Zero Web Technologies**: No HTML, CSS, JavaScript, or browser runtimes.
-- **Java 8 Bytecode Compatible**: Compiled with `--release 8 -d .` (class file major version 52) to run smoothly on any JRE 8+ and JDK 17/21+.
-- **Elastic Physics Engine (`Elastic.java`)**: Custom physical spring solver (stiffness and damping) driving all hover, tilt, and magnetic motion.
-- **Persistence**: Synchronized, thread-safe lead validation with CSV injection guard writing to `data/leads.csv`.
+- **Java 8 Bytecode Compatible**: Compiled with `--release 8 -d bin` (major version 52) to run smoothly across Java 8 through Java 21+.
 
 ---
 
-### 2. Dribbble-Style Design & Motion Specs (PRD Section 5 & Motion Spec)
+### 3. Build & Run Instructions
 
-| # | Effect | Behavior | Java2D Technique |
-| :-: | :--- | :--- | :--- |
-| **1** | **Page-Load Intro** | Logo scales in, sticky nav slides down, hero words rise one by one | Time-based tween, `AlphaComposite` |
-| **2** | **Staggered Headline** | Words rise 40 px and fade in, 80 ms apart, ease-out | Per-word delay with `easeOutCubic` |
-| **3** | **Self-Drawing Underline** | A pink squiggle under the key word *"teammates"* draws itself | Multi-curve `Path2D` with partial stroke clip |
-| **4** | **Cursor Glow** | Soft pink glow follows the mouse with lag | `RadialGradientPaint`, `lerp 0.12` per frame |
-| **5** | **Parallax Masonry** | 3 member-card columns move at different speeds; the middle one the opposite way | Column parallax offset = `scrollY × factor` |
-| **6** | **Card Tilt and Lift** | On hover the card tilts toward cursor, grows to 103%, shadow deepens | `AffineTransform` shear & scale with elastic return |
-| **7** | **Hover Overlay** | Bottom gradient fades in with candidate name, *"Invite"* button, and popping heart | `AlphaComposite` with scale bounce |
-| **8** | **Magnetic Buttons** | Button leans up to 8 px toward cursor within 80 px | Distance check with elastic offset |
-| **9** | **Skill Marquee** | Skill pills scroll sideways forever, slow down on hover | Continuous time-based x offset with modulo wrap |
-| **10** | **Scroll Reveal & Progress** | Section children fade and rise with 60 ms stagger; thin pink progress bar at the top | Viewport test + top progress bar |
-| **11** | **Micro-Animations in Features** | Chips snap to profile, stars fill one by one, chat bubbles, shaking bell, closing lock | Looping tweens per pastel card |
-| **12** | **Count-Up Numbers** | Numbers count up smoothly when entering view | Eased count-up interpolation |
+#### Run with Shell Scripts (Git Bash or CMD):
 
----
-
-### 3. Page Structure & Palette
-- **Canvas**: Clean warm off-white (`#F8F7F4`), deep ink text (`#0D0C22`), and brand hot pink (`#EA4C89`).
-- **Pastel Card Tints**: Violet (`#F3F0FF`), Mint (`#EBFBF5`), Sunny (`#FFFAEC`), Sky (`#F0F8FF`), and Pink (`#FFF0F5`).
-- **Dark Contrast Band**: Rich dark navy (`#0D0C22`) on the final CTA and footer for dramatic visual contrast.
-- **Hero Search Bar**: Big white pill with search text box, pink search button, and jumping skill pills (`Java`, `UI/UX`, `Python`, `React`, `MySQL`, `Figma`).
-- **Generated Cover Art**: Each member card in the masonry grid features generated abstract vector artwork in pure Java2D (geometric circles, wave blobs, angled stripes).
-
----
-
-### 4. Build & Run Instructions
-
-#### In Git Bash / MINGW64:
 ```bash
+# Launch Landing Page
 ./run.sh
-```
-*(Or directly using Java)*:
-```bash
-java Main
+
+# Or launch directly into Student Dashboard
+./run.sh --dashboard
 ```
 
 #### In Windows Command Prompt:
+
 ```cmd
 run.bat
-```
-*(Or manual build)*:
-```cmd
-build.bat
+run.bat --dashboard
 ```
 
-### Keyboard Shortcuts
-- **`M`**: Toggle motion animations on/off.
-- **`Ctrl +` / `Ctrl -`**: Scale UI font size up or down.
-- **`Ctrl 0`**: Reset UI zoom.
-- **`Up` / `Down` / `PageUp` / `PageDown` / `Home` / `End`**: Smooth document scrolling.
-- **`Esc`**: Close active dialog.
+#### Direct Compilation & Execution:
+
+```bash
+# Compile src -> bin
+javac --release 8 -d bin src/*.java src/sections/*.java src/widgets/*.java src/dashboard/*.java
+
+# Run from bin
+java -cp bin Main
+java -cp bin Main --dashboard
+```
+
+#### Hotkeys:
+
+- Press **`F2`** anytime to instantly toggle between **Landing Page** and **Student Dashboard**!
+- Press **`M`** to toggle motion / animations on and off.
+- Use **`Ctrl +`** / **`Ctrl -`** / **`Ctrl 0`** to zoom interface in, out, or reset.

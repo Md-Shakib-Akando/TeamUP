@@ -98,17 +98,20 @@ public class Features implements Section {
         int rise = reveal.getYOffset();
         g2.translate(0, rise);
 
-        int topY = y + 20;
-        g2.setFont(Theme.fontSmallBold());
-        g2.setColor(Theme.BRAND_PINK);
-        g2.drawString("CORE CAPABILITIES", padX, topY + 14);
+        int topY = y + 24;
+        Draw.drawSectionBadge(g2, "CORE CAPABILITIES", padX, topY, Theme.BRAND_PINK);
 
         g2.setFont(Theme.fontTitle());
         FontMetrics tfm = g2.getFontMetrics();
         g2.setColor(Theme.textPrimary());
-        g2.drawString("Everything you need to ship together", padX, topY + 14 + tfm.getAscent() + 10);
+        int titleY = topY + 44 + tfm.getAscent();
+        g2.drawString("Everything you need to ship together", padX, titleY);
 
-        int gridTop = topY + 90;
+        g2.setFont(Theme.fontBody());
+        g2.setColor(Theme.textSecondary());
+        g2.drawString("Built-in intelligent matching, Kanban task workflows, team messaging, and immutable peer reviews in one unified workspace.", padX, titleY + 22);
+
+        int gridTop = titleY + 48;
         int gap = 20;
         int totalW = width - padX * 2;
 

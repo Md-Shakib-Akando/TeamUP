@@ -19,6 +19,11 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
     private float targetScrollY = 0f;
     private int totalDocHeight = 0;
 
+    // Mouse click tracking for rock-solid event delivery
+    private int mousePressX = -1;
+    private int mousePressY = -1;
+    private long lastDashClickTime = 0;
+
     // Custom scrollbar dragging
     private boolean isDraggingScrollbar = false;
     private int dragStartY = 0;
@@ -304,7 +309,11 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
 
         // 2. Dashboard check
         if (showDashboard) {
-            if (dashboard.onClick(mx, my)) return;
+            long now = System.currentTimeMillis();
+            if (now - lastDashClickTime > 180) {
+                lastDashClickTime = now;
+                dashboard.onClick(mx, my);
+            }
             return;
         }
 
@@ -334,6 +343,9 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
         int width = canvas.getWidth();
         int height = canvas.getHeight();
 
+        mousePressX = mx;
+        mousePressY = my;
+
         // Check scrollbar hit
         int maxScroll = Math.max(0, totalDocHeight - height);
         if (maxScroll > 0 && mx >= width - 18) {
@@ -342,6 +354,8 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
             dragStartScroll = scrollY;
             return;
         }
+
+        if (showDashboard) return;
 
         if (modal.visible) return;
 
@@ -370,6 +384,17 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
         int my = e.getY();
         int width = canvas.getWidth();
         int height = canvas.getHeight();
+
+        if (showDashboard) {
+            if (Math.abs(mx - mousePressX) <= 6 && Math.abs(my - mousePressY) <= 6) {
+                long now = System.currentTimeMillis();
+                if (now - lastDashClickTime > 180) {
+                    lastDashClickTime = now;
+                    dashboard.onClick(mx, my);
+                }
+            }
+            return;
+        }
 
         if (modal.visible) return;
 
@@ -535,8 +560,20 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
 
     @Override
     public void keyReleased(KeyEvent e) {}
+
     @Override
-    public void keyTyped(KeyEvent e) {}
+    public void keyTyped(KeyEvent e) {
+        if (modal.visible) {
+            if (modal.onKey(e)) return;
+        }
+        if (showDashboard) {
+            if (dashboard.onKey(e)) return;
+            return;
+        }
+        for (Section s : sections) {
+            if (s.onKey(e)) return;
+        }
+    }
 
     // ==================== COMPONENT RESIZING ====================
 

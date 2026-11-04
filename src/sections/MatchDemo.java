@@ -134,26 +134,24 @@ public class MatchDemo implements Section {
         int rise = reveal.getYOffset();
         g2.translate(0, rise);
 
-        int topY = y + 20;
+        int topY = y + 24;
 
         // Eyebrow & Title
-        g2.setFont(Theme.fontSmallBold());
-        g2.setColor(Theme.ACCENT_CYAN);
-        g2.drawString("INTERACTIVE DEMO", padX, topY + 14);
+        Draw.drawSectionBadge(g2, "INTERACTIVE PLAYGROUND", padX, topY, Theme.ACCENT_CYAN);
 
         g2.setFont(Theme.fontTitle());
         FontMetrics tfm = g2.getFontMetrics();
         g2.setColor(Theme.textPrimary());
-        g2.drawString("Experience real-time skill matching", padX, topY + 14 + tfm.getAscent() + 10);
+        int titleY = topY + 44 + tfm.getAscent();
+        g2.drawString("Experience real-time skill matching", padX, titleY);
 
         g2.setFont(Theme.fontBody());
-        FontMetrics bfm = g2.getFontMetrics();
         g2.setColor(Theme.textSecondary());
-        g2.drawString("Click skill chips below to simulate a live project search and observe candidate re-ranking (Sample Data).",
-                padX, topY + 80);
+        g2.drawString("Click skill chips below to simulate a live project query and observe algorithmic candidate re-ranking in real time.",
+                padX, titleY + 22);
 
         // Skill Chips Bar
-        int chipsY = topY + 108;
+        int chipsY = titleY + 48;
         int chipX = padX;
         for (Chip chip : skillChips) {
             chip.setBounds(chipX, chipsY, 84, 32);

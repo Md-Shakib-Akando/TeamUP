@@ -2,3 +2,11 @@ timestamp,email,role,source
 2026-11-04T10:57:55.168200Z,test@teamup.org,Developer,LandingPage-v1
 2026-11-04T10:58:19.014341800Z,test@teamup.org,Developer,LandingPage-v1
 2026-11-04T10:58:19.032129300Z,'+developer@example.com,"'=SUM(1,2)",LandingPage-v1
+2026-11-04T18:35:02.350014200Z,test@teamup.org,Developer,LandingPage-v1
+2026-11-04T18:35:02.357777600Z,'+developer@example.com,"'=SUM(1,2)",LandingPage-v1
+2026-11-04T18:40:37.927941Z,test@teamup.org,Developer,LandingPage-v1
+2026-11-04T18:40:37.934687600Z,'+developer@example.com,"'=SUM(1,2)",LandingPage-v1
+2026-11-04T18:56:06.807955100Z,test@teamup.org,Developer,LandingPage-v1
+2026-11-04T18:56:06.819435800Z,'+developer@example.com,"'=SUM(1,2)",LandingPage-v1
+2026-11-04T19:19:42.675180400Z,test@teamup.org,Developer,LandingPage-v1
+2026-11-04T19:19:42.681330100Z,'+developer@example.com,"'=SUM(1,2)",LandingPage-v1
