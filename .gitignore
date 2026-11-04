@@ -1,0 +1,19 @@
+# Local JDK runtime (exceeds GitHub 100MB limit)
+jdk/
+
+# Compiled Java bytecode
+*.class
+sections/*.class
+widgets/*.class
+
+# IDE & Editor files
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# OS generated files
+.DS_Store
+Thumbs.db

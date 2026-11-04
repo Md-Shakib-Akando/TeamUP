@@ -1,0 +1,499 @@
+import java.awt.*;
+import java.awt.event.*;
+import java.awt.geom.RoundRectangle2D;
+import java.awt.image.BufferStrategy;
+import java.util.ArrayList;
+import java.util.List;
+
+public class LandingWindow extends Frame implements MouseListener, MouseMotionListener, MouseWheelListener, KeyListener, ComponentListener, NavBar.NavListener {
+
+    private final Canvas canvas;
+    private final List<Section> sections = new ArrayList<>();
+    private final NavBar navBar;
+    private final Modal modal;
+
+    // Scrolling state
+    private float scrollY = 0f;
+    private float targetScrollY = 0f;
+    private int totalDocHeight = 0;
+
+    // Custom scrollbar dragging
+    private boolean isDraggingScrollbar = false;
+    private int dragStartY = 0;
+    private float dragStartScroll = 0f;
+
+    // Render loop thread
+    private Thread renderThread;
+    private volatile boolean running = true;
+
+    public LandingWindow() {
+        super("TeamUp — Skill-Based Team Formation Platform");
+
+        // Window setup (pure AWT)
+        setSize(1280, 800);
+        setMinimumSize(new Dimension(360, 640));
+        setLocationRelativeTo(null);
+        setLayout(new BorderLayout());
+
+        // Single custom Canvas
+        canvas = new Canvas();
+        canvas.setFocusable(true);
+        add(canvas, BorderLayout.CENTER);
+
+        // Sections creation
+        navBar = new NavBar(this);
+        modal = new Modal();
+
+        sections.add(new Hero(this));
+        sections.add(new Problem());
+        sections.add(new HowItWorks());
+        sections.add(new Features());
+        sections.add(new MatchDemo());
+        sections.add(new Audience());
+        sections.add(new Compare());
+        sections.add(new NumbersStrip());
+        sections.add(new Faq());
+        sections.add(new Cta());
+        sections.add(new Footer(this));
+
+        // Event listeners
+        canvas.addMouseListener(this);
+        canvas.addMouseMotionListener(this);
+        canvas.addMouseWheelListener(this);
+        canvas.addKeyListener(this);
+        addComponentListener(this);
+
+        // Close window handler
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                running = false;
+                dispose();
+                System.exit(0);
+            }
+        });
+    }
+
+    public void start() {
+        setVisible(true);
+        canvas.requestFocus();
+
+        // 2-buffer strategy
+        canvas.createBufferStrategy(2);
+
+        renderThread = new Thread(this::renderLoop, "TeamUp-RenderLoop");
+        renderThread.start();
+    }
+
+    private void renderLoop() {
+        long lastTime = System.nanoTime();
+
+        while (running) {
+            long now = System.nanoTime();
+            float dt = (now - lastTime) / 1_000_000_000.0f;
+            lastTime = now;
+
+            // Cap dt to prevent spiral of death on long pauses
+            dt = Math.min(dt, 0.05f);
+
+            // Update animations & physics
+            update(dt);
+
+            // Render frame
+            render();
+
+            // Target ~60 FPS
+            try {
+                Thread.sleep(16);
+            } catch (InterruptedException ignored) {}
+        }
+    }
+
+    private void update(float dt) {
+        Theme.update(dt);
+        Anim.update(dt);
+        navBar.update(dt);
+        modal.update(dt);
+
+        for (Section s : sections) {
+            s.update(dt);
+        }
+
+        // Smooth scroll interpolation
+        int maxScroll = Math.max(0, totalDocHeight - canvas.getHeight());
+        targetScrollY = Math.max(0, Math.min(targetScrollY, maxScroll));
+        scrollY = Anim.approach(scrollY, targetScrollY, dt, 14.0f);
+
+        // Active section tracking for navbar
+        int currentScrollInt = Math.round(scrollY);
+        int navH = navBar.getHeight(canvas.getWidth());
+        int runningY = navH;
+        String currentActive = "hero";
+
+        for (Section s : sections) {
+            int sh = s.getHeight(canvas.getWidth());
+            if (currentScrollInt + 200 >= runningY && currentScrollInt + 200 < runningY + sh) {
+                currentActive = s.getId();
+                break;
+            }
+            runningY += sh;
+        }
+        navBar.setActiveSection(currentActive);
+    }
+
+    private void render() {
+        BufferStrategy bs = canvas.getBufferStrategy();
+        if (bs == null) return;
+
+        Graphics g = null;
+        try {
+            g = bs.getDrawGraphics();
+            Graphics2D g2 = (Graphics2D) g;
+            Draw.setQualityHints(g2);
+
+            int width = canvas.getWidth();
+            int height = canvas.getHeight();
+            if (width <= 0 || height <= 0) return;
+
+            // Background with warm off-white canvas & ambient tint
+            Draw.drawBackground(g2, width, height);
+
+            // Motion Spec #4: Soft pink glow follows mouse with lag
+            Draw.drawCursorGlow(g2);
+
+            int navH = navBar.getHeight(width);
+            int viewportY = Math.round(scrollY);
+
+            // Calculate document height & paint visible sections
+            int curY = navH;
+            for (Section s : sections) {
+                int sh = s.getHeight(width);
+                int screenY = curY - viewportY;
+
+                // Viewport culling: only paint if visible on screen
+                if (screenY + sh >= 0 && screenY <= height) {
+                    s.paint(g2, screenY, width, viewportY, height);
+                }
+                curY += sh;
+            }
+            totalDocHeight = curY;
+
+            // Paint Sticky Glass Nav on top
+            navBar.paint(g2, 0, width, viewportY, height);
+
+            // Motion Spec #10: Thin pink progress bar at the very top
+            int maxSc = Math.max(1, totalDocHeight - height);
+            float scrollProgress = Math.min(1.0f, Math.max(0f, scrollY / (float) maxSc));
+            g2.setColor(Theme.BRAND_PINK);
+            g2.fillRect(0, 0, Math.round(width * scrollProgress), 3);
+
+            // Paint Custom Scrollbar
+            paintScrollbar(g2, width, height);
+
+            // Paint Modal Dialog if active
+            modal.paint(g2, width, height);
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        } finally {
+            if (g != null) g.dispose();
+        }
+
+        if (!bs.contentsLost()) {
+            bs.show();
+        }
+    }
+
+    private void paintScrollbar(Graphics2D g, int width, int height) {
+        int maxScroll = Math.max(0, totalDocHeight - height);
+        if (maxScroll <= 0) return;
+
+        int barW = 8;
+        int barX = width - barW - 4;
+        int navH = navBar.getHeight(width);
+        int trackH = height - navH - 8;
+        int trackY = navH + 4;
+
+        float ratio = (float) height / (float) totalDocHeight;
+        int thumbH = Math.max(36, Math.round(trackH * ratio));
+        float scrollPct = scrollY / (float) maxScroll;
+        int thumbY = trackY + Math.round((trackH - thumbH) * scrollPct);
+
+        // Thumb
+        Color thumbColor = Theme.isDark ? new Color(255, 255, 255, 60) : new Color(0, 0, 0, 50);
+        if (isDraggingScrollbar) {
+            thumbColor = Theme.ACCENT_CYAN;
+        }
+        g.setColor(thumbColor);
+        g.fill(new RoundRectangle2D.Float(barX, thumbY, barW, thumbH, barW, barW));
+    }
+
+    // ==================== NAV BAR LISTENER ====================
+
+    @Override
+    public void scrollToSection(String sectionId) {
+        int navH = navBar.getHeight(canvas.getWidth());
+        int runningY = navH;
+
+        for (Section s : sections) {
+            if (s.getId().equalsIgnoreCase(sectionId)) {
+                targetScrollY = Math.max(0, runningY - navH);
+                return;
+            }
+            runningY += s.getHeight(canvas.getWidth());
+        }
+        if ("hero".equalsIgnoreCase(sectionId)) {
+            targetScrollY = 0;
+        }
+    }
+
+    @Override
+    public void openModal(String title, String message, boolean isRegister) {
+        modal.show(title, message, isRegister);
+    }
+
+    // ==================== MOUSE EVENTS ====================
+
+    @Override
+    public void mouseWheelMoved(MouseWheelEvent e) {
+        int notches = e.getWheelRotation();
+        targetScrollY += notches * 85;
+    }
+
+    @Override
+    public void mouseClicked(MouseEvent e) {
+        int mx = e.getX();
+        int my = e.getY();
+        int width = canvas.getWidth();
+        int height = canvas.getHeight();
+
+        // 1. Modal check
+        if (modal.visible) {
+            if (modal.onClick(mx, my, width, height)) return;
+        }
+
+        // 2. Sticky Nav click check
+        int navH = navBar.getHeight(width);
+        if (my <= navH) {
+            if (navBar.onClick(mx, my)) return;
+        }
+
+        // 3. Document sections click
+        int viewportY = Math.round(scrollY);
+        int curY = navH;
+        for (Section s : sections) {
+            int sh = s.getHeight(width);
+            int screenY = curY - viewportY;
+            if (screenY + sh >= 0 && screenY <= height) {
+                // Section local click
+                if (s.onClick(mx, my - screenY)) return;
+            }
+            curY += sh;
+        }
+    }
+
+    @Override
+    public void mousePressed(MouseEvent e) {
+        int mx = e.getX();
+        int my = e.getY();
+        int width = canvas.getWidth();
+        int height = canvas.getHeight();
+
+        // Check scrollbar hit
+        int maxScroll = Math.max(0, totalDocHeight - height);
+        if (maxScroll > 0 && mx >= width - 18) {
+            isDraggingScrollbar = true;
+            dragStartY = my;
+            dragStartScroll = scrollY;
+            return;
+        }
+
+        if (modal.visible) return;
+
+        int navH = navBar.getHeight(width);
+        if (my <= navH) {
+            navBar.onMouseDown(mx, my);
+            return;
+        }
+
+        int viewportY = Math.round(scrollY);
+        int curY = navH;
+        for (Section s : sections) {
+            int sh = s.getHeight(width);
+            int screenY = curY - viewportY;
+            if (screenY + sh >= 0 && screenY <= height) {
+                s.onMouseDown(mx, my - screenY);
+            }
+            curY += sh;
+        }
+    }
+
+    @Override
+    public void mouseReleased(MouseEvent e) {
+        isDraggingScrollbar = false;
+        int mx = e.getX();
+        int my = e.getY();
+        int width = canvas.getWidth();
+        int height = canvas.getHeight();
+
+        if (modal.visible) return;
+
+        int navH = navBar.getHeight(width);
+        if (my <= navH) {
+            navBar.onMouseUp(mx, my);
+            return;
+        }
+
+        int viewportY = Math.round(scrollY);
+        int curY = navH;
+        for (Section s : sections) {
+            int sh = s.getHeight(width);
+            int screenY = curY - viewportY;
+            if (screenY + sh >= 0 && screenY <= height) {
+                s.onMouseUp(mx, my - screenY);
+            }
+            curY += sh;
+        }
+    }
+
+    @Override
+    public void mouseMoved(MouseEvent e) {
+        int mx = e.getX();
+        int my = e.getY();
+        Anim.setMouseTarget(mx, my);
+        int width = canvas.getWidth();
+        int height = canvas.getHeight();
+
+        boolean anyHover = false;
+
+        if (modal.visible) {
+            anyHover = modal.onMouseMove(mx, my);
+            updateCursor(anyHover);
+            return;
+        }
+
+        int navH = navBar.getHeight(width);
+        if (my <= navH) {
+            anyHover = navBar.onMouseMove(mx, my);
+        } else {
+            navBar.onMouseMove(-100, -100);
+        }
+
+        int viewportY = Math.round(scrollY);
+        int curY = navH;
+        for (Section s : sections) {
+            int sh = s.getHeight(width);
+            int screenY = curY - viewportY;
+            if (screenY + sh >= 0 && screenY <= height) {
+                if (s.onMouseMove(mx, my - screenY)) {
+                    anyHover = true;
+                }
+            } else {
+                s.onMouseMove(-100, -100);
+            }
+            curY += sh;
+        }
+
+        updateCursor(anyHover);
+    }
+
+    @Override
+    public void mouseDragged(MouseEvent e) {
+        Anim.setMouseTarget(e.getX(), e.getY());
+        if (isDraggingScrollbar) {
+            int dy = e.getY() - dragStartY;
+            int height = canvas.getHeight();
+            int maxScroll = Math.max(0, totalDocHeight - height);
+            float ratio = (float) maxScroll / (float) (height - 60);
+            targetScrollY = dragStartScroll + dy * ratio;
+            scrollY = targetScrollY;
+        }
+    }
+
+    private void updateCursor(boolean hand) {
+        canvas.setCursor(Cursor.getPredefinedCursor(hand ? Cursor.HAND_CURSOR : Cursor.DEFAULT_CURSOR));
+    }
+
+    @Override
+    public void mouseEntered(MouseEvent e) {}
+    @Override
+    public void mouseExited(MouseEvent e) {}
+
+    // ==================== KEYBOARD NAVIGATION ====================
+
+    @Override
+    public void keyPressed(KeyEvent e) {
+        int code = e.getKeyCode();
+
+        // Modal key delegation
+        if (modal.visible) {
+            if (modal.onKey(e)) return;
+        }
+
+        // Motion toggle: key 'M'
+        if (code == KeyEvent.VK_M) {
+            Theme.motionEnabled = !Theme.motionEnabled;
+            return;
+        }
+
+        // Ctrl +/- Zoom
+        if (e.isControlDown()) {
+            if (code == KeyEvent.VK_EQUALS || code == KeyEvent.VK_PLUS) {
+                Theme.zoomIn();
+                return;
+            } else if (code == KeyEvent.VK_MINUS) {
+                Theme.zoomOut();
+                return;
+            } else if (code == KeyEvent.VK_0) {
+                Theme.resetZoom();
+                return;
+            }
+        }
+
+        // Arrow keys & Page scrolling
+        if (code == KeyEvent.VK_DOWN) {
+            targetScrollY += 60;
+            return;
+        } else if (code == KeyEvent.VK_UP) {
+            targetScrollY -= 60;
+            return;
+        } else if (code == KeyEvent.VK_PAGE_DOWN) {
+            targetScrollY += canvas.getHeight() * 0.8f;
+            return;
+        } else if (code == KeyEvent.VK_PAGE_UP) {
+            targetScrollY -= canvas.getHeight() * 0.8f;
+            return;
+        } else if (code == KeyEvent.VK_HOME) {
+            targetScrollY = 0;
+            return;
+        } else if (code == KeyEvent.VK_END) {
+            targetScrollY = totalDocHeight;
+            return;
+        }
+
+        // Delegate to active input in sections (e.g. Lead form textbox)
+        for (Section s : sections) {
+            if (s.onKey(e)) return;
+        }
+    }
+
+    @Override
+    public void keyReleased(KeyEvent e) {}
+    @Override
+    public void keyTyped(KeyEvent e) {}
+
+    // ==================== COMPONENT RESIZING ====================
+
+    @Override
+    public void componentResized(ComponentEvent e) {
+        // Automatically triggers responsive recalculations in render loop
+    }
+
+    @Override
+    public void componentMoved(ComponentEvent e) {}
+    @Override
+    public void componentShown(ComponentEvent e) {}
+    @Override
+    public void componentHidden(ComponentEvent e) {}
+}
+
