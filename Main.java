@@ -9,6 +9,9 @@ public class Main {
         System.setProperty("sun.java2d.opengl", "true");
 
         LandingWindow window = new LandingWindow();
+        if (args.length > 0 && ("--dashboard".equalsIgnoreCase(args[0]) || "-d".equalsIgnoreCase(args[0]))) {
+            window.showDashboard = true;
+        }
         window.start();
     }
 }

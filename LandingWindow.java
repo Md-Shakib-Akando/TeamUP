@@ -5,12 +5,14 @@ import java.awt.image.BufferStrategy;
 import java.util.ArrayList;
 import java.util.List;
 
-public class LandingWindow extends Frame implements MouseListener, MouseMotionListener, MouseWheelListener, KeyListener, ComponentListener, NavBar.NavListener {
+public class LandingWindow extends Frame implements MouseListener, MouseMotionListener, MouseWheelListener, KeyListener, ComponentListener, NavBar.NavListener, StudentDashboard.DashboardListener {
 
     private final Canvas canvas;
     private final List<Section> sections = new ArrayList<>();
     private final NavBar navBar;
     private final Modal modal;
+    private final StudentDashboard dashboard;
+    public boolean showDashboard = false;
 
     // Scrolling state
     private float scrollY = 0f;
@@ -43,6 +45,7 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
         // Sections creation
         navBar = new NavBar(this);
         modal = new Modal();
+        dashboard = new StudentDashboard(this);
 
         sections.add(new Hero(this));
         sections.add(new Problem());
@@ -112,8 +115,14 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
     private void update(float dt) {
         Theme.update(dt);
         Anim.update(dt);
-        navBar.update(dt);
         modal.update(dt);
+
+        if (showDashboard) {
+            dashboard.update(dt);
+            return;
+        }
+
+        navBar.update(dt);
 
         for (Section s : sections) {
             s.update(dt);
@@ -155,43 +164,48 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
             int height = canvas.getHeight();
             if (width <= 0 || height <= 0) return;
 
-            // Background with warm off-white canvas & ambient tint
-            Draw.drawBackground(g2, width, height);
+            if (showDashboard) {
+                dashboard.paint(g2, width, height);
+                modal.paint(g2, width, height);
+            } else {
+                // Background with warm off-white canvas & ambient tint
+                Draw.drawBackground(g2, width, height);
 
-            // Motion Spec #4: Soft pink glow follows mouse with lag
-            Draw.drawCursorGlow(g2);
+                // Motion Spec #4: Soft pink glow follows mouse with lag
+                Draw.drawCursorGlow(g2);
 
-            int navH = navBar.getHeight(width);
-            int viewportY = Math.round(scrollY);
+                int navH = navBar.getHeight(width);
+                int viewportY = Math.round(scrollY);
 
-            // Calculate document height & paint visible sections
-            int curY = navH;
-            for (Section s : sections) {
-                int sh = s.getHeight(width);
-                int screenY = curY - viewportY;
+                // Calculate document height & paint visible sections
+                int curY = navH;
+                for (Section s : sections) {
+                    int sh = s.getHeight(width);
+                    int screenY = curY - viewportY;
 
-                // Viewport culling: only paint if visible on screen
-                if (screenY + sh >= 0 && screenY <= height) {
-                    s.paint(g2, screenY, width, viewportY, height);
+                    // Viewport culling: only paint if visible on screen
+                    if (screenY + sh >= 0 && screenY <= height) {
+                        s.paint(g2, screenY, width, viewportY, height);
+                    }
+                    curY += sh;
                 }
-                curY += sh;
+                totalDocHeight = curY;
+
+                // Paint Sticky Glass Nav on top
+                navBar.paint(g2, 0, width, viewportY, height);
+
+                // Motion Spec #10: Thin pink progress bar at the very top
+                int maxSc = Math.max(1, totalDocHeight - height);
+                float scrollProgress = Math.min(1.0f, Math.max(0f, scrollY / (float) maxSc));
+                g2.setColor(Theme.BRAND_PINK);
+                g2.fillRect(0, 0, Math.round(width * scrollProgress), 3);
+
+                // Paint Custom Scrollbar
+                paintScrollbar(g2, width, height);
+
+                // Paint Modal Dialog if active
+                modal.paint(g2, width, height);
             }
-            totalDocHeight = curY;
-
-            // Paint Sticky Glass Nav on top
-            navBar.paint(g2, 0, width, viewportY, height);
-
-            // Motion Spec #10: Thin pink progress bar at the very top
-            int maxSc = Math.max(1, totalDocHeight - height);
-            float scrollProgress = Math.min(1.0f, Math.max(0f, scrollY / (float) maxSc));
-            g2.setColor(Theme.BRAND_PINK);
-            g2.fillRect(0, 0, Math.round(width * scrollProgress), 3);
-
-            // Paint Custom Scrollbar
-            paintScrollbar(g2, width, height);
-
-            // Paint Modal Dialog if active
-            modal.paint(g2, width, height);
 
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -252,10 +266,26 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
         modal.show(title, message, isRegister);
     }
 
+    @Override
+    public void openDashboard() {
+        this.showDashboard = true;
+        this.canvas.requestFocus();
+    }
+
+    @Override
+    public void returnToLanding() {
+        this.showDashboard = false;
+        this.canvas.requestFocus();
+    }
+
     // ==================== MOUSE EVENTS ====================
 
     @Override
     public void mouseWheelMoved(MouseWheelEvent e) {
+        if (showDashboard) {
+            dashboard.onMouseWheel(e.getWheelRotation(), canvas.getHeight());
+            return;
+        }
         int notches = e.getWheelRotation();
         targetScrollY += notches * 85;
     }
@@ -272,7 +302,13 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
             if (modal.onClick(mx, my, width, height)) return;
         }
 
-        // 2. Sticky Nav click check
+        // 2. Dashboard check
+        if (showDashboard) {
+            if (dashboard.onClick(mx, my)) return;
+            return;
+        }
+
+        // 3. Sticky Nav click check
         int navH = navBar.getHeight(width);
         if (my <= navH) {
             if (navBar.onClick(mx, my)) return;
@@ -285,8 +321,7 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
             int sh = s.getHeight(width);
             int screenY = curY - viewportY;
             if (screenY + sh >= 0 && screenY <= height) {
-                // Section local click
-                if (s.onClick(mx, my - screenY)) return;
+                if (s.onClick(mx, my)) return;
             }
             curY += sh;
         }
@@ -322,7 +357,7 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
             int sh = s.getHeight(width);
             int screenY = curY - viewportY;
             if (screenY + sh >= 0 && screenY <= height) {
-                s.onMouseDown(mx, my - screenY);
+                s.onMouseDown(mx, my);
             }
             curY += sh;
         }
@@ -350,7 +385,7 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
             int sh = s.getHeight(width);
             int screenY = curY - viewportY;
             if (screenY + sh >= 0 && screenY <= height) {
-                s.onMouseUp(mx, my - screenY);
+                s.onMouseUp(mx, my);
             }
             curY += sh;
         }
@@ -372,6 +407,12 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
             return;
         }
 
+        if (showDashboard) {
+            anyHover = dashboard.onMouseMove(mx, my);
+            updateCursor(anyHover);
+            return;
+        }
+
         int navH = navBar.getHeight(width);
         if (my <= navH) {
             anyHover = navBar.onMouseMove(mx, my);
@@ -385,7 +426,7 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
             int sh = s.getHeight(width);
             int screenY = curY - viewportY;
             if (screenY + sh >= 0 && screenY <= height) {
-                if (s.onMouseMove(mx, my - screenY)) {
+                if (s.onMouseMove(mx, my)) {
                     anyHover = true;
                 }
             } else {
@@ -428,6 +469,21 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
         // Modal key delegation
         if (modal.visible) {
             if (modal.onKey(e)) return;
+        }
+
+        // F2 or D key toggles Dashboard view directly
+        if (code == KeyEvent.VK_F2) {
+            showDashboard = !showDashboard;
+            return;
+        }
+
+        if (showDashboard) {
+            if (dashboard.onKey(e)) return;
+            if (code == KeyEvent.VK_ESCAPE) {
+                showDashboard = false;
+                return;
+            }
+            return;
         }
 
         // Motion toggle: key 'M'
