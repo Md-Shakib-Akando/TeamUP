@@ -76,6 +76,7 @@ public class Hero implements Section {
     };
     private float marqueeOffset = 0f;
     private boolean marqueeHovered = false;
+    private int marqueeY = -100, marqueeH = 50;
 
     // Squiggle self-draw progress
     private float squiggleProgress = 0f;
@@ -129,11 +130,11 @@ public class Hero implements Section {
     @Override
     public int getHeight(int width) {
         if (width < 780) {
-            return 1560;
+            return 1580;
         } else if (width < 1100) {
-            return 1480;
+            return 1680;
         } else {
-            return 1420;
+            return 1350;
         }
     }
 
@@ -353,9 +354,10 @@ public class Hero implements Section {
         curY += btn1H + 48;
 
         // 6. Masonry of Member Shots (Motion Spec #5: Parallax columns drifting at different speeds)
-        paintMasonryGrid(g2, curY, width, padX, viewportY);
+        int gridBottom = paintMasonryGrid(g2, curY, width, padX, viewportY);
 
-        curY += 480;
+        // Place Marquee Strip with generous 48px breathing room below the lowest card
+        curY = gridBottom + 48;
 
         // 7. Marquee Strip (Motion Spec #9: endless row of skill pills & audiences)
         paintMarqueeStrip(g2, curY, width);
@@ -363,7 +365,7 @@ public class Hero implements Section {
         g2.dispose();
     }
 
-    private void paintMasonryGrid(Graphics2D g, int startY, int width, int padX, int viewportY) {
+    private int paintMasonryGrid(Graphics2D g, int startY, int width, int padX, int viewportY) {
         int gap = 20;
         int totalW = width - padX * 2;
         boolean isMobile = width < 780;
@@ -375,13 +377,16 @@ public class Hero implements Section {
         int[] colY = new int[cols];
         for (int i = 0; i < cols; i++) colY[i] = startY;
 
-        // Motion Spec #5: Parallax Masonry offsets
-        // Column 0 moves normally, column 1 moves opposite way!
-        float factorCol0 = (viewportY * 0.08f);
-        float factorCol1 = -(viewportY * 0.06f);
-        float factorCol2 = (viewportY * 0.04f);
+        // Motion Spec #5: Bounded Parallax Masonry offsets
+        // Subtle organic float that never allows cards to collide with adjacent sections
+        float factorCol0 = Math.max(-20f, Math.min(20f, viewportY * 0.05f));
+        float factorCol1 = Math.max(-20f, Math.min(20f, -viewportY * 0.05f));
+        float factorCol2 = Math.max(-20f, Math.min(20f, viewportY * 0.03f));
 
-        for (int i = 0; i < memberShots.size(); i++) {
+        int cardCount = isMobile ? 3 : memberShots.size();
+        int maxBottomY = startY;
+
+        for (int i = 0; i < cardCount; i++) {
             MemberShot shot = memberShots.get(i);
             int c = isMobile ? 0 : (isTablet ? (i % 2) : shot.col);
             int cardX = padX + c * (colW + gap);
@@ -403,11 +408,19 @@ public class Hero implements Section {
                     () -> shot.liked = !shot.liked);
 
             colY[c] += shot.h + gap;
+            int cardBottom = cardY + shot.h;
+            if (cardBottom > maxBottomY) {
+                maxBottomY = cardBottom;
+            }
         }
+
+        return maxBottomY;
     }
 
     private void paintMarqueeStrip(Graphics2D g, int y, int width) {
         int stripH = 50;
+        marqueeY = y;
+        marqueeH = stripH;
 
         g.setColor(Theme.isDark ? new Color(255, 255, 255, 8) : Color.WHITE);
         g.fillRect(0, y, width, stripH);
@@ -500,7 +513,7 @@ public class Hero implements Section {
             if (shot.hovered != was) changed = true;
         }
 
-        marqueeHovered = (my >= getHeight(1200) - 100);
+        marqueeHovered = (my >= marqueeY && my <= marqueeY + marqueeH);
 
         return changed;
     }

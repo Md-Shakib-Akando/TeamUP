@@ -4,6 +4,7 @@ import java.awt.geom.RoundRectangle2D;
 import java.util.ArrayList;
 import java.util.List;
 
+//sdkoerwohrioh
 public class Compare implements Section {
 
     private static class RowData {
