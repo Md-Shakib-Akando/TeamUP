@@ -249,6 +249,36 @@ public class Draw {
     }
 
     /**
+     * Modern sleek pill badge with glowing dot (e.g. "● THE CHALLENGE")
+     */
+    public static void drawSectionBadge(Graphics2D g, String text, int x, int y, Color dotColor) {
+        Graphics2D g2 = (Graphics2D) g.create();
+        g2.setFont(Theme.fontSmallBold());
+        FontMetrics fm = g2.getFontMetrics();
+        int textW = fm.stringWidth(text);
+        int badgeH = 28;
+        int badgeW = textW + 30;
+
+        RoundRectangle2D pill = new RoundRectangle2D.Float(x, y, badgeW, badgeH, badgeH, badgeH);
+        g2.setColor(new Color(dotColor.getRed(), dotColor.getGreen(), dotColor.getBlue(), 20));
+        g2.fill(pill);
+
+        g2.setColor(new Color(dotColor.getRed(), dotColor.getGreen(), dotColor.getBlue(), 55));
+        g2.setStroke(new BasicStroke(1.0f));
+        g2.draw(pill);
+
+        // Dot
+        int dotSize = 6;
+        g2.setColor(dotColor);
+        g2.fillOval(x + 11, y + (badgeH - dotSize) / 2, dotSize, dotSize);
+
+        // Text
+        g2.setColor(Theme.isDark ? new Color(0xEE, 0xF2, 0xF6) : dotColor.darker());
+        g2.drawString(text, x + 22, y + (badgeH - fm.getHeight()) / 2 + fm.getAscent());
+        g2.dispose();
+    }
+
+    /**
      * Generates beautiful modern abstract cover art in pure Java2D
      */
     private static void drawCoverArt(Graphics2D g, int x, int y, int w, int h, int styleIdx, Color c1, Color c2) {

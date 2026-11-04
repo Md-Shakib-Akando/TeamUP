@@ -84,20 +84,23 @@ public class Audience implements Section {
         int rise = reveal.getYOffset();
         g2.translate(0, rise);
 
-        int topY = y + 20;
+        int topY = y + 24;
 
         // Eyebrow & Title
-        g2.setFont(Theme.fontSmallBold());
-        g2.setColor(Theme.BRAND_PINK);
-        g2.drawString("WHO IT'S FOR", padX, topY + 14);
+        Draw.drawSectionBadge(g2, "WHO IT'S FOR", padX, topY, Theme.BRAND_PINK);
 
         g2.setFont(Theme.fontTitle());
         FontMetrics tfm = g2.getFontMetrics();
         g2.setColor(Theme.textPrimary());
-        g2.drawString("Designed for every builder and team", padX, topY + 14 + tfm.getAscent() + 10);
+        int titleY = topY + 44 + tfm.getAscent();
+        g2.drawString("Designed for every builder and team", padX, titleY);
+
+        g2.setFont(Theme.fontBody());
+        g2.setColor(Theme.textSecondary());
+        g2.drawString("Whether tackling coursework, assembling client pods, or building MVPs — TeamUp adapts to your stage.", padX, titleY + 22);
 
         // Tab buttons row
-        int tabY = topY + 85;
+        int tabY = titleY + 48;
         int tabX = padX;
         g2.setFont(Theme.fontBodyBold());
         FontMetrics tabFm = g2.getFontMetrics();

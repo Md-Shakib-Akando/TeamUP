@@ -1,5 +1,6 @@
 import java.awt.*;
 import java.awt.event.KeyEvent;
+import java.awt.geom.RoundRectangle2D;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -24,7 +25,7 @@ public class Footer implements Section {
         this.listener = listener;
         links.add(new FooterLink("Features", "features"));
         links.add(new FooterLink("How it works", "how-it-works"));
-        links.add(new FooterLink("Interactive Demo", "demo"));
+        links.add(new FooterLink("Matching Engine", "demo"));
         links.add(new FooterLink("Comparison", "compare"));
         links.add(new FooterLink("FAQ", "faq"));
         links.add(new FooterLink("Early Access", "cta"));
@@ -37,7 +38,7 @@ public class Footer implements Section {
 
     @Override
     public int getHeight(int width) {
-        return width < 780 ? 340 : 240;
+        return width < 780 ? 380 : 260;
     }
 
     @Override
@@ -55,7 +56,7 @@ public class Footer implements Section {
         g2.setColor(Theme.INK_DARK);
         g2.fillRect(0, y, width, h);
 
-        g2.setColor(new Color(255, 255, 255, 20));
+        g2.setColor(new Color(255, 255, 255, 22));
         g2.setStroke(new BasicStroke(1.2f));
         g2.drawLine(0, y, width, y);
 
@@ -69,23 +70,39 @@ public class Footer implements Section {
         g2.setColor(Color.WHITE);
         g2.drawString("TeamUp", padX + 44, curY + (32 - tfm.getHeight()) / 2 + tfm.getAscent());
 
+        // Status pill badge "● All systems operational"
+        int statusX = padX + 140;
+        int statusW = 160;
+        int statusH = 22;
+        RoundRectangle2D sPill = new RoundRectangle2D.Float(statusX, curY + 5, statusW, statusH, statusH, statusH);
+        g2.setColor(new Color(0x10, 0xB9, 0x81, 30));
+        g2.fill(sPill);
+        g2.setColor(new Color(0x10, 0xB9, 0x81, 70));
+        g2.setStroke(new BasicStroke(1f));
+        g2.draw(sPill);
+
+        g2.setColor(Theme.SUCCESS_GREEN);
+        g2.fillOval(statusX + 10, curY + 12, 6, 6);
+        g2.setFont(Theme.fontSmallBold());
+        g2.setColor(new Color(0x6E, 0xEE, 0xB0));
+        g2.drawString("All systems normal", statusX + 22, curY + 19);
+
         g2.setFont(Theme.fontSmall());
-        FontMetrics sfm = g2.getFontMetrics();
         g2.setColor(new Color(0xD1, 0xD5, 0xDB));
-        g2.drawString("Skill-Based Team Formation & Collaboration Platform", padX, curY + 54);
+        g2.drawString("Skill-Based Team Formation & Milestone Collaboration Platform", padX, curY + 54);
 
         // Project credits from PRD
         g2.setColor(new Color(0x94, 0xA3, 0xB8));
         g2.drawString("Designed & Developed by Sadia Rimi, Sanjida Mostak, Md. Shakib Akando", padX, curY + 76);
 
         // Navigation Links
-        int linksY = isMobile ? (curY + 110) : curY;
+        int linksY = isMobile ? (curY + 116) : curY;
         int linksStartX = isMobile ? padX : (width - Math.min(520, Math.round(width * 0.45f)));
 
         g2.setFont(Theme.fontSmallBold());
         FontMetrics lfm = g2.getFontMetrics();
         int lx = linksStartX;
-        int ly = linksY + 12;
+        int ly = linksY + 14;
 
         for (FooterLink fl : links) {
             fl.w = lfm.stringWidth(fl.label) + 12;
@@ -113,7 +130,7 @@ public class Footer implements Section {
         g2.setColor(new Color(0x94, 0xA3, 0xB8));
         g2.drawString("© 2026 TeamUp Platform. All rights reserved.", padX, bottomY);
 
-        String shortcuts = "Shortcuts: [M] Toggle Motion  ·  [Ctrl +/-] Scale Font  ·  [Tab/Enter] Navigate";
+        String shortcuts = "Shortcuts: [M] Motion  ·  [Ctrl +/-] Scale  ·  [Tab/Enter] Navigate";
         int sw = bfm.stringWidth(shortcuts);
         if (!isMobile && width - padX - sw > padX + 300) {
             g2.drawString(shortcuts, width - padX - sw, bottomY);
@@ -151,4 +168,3 @@ public class Footer implements Section {
     @Override
     public boolean onKey(KeyEvent e) { return false; }
 }
-

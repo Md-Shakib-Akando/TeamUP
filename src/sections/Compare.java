@@ -4,7 +4,6 @@ import java.awt.geom.RoundRectangle2D;
 import java.util.ArrayList;
 import java.util.List;
 
-//sdkoerwohrioh
 public class Compare implements Section {
 
     private static class RowData {
@@ -43,7 +42,7 @@ public class Compare implements Section {
 
     @Override
     public int getHeight(int width) {
-        return 560;
+        return 600;
     }
 
     @Override
@@ -60,23 +59,26 @@ public class Compare implements Section {
         int rise = reveal.getYOffset();
         g2.translate(0, rise);
 
-        int topY = y + 20;
+        int topY = y + 24;
 
         // Eyebrow & Title
-        g2.setFont(Theme.fontSmallBold());
-        g2.setColor(Theme.BRAND_PINK);
-        g2.drawString("COMPARISON MATRIX", padX, topY + 14);
+        Draw.drawSectionBadge(g2, "COMPARISON MATRIX", padX, topY, Theme.BRAND_PINK);
 
         g2.setFont(Theme.fontTitle());
         FontMetrics tfm = g2.getFontMetrics();
         g2.setColor(Theme.textPrimary());
-        g2.drawString("Why TeamUp stands out", padX, topY + 14 + tfm.getAscent() + 10);
+        int titleY = topY + 44 + tfm.getAscent();
+        g2.drawString("Why TeamUp stands out", padX, titleY);
+
+        g2.setFont(Theme.fontBody());
+        g2.setColor(Theme.textSecondary());
+        g2.drawString("Purpose-built for student and builder teams with full lifecycle tracking, chat, and verified peer reviews.", padX, titleY + 22);
 
         // Table container
-        int tableY = topY + 80;
+        int tableY = titleY + 48;
         int tableW = width - padX * 2;
-        int rowH = 48;
-        int tableH = (rows.size() + 1) * rowH + 16;
+        int rowH = 50;
+        int tableH = (rows.size() + 1) * rowH + 20;
         Draw.drawGlassCard(g2, padX, tableY, tableW, tableH, 20, 0f, false);
 
         // Column widths
@@ -89,25 +91,50 @@ public class Compare implements Section {
         int xCC = xCL + colW;
         int xDP = xCC + colW;
 
-        // Highlight background column for TeamUp
-        g2.setColor(new Color(Theme.BRAND_PINK.getRed(), Theme.BRAND_PINK.getGreen(), Theme.BRAND_PINK.getBlue(), 16));
-        g2.fill(new RoundRectangle2D.Float(xTU + 4, tableY + 8, colW - 8, tableH - 16, 12, 12));
-        g2.setColor(new Color(Theme.BRAND_PINK.getRed(), Theme.BRAND_PINK.getGreen(), Theme.BRAND_PINK.getBlue(), 60));
+        // Highlight background column for TeamUp (with subtle gradient)
+        LinearGradientPaint tugp = new LinearGradientPaint(
+                xTU + 4, tableY + 8, xTU + colW - 4, tableY + tableH - 8,
+                new float[]{0f, 1f},
+                new Color[]{
+                        new Color(Theme.BRAND_PINK.getRed(), Theme.BRAND_PINK.getGreen(), Theme.BRAND_PINK.getBlue(), 20),
+                        new Color(Theme.ACCENT_VIOLET.getRed(), Theme.ACCENT_VIOLET.getGreen(), Theme.ACCENT_VIOLET.getBlue(), 12)
+                }
+        );
+        Paint oldPaint = g2.getPaint();
+        g2.setPaint(tugp);
+        g2.fill(new RoundRectangle2D.Float(xTU + 4, tableY + 8, colW - 8, tableH - 16, 14, 14));
+        g2.setPaint(oldPaint);
+
+        g2.setColor(new Color(Theme.BRAND_PINK.getRed(), Theme.BRAND_PINK.getGreen(), Theme.BRAND_PINK.getBlue(), 70));
         g2.setStroke(new BasicStroke(1.2f));
-        g2.draw(new RoundRectangle2D.Float(xTU + 4, tableY + 8, colW - 8, tableH - 16, 12, 12));
+        g2.draw(new RoundRectangle2D.Float(xTU + 4, tableY + 8, colW - 8, tableH - 16, 14, 14));
 
         // Header Row
-        int headerY = tableY + 12;
+        int headerY = tableY + 14;
         g2.setFont(Theme.fontBodyBold());
         FontMetrics rfm = g2.getFontMetrics();
 
         g2.setColor(Theme.textMuted());
-        g2.drawString("Capability", padX + 24, headerY + (rowH - rfm.getHeight()) / 2 + rfm.getAscent());
+        g2.drawString("Platform Capabilities", padX + 24, headerY + (rowH - rfm.getHeight()) / 2 + rfm.getAscent());
 
-        // TeamUp Header
+        // TeamUp Header with recommended badge
+        int tuCenter = xTU + colW / 2;
+        int badgeW = 92;
+        int badgeH = 18;
+        int badgeX = tuCenter - badgeW / 2;
+        int badgeY = headerY + 4;
+        RoundRectangle2D tuPill = new RoundRectangle2D.Float(badgeX, badgeY, badgeW, badgeH, badgeH, badgeH);
+        g2.setColor(Theme.BRAND_PINK);
+        g2.fill(tuPill);
+        g2.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 10));
+        FontMetrics bmf = g2.getFontMetrics();
+        g2.setColor(Color.WHITE);
+        g2.drawString("RECOMMENDED", badgeX + (badgeW - bmf.stringWidth("RECOMMENDED")) / 2, badgeY + 13);
+
+        g2.setFont(Theme.fontBodyBold());
         g2.setColor(Theme.BRAND_PINK);
         String tuStr = "TeamUp";
-        g2.drawString(tuStr, xTU + (colW - rfm.stringWidth(tuStr)) / 2, headerY + (rowH - rfm.getHeight()) / 2 + rfm.getAscent());
+        g2.drawString(tuStr, tuCenter - rfm.stringWidth(tuStr) / 2, headerY + 38);
 
         g2.setColor(Theme.textSecondary());
         String clStr = "CampLink";
@@ -121,10 +148,10 @@ public class Compare implements Section {
 
         // Divider
         g2.setColor(Theme.cardBorder());
-        g2.drawLine(padX + 16, headerY + rowH, padX + tableW - 16, headerY + rowH);
+        g2.drawLine(padX + 16, headerY + rowH + 6, padX + tableW - 16, headerY + rowH + 6);
 
         // Data Rows
-        int curY = headerY + rowH;
+        int curY = headerY + rowH + 6;
         g2.setFont(Theme.fontBody());
         FontMetrics dfm = g2.getFontMetrics();
 
@@ -136,7 +163,7 @@ public class Compare implements Section {
             g2.drawString(r.feature, padX + 24, rowCenterY);
 
             // Icons
-            int iconSize = 20;
+            int iconSize = 22;
             int iconY = curY + (rowH - iconSize) / 2;
 
             // TeamUp
@@ -178,4 +205,3 @@ public class Compare implements Section {
     @Override
     public boolean onKey(KeyEvent e) { return false; }
 }
-
