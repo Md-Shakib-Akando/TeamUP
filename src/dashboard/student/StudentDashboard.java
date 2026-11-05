@@ -27,6 +27,7 @@ public class StudentDashboard {
     private final DashboardOverview overview;
     private final DashboardProjects projectsView;
     private final DashboardTeammates teammatesView;
+    private final DashboardMyProjects myProjectsView;
     private final DashboardModals modals;
 
     // Viewport & scrolling
@@ -194,6 +195,7 @@ public class StudentDashboard {
         this.overview = new DashboardOverview();
         this.projectsView = new DashboardProjects();
         this.teammatesView = new DashboardTeammates();
+        this.myProjectsView = new DashboardMyProjects();
         this.modals = new DashboardModals();
 
         // Initial Overview Projects
@@ -310,6 +312,9 @@ public class StudentDashboard {
         int contentY = headerH - Math.round(scrollY);
 
         switch (activeNav) {
+            case MY_PROJECTS:
+                myProjectsView.paint(cg, sideW, contentY, width - sideW, height, this);
+                break;
             case FIND_TEAMMATES:
                 teammatesView.paint(cg, sideW, contentY, width - sideW, height, this);
                 break;
@@ -334,7 +339,9 @@ public class StudentDashboard {
         paintContentScrollbar(g2, width - 8, headerH, 6, height - headerH);
 
         // 6. Active Dropdown Overlays & Profile Modal
-        if (activeNav == NavItem.DISCOVER_PROJECTS) {
+        if (activeNav == NavItem.MY_PROJECTS) {
+            myProjectsView.paintOverlays(g2, width, height);
+        } else if (activeNav == NavItem.DISCOVER_PROJECTS) {
             projectsView.paintDropdownOverlay(g2);
         } else if (activeNav == NavItem.FIND_TEAMMATES) {
             teammatesView.paintOverlays(g2, width, height);
@@ -353,6 +360,8 @@ public class StudentDashboard {
 
     private int getCurrentContentHeight() {
         switch (activeNav) {
+            case MY_PROJECTS:
+                return myProjectsView.getTotalContentHeight();
             case FIND_TEAMMATES:
                 return teammatesView.getTotalContentHeight();
             case DISCOVER_PROJECTS:
@@ -405,7 +414,9 @@ public class StudentDashboard {
         }
 
         // 2. Active View's High Z-index overlays take priority (Dropdowns & Profile Modals)
-        if (activeNav == NavItem.FIND_TEAMMATES) {
+        if (activeNav == NavItem.MY_PROJECTS) {
+            if (myProjectsView.onClick(mx, my, this)) return true;
+        } else if (activeNav == NavItem.FIND_TEAMMATES) {
             if (teammatesView.onClick(mx, my, this)) return true;
         } else if (activeNav == NavItem.DISCOVER_PROJECTS) {
             if (projectsView.onClick(mx, my, this)) return true;
@@ -423,6 +434,9 @@ public class StudentDashboard {
 
         // 5. Main Content Area controls
         switch (activeNav) {
+            case MY_PROJECTS:
+                if (myProjectsView.onClick(mx, my, this)) return true;
+                break;
             case FIND_TEAMMATES:
                 if (teammatesView.onClick(mx, my, this)) return true;
                 break;
@@ -447,6 +461,9 @@ public class StudentDashboard {
 
         boolean vHov = false;
         switch (activeNav) {
+            case MY_PROJECTS:
+                vHov = myProjectsView.onMouseMove(mx, my);
+                break;
             case FIND_TEAMMATES:
                 vHov = teammatesView.onMouseMove(mx, my);
                 break;
@@ -479,6 +496,9 @@ public class StudentDashboard {
 
         // Active View keys (Search boxes etc.)
         switch (activeNav) {
+            case MY_PROJECTS:
+                if (myProjectsView.onKey(e)) return true;
+                break;
             case FIND_TEAMMATES:
                 if (teammatesView.onKey(e)) return true;
                 break;
@@ -542,4 +562,5 @@ public class StudentDashboard {
 
     public DashboardProjects getProjectsView() { return projectsView; }
     public DashboardTeammates getTeammatesView() { return teammatesView; }
+    public DashboardMyProjects getMyProjectsView() { return myProjectsView; }
 }

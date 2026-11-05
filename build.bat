@@ -15,7 +15,7 @@ if not exist "bin" (
     for /d %%p in (bin\*) do rmdir /s /q "%%p" 2>nul
 )
 
-echo Compiling TeamUp Platform (src -> bin)...
+echo Compiling TeamUp Platform (src to bin)...
 "%JAVAC%" -d bin src\*.java src\sections\*.java src\widgets\*.java src\dashboard\admin\*.java src\dashboard\student\*.java tests\*.java
 if %ERRORLEVEL% EQU 0 (
     echo [OK] Build succeeded! Run run.bat, ./run.sh or "java -cp bin Main".
