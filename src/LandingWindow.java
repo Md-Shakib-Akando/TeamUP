@@ -13,7 +13,7 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
     private final Modal modal;
     private final StudentDashboard dashboard;
     private final AdminDashboard adminDashboard;
-    public boolean showDashboard = false;
+    public boolean showDashboard = true;
     public boolean showAdminDashboard = false;
 
     // Scrolling state
