@@ -189,13 +189,7 @@ public class DashboardSidebar {
         for (StudentDashboard.NavItem item : StudentDashboard.NavItem.values()) {
             if (mx >= padX && mx <= padX + itemW && my >= curY && my <= curY + itemH) {
                 dashboard.setActiveNav(item);
-                if (item == StudentDashboard.NavItem.MESSAGES) {
-                    dashboard.openModal(StudentDashboard.ActiveModal.MESSAGES);
-                } else if (item == StudentDashboard.NavItem.MY_PROFILE) {
-                    dashboard.openModal(StudentDashboard.ActiveModal.COMPLETE_PROFILE);
-                } else {
-                    dashboard.showToast("Switched to " + item.label);
-                }
+                dashboard.showToast("Switched to " + item.label);
                 return true;
             }
             curY += itemH + 2;
