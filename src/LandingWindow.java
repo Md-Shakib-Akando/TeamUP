@@ -5,6 +5,7 @@ import java.awt.image.BufferStrategy;
 import java.util.ArrayList;
 import java.util.List;
 
+@SuppressWarnings("serial")
 public class LandingWindow extends Frame implements MouseListener, MouseMotionListener, MouseWheelListener, KeyListener, ComponentListener, NavBar.NavListener, StudentDashboard.DashboardListener, AdminDashboard.AdminListener {
 
     private final Canvas canvas;
@@ -13,7 +14,7 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
     private final Modal modal;
     private final StudentDashboard dashboard;
     private final AdminDashboard adminDashboard;
-    public boolean showDashboard = false;
+    public boolean showDashboard = true;
     public boolean showAdminDashboard = false;
 
     // Scrolling state

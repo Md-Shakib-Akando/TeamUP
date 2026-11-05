@@ -6,8 +6,9 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Clean, modularized Student Workspace Overview Dashboard for TeamUp.
- * Coordinates DashboardSidebar, DashboardHeader, DashboardOverview, and DashboardModals.
+ * Clean, modularized Student Workspace Dashboard for TeamUp.
+ * Coordinates DashboardSidebar, DashboardHeader, DashboardOverview,
+ * DashboardProjects (Discover Projects), DashboardTeammates (Find Teammates), and DashboardModals.
  * Pure core Java - zero third-party dependencies.
  */
 public class StudentDashboard {
@@ -24,6 +25,9 @@ public class StudentDashboard {
     private final DashboardSidebar sidebar;
     private final DashboardHeader header;
     private final DashboardOverview overview;
+    private final DashboardProjects projectsView;
+    private final DashboardTeammates teammatesView;
+    private final DashboardMyProjects myProjectsView;
     private final DashboardModals modals;
 
     // Viewport & scrolling
@@ -61,7 +65,8 @@ public class StudentDashboard {
         TEAMS_LIST
     }
 
-    private NavItem activeNav = NavItem.OVERVIEW;
+    private NavItem activeNav = NavItem.FIND_TEAMMATES;
+    private NavItem lastNav = NavItem.FIND_TEAMMATES;
     private NavItem hoveredNav = null;
 
     // Interactive Metrics Counters
@@ -170,7 +175,7 @@ public class StudentDashboard {
         }
     }
 
-    // Dynamic Lists
+    // Dynamic Lists for Overview
     private final List<ProjectItem> projects = new ArrayList<>();
     private final List<TeammateItem> teammates = new ArrayList<>();
     private final List<TaskItem> tasks = new ArrayList<>();
@@ -188,9 +193,12 @@ public class StudentDashboard {
         this.sidebar = new DashboardSidebar();
         this.header = new DashboardHeader();
         this.overview = new DashboardOverview();
+        this.projectsView = new DashboardProjects();
+        this.teammatesView = new DashboardTeammates();
+        this.myProjectsView = new DashboardMyProjects();
         this.modals = new DashboardModals();
 
-        // Initial Projects
+        // Initial Overview Projects
         projects.add(new ProjectItem(
                 "GreenRoute", "Maya Patel · Sustainability",
                 "Help students choose cleaner ways to get around campus.",
@@ -204,9 +212,9 @@ public class StudentDashboard {
                 "2 open roles · 3 / 5 members", false, 1
         ));
 
-        // Initial Teammates
+        // Initial Overview Teammates
         teammates.add(new TeammateItem(
-                "PS", new Color(0xED, 0xE9, 0xFE), new Color(0x6D, 0x28, 0xD9),
+                "PS", DashboardTheme.PURPLE_TINT_BG, DashboardTheme.BRAND_PURPLE,
                 "Priya Shah", "UX/UI designer · UW", "96% sample",
                 "Senior studying HCDE at UW. Focused on user research, Figma prototypes, and accessible design systems.",
                 "University of Washington"
@@ -218,15 +226,15 @@ public class StudentDashboard {
                 "University of Washington"
         ));
 
-        // Initial Tasks
+        // Initial Overview Tasks
         tasks.add(new TaskItem("Finalize event API contract", "Overdue · Oct 15 · CampusConnect", 0));
         tasks.add(new TaskItem("Build event discovery cards", "Today · Oct 16 · CampusConnect", 1));
         tasks.add(new TaskItem("Accessibility review", "Mon, Oct 19 · CampusConnect", 2));
 
-        // Initial Activities
+        // Initial Overview Activities
         activities.add(new ActivityItem(
-                "PS", new Color(0xED, 0xE9, 0xFE), new Color(0x6D, 0x28, 0xD9),
-                "Priya Shah", "", "Design", new Color(0xF3, 0xE8, 0xFF), new Color(0x7E, 0x22, 0xCE)
+                "PS", DashboardTheme.PURPLE_TINT_BG, DashboardTheme.BRAND_PURPLE,
+                "Priya Shah", "", "Design", DashboardTheme.PURPLE_TINT_BG, DashboardTheme.BRAND_PURPLE
         ));
         activities.add(new ActivityItem(
                 "DK", new Color(0xDC, 0xFC, 0xE7), new Color(0x15, 0x80, 0x3D),
@@ -271,6 +279,12 @@ public class StudentDashboard {
     }
 
     public void update(float dt) {
+        if (activeNav != lastNav) {
+            lastNav = activeNav;
+            targetScrollY = 0f;
+            scrollY = 0f;
+        }
+
         scrollY = Anim.approach(scrollY, targetScrollY, dt, 14f);
         if (toastTimer > 0f) {
             toastTimer -= dt;
@@ -296,7 +310,21 @@ public class StudentDashboard {
 
         Graphics2D cg = (Graphics2D) g2.create();
         int contentY = headerH - Math.round(scrollY);
-        overview.paint(cg, sideW, contentY, width - sideW, height, this);
+
+        switch (activeNav) {
+            case MY_PROJECTS:
+                myProjectsView.paint(cg, sideW, contentY, width - sideW, height, this);
+                break;
+            case FIND_TEAMMATES:
+                teammatesView.paint(cg, sideW, contentY, width - sideW, height, this);
+                break;
+            case DISCOVER_PROJECTS:
+                projectsView.paint(cg, sideW, contentY, width - sideW, height, this);
+                break;
+            default:
+                overview.paint(cg, sideW, contentY, width - sideW, height, this);
+                break;
+        }
         cg.dispose();
 
         g2.setClip(oldClip);
@@ -310,10 +338,19 @@ public class StudentDashboard {
         // 5. Scrollbar for Content
         paintContentScrollbar(g2, width - 8, headerH, 6, height - headerH);
 
-        // 6. Active Modal Dialog (Instant close if NONE)
+        // 6. Active Dropdown Overlays & Profile Modal
+        if (activeNav == NavItem.MY_PROJECTS) {
+            myProjectsView.paintOverlays(g2, width, height);
+        } else if (activeNav == NavItem.DISCOVER_PROJECTS) {
+            projectsView.paintDropdownOverlay(g2);
+        } else if (activeNav == NavItem.FIND_TEAMMATES) {
+            teammatesView.paintOverlays(g2, width, height);
+        }
+
+        // 7. Active Modal Dialog (Instant close if NONE)
         modals.paint(g2, width, height, this);
 
-        // 7. Toast Notification (if active)
+        // 8. Toast Notification (if active)
         if (!toastMessage.isEmpty()) {
             paintToast(g2, width, height);
         }
@@ -321,8 +358,21 @@ public class StudentDashboard {
         g2.dispose();
     }
 
+    private int getCurrentContentHeight() {
+        switch (activeNav) {
+            case MY_PROJECTS:
+                return myProjectsView.getTotalContentHeight();
+            case FIND_TEAMMATES:
+                return teammatesView.getTotalContentHeight();
+            case DISCOVER_PROJECTS:
+                return projectsView.getTotalContentHeight();
+            default:
+                return overview.getTotalContentHeight();
+        }
+    }
+
     private void paintContentScrollbar(Graphics2D g, int x, int y, int w, int h) {
-        int totalH = overview.getTotalContentHeight();
+        int totalH = getCurrentContentHeight();
         if (totalH <= h) return;
         float ratio = (float) h / (float) totalH;
         int thumbH = Math.max(36, Math.round(h * ratio));
@@ -363,19 +413,39 @@ public class StudentDashboard {
             return true;
         }
 
-        // 2. Header controls
+        // 2. Active View's High Z-index overlays take priority (Dropdowns & Profile Modals)
+        if (activeNav == NavItem.MY_PROJECTS) {
+            if (myProjectsView.onClick(mx, my, this)) return true;
+        } else if (activeNav == NavItem.FIND_TEAMMATES) {
+            if (teammatesView.onClick(mx, my, this)) return true;
+        } else if (activeNav == NavItem.DISCOVER_PROJECTS) {
+            if (projectsView.onClick(mx, my, this)) return true;
+        }
+
+        // 3. Header controls
         if (header.onClick(mx, my, this)) {
             return true;
         }
 
-        // 3. Sidebar controls
+        // 4. Sidebar controls
         if (sidebar.onClick(mx, my, this)) {
             return true;
         }
 
-        // 4. Main Overview controls
-        if (overview.onClick(mx, my, this)) {
-            return true;
+        // 5. Main Content Area controls
+        switch (activeNav) {
+            case MY_PROJECTS:
+                if (myProjectsView.onClick(mx, my, this)) return true;
+                break;
+            case FIND_TEAMMATES:
+                if (teammatesView.onClick(mx, my, this)) return true;
+                break;
+            case DISCOVER_PROJECTS:
+                if (projectsView.onClick(mx, my, this)) return true;
+                break;
+            default:
+                if (overview.onClick(mx, my, this)) return true;
+                break;
         }
 
         return false;
@@ -388,13 +458,28 @@ public class StudentDashboard {
 
         boolean hHov = header.onMouseMove(mx, my);
         boolean sHov = sidebar.onMouseMove(mx, my, this);
-        boolean oHov = overview.onMouseMove(mx, my);
 
-        return hHov || sHov || oHov;
+        boolean vHov = false;
+        switch (activeNav) {
+            case MY_PROJECTS:
+                vHov = myProjectsView.onMouseMove(mx, my);
+                break;
+            case FIND_TEAMMATES:
+                vHov = teammatesView.onMouseMove(mx, my);
+                break;
+            case DISCOVER_PROJECTS:
+                vHov = projectsView.onMouseMove(mx, my);
+                break;
+            default:
+                vHov = overview.onMouseMove(mx, my);
+                break;
+        }
+
+        return hHov || sHov || vHov;
     }
 
     public void onMouseWheel(int wheelRotation, int screenH) {
-        int maxScroll = Math.max(0, overview.getTotalContentHeight() - (screenH - 60));
+        int maxScroll = Math.max(0, getCurrentContentHeight() - (screenH - 60));
         targetScrollY = Math.max(0, Math.min(targetScrollY + wheelRotation * 45, maxScroll));
     }
 
@@ -409,12 +494,31 @@ public class StudentDashboard {
             return true;
         }
 
+        // Active View keys (Search boxes etc.)
+        switch (activeNav) {
+            case MY_PROJECTS:
+                if (myProjectsView.onKey(e)) return true;
+                break;
+            case FIND_TEAMMATES:
+                if (teammatesView.onKey(e)) return true;
+                break;
+            case DISCOVER_PROJECTS:
+                if (projectsView.onKey(e)) return true;
+                break;
+            default:
+                break;
+        }
+
         return false;
     }
 
     // Getters and Setters
     public NavItem getActiveNav() { return activeNav; }
-    public void setActiveNav(NavItem nav) { this.activeNav = nav; }
+    public void setActiveNav(NavItem nav) {
+        this.activeNav = nav;
+        this.targetScrollY = 0f;
+        this.scrollY = 0f;
+    }
 
     public NavItem getHoveredNav() { return hoveredNav; }
     public void setHoveredNav(NavItem nav) { this.hoveredNav = nav; }
@@ -455,4 +559,8 @@ public class StudentDashboard {
     public List<ActivityItem> getActivities() { return activities; }
     public List<String> getNotifications() { return notifications; }
     public List<String> getChatHistory() { return chatHistory; }
+
+    public DashboardProjects getProjectsView() { return projectsView; }
+    public DashboardTeammates getTeammatesView() { return teammatesView; }
+    public DashboardMyProjects getMyProjectsView() { return myProjectsView; }
 }

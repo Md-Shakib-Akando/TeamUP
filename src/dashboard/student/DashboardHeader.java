@@ -79,7 +79,7 @@ public class DashboardHeader {
         rightX -= avatarBtnSize;
         avatarBtnX = rightX;
         avatarBtnY = y + (h - avatarBtnSize) / 2;
-        g.setColor(new Color(0xED, 0xE9, 0xFE));
+        g.setColor(DashboardTheme.PURPLE_TINT_BG);
         g.fillOval(avatarBtnX, avatarBtnY, avatarBtnSize, avatarBtnSize);
         g.setFont(DashboardTheme.FONT_BOLD_12);
         g.setColor(DashboardTheme.BRAND_PURPLE);

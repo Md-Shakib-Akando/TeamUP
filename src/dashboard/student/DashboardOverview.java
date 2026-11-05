@@ -20,6 +20,12 @@ public class DashboardOverview {
     private int findTeammatesBtnX, findTeammatesBtnY, findTeammatesBtnW, findTeammatesBtnH;
     private boolean findTeammatesBtnHovered = false;
 
+    private int exploreAllBtnX, exploreAllBtnY, exploreAllBtnW, exploreAllBtnH;
+    private int findMoreBtnX, findMoreBtnY, findMoreBtnW, findMoreBtnH;
+    private int viewAllBtnX, viewAllBtnY, viewAllBtnW, viewAllBtnH;
+    private int allTasksBtnX, allTasksBtnY, allTasksBtnW, allTasksBtnH;
+    private int viewMessagesBtnX, viewMessagesBtnY, viewMessagesBtnW, viewMessagesBtnH;
+
     private int totalContentHeight = 1100;
 
     public int getTotalContentHeight() {
@@ -60,12 +66,12 @@ public class DashboardOverview {
         int bannerH = 72;
         RoundRectangle2D bannerShape = new RoundRectangle2D.Float(startX + padX, curY, contentW, bannerH, 14, 14);
         GradientPaint bannerGrad = new GradientPaint(
-                startX + padX, curY, new Color(0xF8, 0xFA, 0xFD),
-                startX + padX + contentW, curY, new Color(0xEE, 0xF2, 0xFF)
+                startX + padX, curY, new Color(0xFF, 0xF5, 0xF8),
+                startX + padX + contentW, curY, new Color(0xFD, 0xEE, 0xF4)
         );
         g.setPaint(bannerGrad);
         g.fill(bannerShape);
-        g.setColor(new Color(0xE0, 0xE7, 0xFF));
+        g.setColor(new Color(0xFC, 0xD6, 0xE6));
         g.setStroke(new BasicStroke(1.2f));
         g.draw(bannerShape);
 
@@ -75,7 +81,7 @@ public class DashboardOverview {
         int spSize = 38;
         g.setColor(Color.WHITE);
         g.fillOval(spX, spY, spSize, spSize);
-        g.setColor(new Color(0xE0, 0xE7, 0xFF));
+        g.setColor(new Color(0xFC, 0xD6, 0xE6));
         g.drawOval(spX, spY, spSize, spSize);
         g.setColor(DashboardTheme.BRAND_PURPLE);
         drawSparkle(g, spX + 13, spY + 13, 12);
@@ -103,7 +109,7 @@ public class DashboardOverview {
         g.drawString(pct + "% complete", progX, curY + 26);
 
         RoundRectangle2D progTrack = new RoundRectangle2D.Float(progX, progY, progW, progH, progH, progH);
-        g.setColor(new Color(0xE0, 0xE7, 0xFF));
+        g.setColor(new Color(0xFC, 0xD6, 0xE6));
         g.fill(progTrack);
         RoundRectangle2D progFill = new RoundRectangle2D.Float(progX, progY, Math.round(progW * (pct / 100f)), progH, progH, progH);
         g.setColor(DashboardTheme.BRAND_PURPLE);
@@ -230,7 +236,12 @@ public class DashboardOverview {
         g.setFont(DashboardTheme.FONT_BOLD_12);
         g.setColor(DashboardTheme.BRAND_PURPLE);
         String exp = "Explore all →";
-        g.drawString(exp, x + w - g.getFontMetrics().stringWidth(exp) - 20, y + 30);
+        int expW = g.getFontMetrics().stringWidth(exp);
+        exploreAllBtnX = x + w - expW - 20;
+        exploreAllBtnY = y + 16;
+        exploreAllBtnW = expW;
+        exploreAllBtnH = 20;
+        g.drawString(exp, exploreAllBtnX, y + 30);
 
         int pad = 20;
         int gap = 16;
@@ -259,7 +270,7 @@ public class DashboardOverview {
         int h = p.hitH;
 
         RoundRectangle2D cardShape = new RoundRectangle2D.Float(x, y, w, h, 12, 12);
-        g.setColor(new Color(0xFA, 0xFB, 0xFD));
+        g.setColor(new Color(0xFA, 0xF9, 0xF6));
         g.fill(cardShape);
         g.setColor(DashboardTheme.BORDER_COLOR);
         g.setStroke(new BasicStroke(1.1f));
@@ -326,9 +337,9 @@ public class DashboardOverview {
             int sw = sfm.stringWidth(sk) + 14;
             int sh = 22;
             RoundRectangle2D sPill = new RoundRectangle2D.Float(sx, sy, sw, sh, 6, 6);
-            g.setColor(new Color(0xEE, 0xF2, 0xF6));
+            g.setColor(new Color(0xF4, 0xF2, 0xEE));
             g.fill(sPill);
-            g.setColor(new Color(0x33, 0x41, 0x55));
+            g.setColor(DashboardTheme.TEXT_MUTED);
             g.drawString(sk, sx + 7, sy + 15);
             sx += sw + 6;
         }
@@ -360,7 +371,12 @@ public class DashboardOverview {
         g.setFont(DashboardTheme.FONT_BOLD_12);
         g.setColor(DashboardTheme.BRAND_PURPLE);
         String va = "View all →";
-        g.drawString(va, x + w - g.getFontMetrics().stringWidth(va) - 20, y + 30);
+        int vaW = g.getFontMetrics().stringWidth(va);
+        viewAllBtnX = x + w - vaW - 20;
+        viewAllBtnY = y + 16;
+        viewAllBtnW = vaW;
+        viewAllBtnH = 20;
+        g.drawString(va, viewAllBtnX, y + 30);
 
         int curY = y + 50;
         for (int i = 0; i < Math.min(3, activities.size()); i++) {
@@ -419,7 +435,12 @@ public class DashboardOverview {
         g.setFont(DashboardTheme.FONT_BOLD_12);
         g.setColor(DashboardTheme.BRAND_PURPLE);
         String fm = "Find more →";
-        g.drawString(fm, x + w - g.getFontMetrics().stringWidth(fm) - 20, y + 30);
+        int fmW = g.getFontMetrics().stringWidth(fm);
+        findMoreBtnX = x + w - fmW - 20;
+        findMoreBtnY = y + 16;
+        findMoreBtnW = fmW;
+        findMoreBtnH = 20;
+        g.drawString(fm, findMoreBtnX, y + 30);
 
         int curY = y + 50;
         for (int i = 0; i < Math.min(2, teammates.size()); i++) {
@@ -505,7 +526,12 @@ public class DashboardOverview {
         g.setFont(DashboardTheme.FONT_BOLD_12);
         g.setColor(DashboardTheme.BRAND_PURPLE);
         String at = "All tasks →";
-        g.drawString(at, x + w - g.getFontMetrics().stringWidth(at) - 20, y + 30);
+        int atW = g.getFontMetrics().stringWidth(at);
+        allTasksBtnX = x + w - atW - 20;
+        allTasksBtnY = y + 16;
+        allTasksBtnW = atW;
+        allTasksBtnH = 20;
+        g.drawString(at, allTasksBtnX, y + 30);
 
         int curY = y + 54;
         for (int i = 0; i < Math.min(3, tasks.size()); i++) {
@@ -527,7 +553,12 @@ public class DashboardOverview {
         g.setFont(DashboardTheme.FONT_BOLD_12);
         g.setColor(DashboardTheme.BRAND_PURPLE);
         String vm = "View Messages →";
-        g.drawString(vm, x + w - g.getFontMetrics().stringWidth(vm) - 20, curY);
+        int vmW = g.getFontMetrics().stringWidth(vm);
+        viewMessagesBtnX = x + w - vmW - 20;
+        viewMessagesBtnY = curY - 14;
+        viewMessagesBtnW = vmW;
+        viewMessagesBtnH = 20;
+        g.drawString(vm, viewMessagesBtnX, curY);
     }
 
     private void paintTaskItem(Graphics2D g, StudentDashboard.TaskItem t) {
@@ -593,7 +624,45 @@ public class DashboardOverview {
         // "Find Teammates" right column button
         if (mx >= findTeammatesBtnX && mx <= findTeammatesBtnX + findTeammatesBtnW &&
                 my >= findTeammatesBtnY && my <= findTeammatesBtnY + findTeammatesBtnH) {
-            dashboard.showToast("Showing verified student peers across University of Washington...");
+            dashboard.setActiveNav(StudentDashboard.NavItem.FIND_TEAMMATES);
+            dashboard.showToast("Opening Find Teammates discovery...");
+            return true;
+        }
+
+        // "Explore all ->"
+        if (mx >= exploreAllBtnX && mx <= exploreAllBtnX + exploreAllBtnW &&
+                my >= exploreAllBtnY && my <= exploreAllBtnY + exploreAllBtnH) {
+            dashboard.setActiveNav(StudentDashboard.NavItem.DISCOVER_PROJECTS);
+            dashboard.showToast("Browsing projects looking for teammates...");
+            return true;
+        }
+
+        // "Find more ->"
+        if (mx >= findMoreBtnX && mx <= findMoreBtnX + findMoreBtnW &&
+                my >= findMoreBtnY && my <= findMoreBtnY + findMoreBtnH) {
+            dashboard.setActiveNav(StudentDashboard.NavItem.FIND_TEAMMATES);
+            dashboard.showToast("Opening Find Teammates discovery...");
+            return true;
+        }
+
+        // "View all ->" activity
+        if (mx >= viewAllBtnX && mx <= viewAllBtnX + viewAllBtnW &&
+                my >= viewAllBtnY && my <= viewAllBtnY + viewAllBtnH) {
+            dashboard.showToast("Activity history loaded.");
+            return true;
+        }
+
+        // "All tasks ->"
+        if (mx >= allTasksBtnX && mx <= allTasksBtnX + allTasksBtnW &&
+                my >= allTasksBtnY && my <= allTasksBtnY + allTasksBtnH) {
+            dashboard.openModal(StudentDashboard.ActiveModal.ALL_TASKS);
+            return true;
+        }
+
+        // "View Messages ->"
+        if (mx >= viewMessagesBtnX && mx <= viewMessagesBtnX + viewMessagesBtnW &&
+                my >= viewMessagesBtnY && my <= viewMessagesBtnY + viewMessagesBtnH) {
+            dashboard.openModal(StudentDashboard.ActiveModal.MESSAGES);
             return true;
         }
 
