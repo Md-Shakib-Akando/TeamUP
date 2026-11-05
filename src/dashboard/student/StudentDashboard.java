@@ -15,6 +15,7 @@ public class StudentDashboard {
     public interface DashboardListener {
         void returnToLanding();
         void openModal(String title, String message, boolean isRegister);
+        default void switchToAdminDashboard() {}
     }
 
     private final DashboardListener listener;
@@ -263,6 +264,10 @@ public class StudentDashboard {
 
     public void returnToLanding() {
         if (listener != null) listener.returnToLanding();
+    }
+
+    public void switchToAdminDashboard() {
+        if (listener != null) listener.switchToAdminDashboard();
     }
 
     public void update(float dt) {

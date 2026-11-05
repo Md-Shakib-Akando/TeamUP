@@ -10,6 +10,7 @@ public class NavBar implements Section {
         void scrollToSection(String sectionId);
         void openModal(String title, String message, boolean isRegister);
         void openDashboard();
+        default void openAdminDashboard() {}
     }
 
     private final NavListener listener;
@@ -34,6 +35,8 @@ public class NavBar implements Section {
 
     private int dashX, dashY, dashW = 94, dashH = 34;
     private boolean dashHovered = false;
+    private int adminX, adminY, adminW = 78, adminH = 34;
+    private boolean adminHovered = false;
 
     private int loginX, loginY, loginW = 86, loginH = 34;
     private boolean loginHovered = false;
@@ -157,8 +160,13 @@ public class NavBar implements Section {
             dashY = y + (h - dashH) / 2;
             Draw.drawGhostButton(g, dashX, dashY, dashW, dashH, "Dashboard", dashHovered, false, false);
 
+            // "Admin"
+            adminX = dashX - adminW - 10;
+            adminY = y + (h - adminH) / 2;
+            Draw.drawGhostButton(g, adminX, adminY, adminW, adminH, "Admin", adminHovered, false, false);
+
             // Theme toggle button
-            themeX = dashX - themeSize - 14;
+            themeX = adminX - themeSize - 14;
             themeY = y + (h - themeSize) / 2;
             if (themeHovered) {
                 g.setColor(Theme.isDark ? new Color(255, 255, 255, 20) : new Color(0, 0, 0, 12));
@@ -268,6 +276,13 @@ public class NavBar implements Section {
             return true;
         }
 
+        // "Admin"
+        if (mx >= adminX && mx <= adminX + adminW && my >= adminY && my <= adminY + adminH) {
+            if (listener != null) listener.openAdminDashboard();
+            mobileMenuOpen = false;
+            return true;
+        }
+
         // "Log in"
         if (mx >= loginX && mx <= loginX + loginW && my >= loginY && my <= loginY + loginH) {
             if (listener != null) {
@@ -302,12 +317,14 @@ public class NavBar implements Section {
     public boolean onMouseMove(int mx, int my) {
         boolean prevTheme = themeHovered;
         boolean prevDash = dashHovered;
+        boolean prevAdmin = adminHovered;
         boolean prevLogin = loginHovered;
         boolean prevStart = startHovered;
         boolean prevBurger = burgerHovered;
 
         themeHovered = (mx >= themeX && mx <= themeX + themeSize && my >= themeY && my <= themeY + themeSize);
         dashHovered = (mx >= dashX && mx <= dashX + dashW && my >= dashY && my <= dashY + dashH);
+        adminHovered = (mx >= adminX && mx <= adminX + adminW && my >= adminY && my <= adminY + adminH);
         loginHovered = (mx >= loginX && mx <= loginX + loginW && my >= loginY && my <= loginY + loginH);
         startHovered = (mx >= startX && mx <= startX + startW && my >= startY && my <= startY + startH);
         burgerHovered = (mx >= burgerX && mx <= burgerX + burgerSize && my >= burgerY && my <= burgerY + burgerSize);

@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 cd "$(dirname "$0")"
 
-if [ ! -f "bin/Main.class" ]; then
-    echo "[INFO] Binaries not found, compiling first..."
-    ./build.sh
+./build.sh
+if [ $? -ne 0 ]; then
+    echo "[ERROR] Build failed. Exiting..."
+    exit 1
 fi
 
 if [ -f "./jdk/bin/java.exe" ]; then
