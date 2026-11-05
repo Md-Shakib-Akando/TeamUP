@@ -5,14 +5,17 @@ import java.awt.image.BufferStrategy;
 import java.util.ArrayList;
 import java.util.List;
 
-public class LandingWindow extends Frame implements MouseListener, MouseMotionListener, MouseWheelListener, KeyListener, ComponentListener, NavBar.NavListener, StudentDashboard.DashboardListener {
+@SuppressWarnings("serial")
+public class LandingWindow extends Frame implements MouseListener, MouseMotionListener, MouseWheelListener, KeyListener, ComponentListener, NavBar.NavListener, StudentDashboard.DashboardListener, AdminDashboard.AdminListener {
 
     private final Canvas canvas;
     private final List<Section> sections = new ArrayList<>();
     private final NavBar navBar;
     private final Modal modal;
     private final StudentDashboard dashboard;
-    public boolean showDashboard = false;
+    private final AdminDashboard adminDashboard;
+    public boolean showDashboard = true;
+    public boolean showAdminDashboard = false;
 
     // Scrolling state
     private float scrollY = 0f;
@@ -51,6 +54,7 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
         navBar = new NavBar(this);
         modal = new Modal();
         dashboard = new StudentDashboard(this);
+        adminDashboard = new AdminDashboard(this);
 
         sections.add(new Hero(this));
         sections.add(new Problem());
@@ -122,6 +126,10 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
         Anim.update(dt);
         modal.update(dt);
 
+        if (showAdminDashboard) {
+            adminDashboard.update(dt);
+            return;
+        }
         if (showDashboard) {
             dashboard.update(dt);
             return;
@@ -169,7 +177,9 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
             int height = canvas.getHeight();
             if (width <= 0 || height <= 0) return;
 
-            if (showDashboard) {
+            if (showAdminDashboard) {
+                adminDashboard.paint(g2, width, height);
+            } else if (showDashboard) {
                 dashboard.paint(g2, width, height);
                 modal.paint(g2, width, height);
             } else {
@@ -278,8 +288,30 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
     }
 
     @Override
+    public void openAdminDashboard() {
+        this.showDashboard = false;
+        this.showAdminDashboard = true;
+        this.canvas.requestFocus();
+    }
+
+    @Override
+    public void switchToStudentDashboard() {
+        this.showAdminDashboard = false;
+        this.showDashboard = true;
+        this.canvas.requestFocus();
+    }
+
+    @Override
+    public void switchToAdminDashboard() {
+        this.showDashboard = false;
+        this.showAdminDashboard = true;
+        this.canvas.requestFocus();
+    }
+
+    @Override
     public void returnToLanding() {
         this.showDashboard = false;
+        this.showAdminDashboard = false;
         this.canvas.requestFocus();
     }
 
@@ -287,6 +319,10 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
 
     @Override
     public void mouseWheelMoved(MouseWheelEvent e) {
+        if (showAdminDashboard) {
+            adminDashboard.onMouseWheel(e.getWheelRotation());
+            return;
+        }
         if (showDashboard) {
             dashboard.onMouseWheel(e.getWheelRotation(), canvas.getHeight());
             return;
@@ -307,7 +343,10 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
             if (modal.onClick(mx, my, width, height)) return;
         }
 
-        // 2. Dashboard check
+        // 2. Admin & Student Dashboard check
+        if (showAdminDashboard) {
+            return; // Clicks handled in mouseReleased to prevent double-firing
+        }
         if (showDashboard) {
             long now = System.currentTimeMillis();
             if (now - lastDashClickTime > 180) {
@@ -385,6 +424,12 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
         int width = canvas.getWidth();
         int height = canvas.getHeight();
 
+        if (showAdminDashboard) {
+            if (Math.abs(mx - mousePressX) <= 6 && Math.abs(my - mousePressY) <= 6) {
+                adminDashboard.onClick(mx, my);
+            }
+            return;
+        }
         if (showDashboard) {
             if (Math.abs(mx - mousePressX) <= 6 && Math.abs(my - mousePressY) <= 6) {
                 long now = System.currentTimeMillis();
@@ -432,6 +477,11 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
             return;
         }
 
+        if (showAdminDashboard) {
+            anyHover = adminDashboard.onMouseMove(mx, my);
+            updateCursor(anyHover);
+            return;
+        }
         if (showDashboard) {
             anyHover = dashboard.onMouseMove(mx, my);
             updateCursor(anyHover);
@@ -502,6 +552,14 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
             return;
         }
 
+        if (showAdminDashboard) {
+            if (adminDashboard.onKey(e.getKeyChar(), code)) return;
+            if (code == KeyEvent.VK_ESCAPE) {
+                showAdminDashboard = false;
+                return;
+            }
+            return;
+        }
         if (showDashboard) {
             if (dashboard.onKey(e)) return;
             if (code == KeyEvent.VK_ESCAPE) {
@@ -565,6 +623,9 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
     public void keyTyped(KeyEvent e) {
         if (modal.visible) {
             if (modal.onKey(e)) return;
+        }
+        if (showAdminDashboard) {
+            return; // Handled in keyPressed with full keyCode support
         }
         if (showDashboard) {
             if (dashboard.onKey(e)) return;

@@ -2,60 +2,70 @@ import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.awt.geom.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
  * Pixel-perfect Student Workspace Desktop Application for TeamUp.
- * All 4 views (My Teams, Messages, My Profile, Settings) and Dashboard
- * are 100% unified with the exact landing page design tokens from Theme.java:
+ * Fully integrates modular views (DashboardOverview, DashboardProjects, DashboardTeammates, DashboardMyProjects)
+ * and dedicated interactive views (My Teams, Messages, My Profile, Settings).
+ * All 4 dedicated views are 100% unified with the exact landing page design tokens from Theme.java:
  * - Brand Hot Pink (#EA4C89)
  * - Deep Ink Dark (#0D0C22)
  * - Warm Off-White Canvas (#F8F7F4)
  * - Dribbble Pastel Tints (Violet, Mint, Sunny, Sky, Pink)
- *
- * Pure core Java with vector-drawn graphics and dynamic, interactive data.
- * Compatible with Java 8+.
+ * Pure core Java with zero third-party dependencies. Compatible with Java 8+.
  */
 public class StudentDashboard {
 
     public interface DashboardListener {
         void returnToLanding();
         void openModal(String title, String message, boolean isRegister);
+        default void switchToAdminDashboard() {}
     }
 
     private final DashboardListener listener;
+
+    // Dedicated Interactive Views Data Models
     private final TeamWorkspaceData teamData = new TeamWorkspaceData();
     private final SettingsData settingsData = new SettingsData();
     private final ProfileData profileData = new ProfileData();
     private final MessagesData messagesData = new MessagesData();
+
+    // Modular Sub-components
+    private final DashboardSidebar sidebar;
+    private final DashboardHeader header;
+    private final DashboardOverview overview;
+    private final DashboardProjects projectsView;
+    private final DashboardTeammates teammatesView;
+    private final DashboardMyProjects myProjectsView;
+    private final DashboardModals modals;
 
     // Viewport & scrolling
     private float scrollY = 0f;
     private float targetScrollY = 0f;
     private int totalContentHeight = 1100;
 
-    // Sidebar navigation state
+    // Sidebar navigation items
     public enum NavItem {
-        OVERVIEW("Dashboard", 0),
-        DISCOVER_PROJECTS("Discover Teammates", 0),
-        FIND_TEAMMATES("Explore Projects", 0),
-        MY_PROJECTS("My Teams", 0),
+        OVERVIEW("Overview", 0),
+        DISCOVER_PROJECTS("Discover Projects", 0),
+        FIND_TEAMMATES("Find Teammates", 0),
+        MY_PROJECTS("My Projects", 0),
         MY_TEAMS("My Teams", 0),
         MESSAGES("Messages", 3),
         MY_PROFILE("My Profile", 0),
         SETTINGS("Settings", 0);
 
-        final String label;
-        final int badge;
+        public final String label;
+        public final int badge;
         NavItem(String label, int badge) {
             this.label = label;
             this.badge = badge;
         }
     }
 
-    // =========================================================================
-    // MODULAR COMPATIBILITY BRIDGE (PR #3 INTEGRATION)
-    // =========================================================================
+    // Modal state enum
     public enum ActiveModal {
         NONE,
         CREATE_PROJECT,
@@ -67,21 +77,27 @@ public class StudentDashboard {
         TEAMS_LIST
     }
 
-    private final DashboardSidebar sidebar;
-    private final DashboardHeader header;
-    private final DashboardOverview overview;
-    private final DashboardModals modals;
+    private NavItem activeNav = NavItem.FIND_TEAMMATES;
+    private NavItem lastNav = NavItem.FIND_TEAMMATES;
+    private NavItem hoveredNav = null;
 
+    // Interactive Metrics Counters
     private int activeProjectsCount = 3;
     private int myTeamsCount = 4;
     private int pendingRequestsCount = 5;
     private int tasksDueCount = 6;
     private int profileCompletePercent = 80;
 
+    // User Profile state
     private String profileName = "Alex Morgan";
     private String profileBio = "Computer Science student passionate about distributed systems, React, and UX.";
     private String profilePortfolio = "https://alexmorgan.dev";
 
+    // Toast notification
+    private String toastMessage = "";
+    private float toastTimer = 0f;
+
+    // Selected items for detail modals
     private ProjectItem selectedProject = null;
     private TeammateItem selectedTeammate = null;
 
@@ -101,8 +117,8 @@ public class StudentDashboard {
             this.skills = skills;
             this.footer = footer;
             this.isGreen = isGreen;
-            this.type = type;
             this.bookmarked = false;
+            this.type = type;
         }
     }
 
@@ -128,7 +144,7 @@ public class StudentDashboard {
 
     public static class TaskItem {
         public String title, subtitle;
-        public int statusType;
+        public int statusType; // 0: Overdue, 1: Today, 2: Normal
         public boolean completed;
         public int hitX, hitY, hitW, hitH;
 
@@ -170,85 +186,17 @@ public class StudentDashboard {
         }
     }
 
+    // Dynamic Lists for Overview
     private final List<ProjectItem> projects = new ArrayList<ProjectItem>();
     private final List<TeammateItem> teammates = new ArrayList<TeammateItem>();
     private final List<TaskItem> tasks = new ArrayList<TaskItem>();
     private final List<ActivityItem> activities = new ArrayList<ActivityItem>();
     private final List<String> notifications = new ArrayList<String>();
-    private final List<String> chatHistory = new ArrayList<String>(java.util.Arrays.asList(
+    private final List<String> chatHistory = new ArrayList<String>(Arrays.asList(
             "Priya Shah: Hey Alex, have you checked the new UI mockups for GreenRoute?",
             "Alex Morgan: Yes! Looks super clean, especially the route mapping cards.",
             "Priya Shah: Awesome! Let's sync today at 4 PM to finalize the schema."
     ));
-
-    public void openModal(ActiveModal modal) {
-        if (header != null) header.closePopups();
-        if (modals != null) modals.open(modal);
-    }
-
-    public void closeModal() {
-        if (modals != null) modals.closeModal();
-    }
-
-    public ActiveModal getActiveModal() {
-        return (modals != null) ? modals.getActiveModal() : ActiveModal.NONE;
-    }
-
-    public NavItem getActiveNav() { return activeNav; }
-    public NavItem getHoveredNav() { return hoveredNav; }
-    public void setHoveredNav(NavItem nav) { this.hoveredNav = nav; }
-
-    public int getActiveProjectsCount() { return activeProjectsCount; }
-    public void setActiveProjectsCount(int c) { this.activeProjectsCount = c; }
-
-    public int getMyTeamsCount() { return myTeamsCount; }
-    public void setMyTeamsCount(int c) { this.myTeamsCount = c; }
-
-    public int getPendingRequestsCount() { return pendingRequestsCount; }
-    public void setPendingRequestsCount(int c) { this.pendingRequestsCount = c; }
-
-    public int getTasksDueCount() { return tasksDueCount; }
-    public void setTasksDueCount(int c) { this.tasksDueCount = c; }
-
-    public int getProfileCompletePercent() { return profileCompletePercent; }
-    public void setProfileCompletePercent(int p) { this.profileCompletePercent = p; }
-
-    public String getProfileName() { return profileName; }
-    public void setProfileName(String n) { this.profileName = n; }
-
-    public String getProfileBio() { return profileBio; }
-    public void setProfileBio(String b) { this.profileBio = b; }
-
-    public String getProfilePortfolio() { return profilePortfolio; }
-    public void setProfilePortfolio(String u) { this.profilePortfolio = u; }
-
-    public ProjectItem getSelectedProject() { return selectedProject; }
-    public void setSelectedProject(ProjectItem p) { this.selectedProject = p; }
-
-    public TeammateItem getSelectedTeammate() { return selectedTeammate; }
-    public void setSelectedTeammate(TeammateItem t) { this.selectedTeammate = t; }
-
-    public List<ProjectItem> getProjects() { return projects; }
-    public List<TeammateItem> getTeammates() { return teammates; }
-    public List<TaskItem> getTasks() { return tasks; }
-    public List<ActivityItem> getActivities() { return activities; }
-    public List<String> getNotifications() { return notifications; }
-    public List<String> getChatHistory() { return chatHistory; }
-
-
-    private NavItem activeNav = NavItem.MY_PROFILE;
-    private NavItem hoveredNav = null;
-
-    // Sidebar & header hitboxes
-    private int returnBtnX, returnBtnY, returnBtnW, returnBtnH;
-    private boolean returnBtnHovered = false;
-
-    private int searchX, searchY, searchW, searchH;
-    private String searchText = "";
-    private boolean searchFocused = false;
-
-    private String toastMessage = "";
-    private float toastTimer = 0f;
 
     // =========================================================================
     // HITBOXES - MY PROFILE
@@ -384,20 +332,20 @@ public class StudentDashboard {
 
     public StudentDashboard(DashboardListener listener) {
         this.listener = listener;
-        for (int i = 0; i < teamTabBounds.length; i++) {
-            teamTabBounds[i] = new Rectangle(0, 0, 0, 0);
-        }
-        for (int i = 0; i < settingsTabBounds.length; i++) {
-            settingsTabBounds[i] = new Rectangle(0, 0, 0, 0);
-        }
-        for (int i = 0; i < profileTabBounds.length; i++) {
-            profileTabBounds[i] = new Rectangle(0, 0, 0, 0);
-        }
+
+        for (int i = 0; i < teamTabBounds.length; i++) teamTabBounds[i] = new Rectangle(0, 0, 0, 0);
+        for (int i = 0; i < settingsTabBounds.length; i++) settingsTabBounds[i] = new Rectangle(0, 0, 0, 0);
+        for (int i = 0; i < profileTabBounds.length; i++) profileTabBounds[i] = new Rectangle(0, 0, 0, 0);
+
         this.sidebar = new DashboardSidebar();
         this.header = new DashboardHeader();
         this.overview = new DashboardOverview();
+        this.projectsView = new DashboardProjects();
+        this.teammatesView = new DashboardTeammates();
+        this.myProjectsView = new DashboardMyProjects();
         this.modals = new DashboardModals();
 
+        // Initial Overview Projects
         projects.add(new ProjectItem(
                 "GreenRoute", "Maya Patel · Sustainability",
                 "Help students choose cleaner ways to get around campus.",
@@ -411,6 +359,7 @@ public class StudentDashboard {
                 "2 open roles · 3 / 5 members", false, 1
         ));
 
+        // Initial Overview Teammates
         teammates.add(new TeammateItem(
                 "PS", new Color(0xED, 0xE9, 0xFE), new Color(0x6D, 0x28, 0xD9),
                 "Priya Shah", "UX/UI designer · UW", "96% sample",
@@ -424,10 +373,12 @@ public class StudentDashboard {
                 "University of Washington"
         ));
 
+        // Initial Overview Tasks
         tasks.add(new TaskItem("Finalize event API contract", "Overdue · Oct 15 · CampusConnect", 0));
         tasks.add(new TaskItem("Build event discovery cards", "Today · Oct 16 · CampusConnect", 1));
         tasks.add(new TaskItem("Accessibility review", "Mon, Oct 19 · CampusConnect", 2));
 
+        // Initial Overview Activities
         activities.add(new ActivityItem(
                 "PS", new Color(0xED, 0xE9, 0xFE), new Color(0x6D, 0x28, 0xD9),
                 "Priya Shah", "", "Design", new Color(0xF3, 0xE8, 0xFF), new Color(0x7E, 0x22, 0xCE)
@@ -441,94 +392,186 @@ public class StudentDashboard {
                 "Sofia Martinez", "Mentioned you in \"Build event cards\" · 1 hour ago", "Task", new Color(0xF1, 0xF5, 0xF9), new Color(0x47, 0x55, 0x69)
         ));
 
+        // Initial Notifications
         notifications.add("Priya Shah accepted your invite to GreenRoute (10m ago)");
         notifications.add("Daniel Kim completed the event API schema (42m ago)");
         notifications.add("New teammate match found: Sofia Martinez (1h ago)");
         notifications.add("Deadline reminder: Finalize API contract (Yesterday)");
     }
 
-    public TeamWorkspaceData getTeamData() { return teamData; }
-    public SettingsData getSettingsData() { return settingsData; }
-    public ProfileData getProfileData() { return profileData; }
-    public MessagesData getMessagesData() { return messagesData; }
-
-    public void setActiveNav(NavItem item) {
-        this.activeNav = item;
-        this.scrollY = 0f;
-        this.targetScrollY = 0f;
-    }
-
     public void showToast(String message) {
         this.toastMessage = message;
-        this.toastTimer = 3.5f;
+        this.toastTimer = 3.2f;
+    }
+
+    public void openModal(ActiveModal modal) {
+        if (header != null) header.closePopups();
+        if (modals != null) modals.open(modal);
+    }
+
+    public void closeModal() {
+        if (modals != null) modals.closeModal();
+    }
+
+    public ActiveModal getActiveModal() {
+        return (modals != null) ? modals.getActiveModal() : ActiveModal.NONE;
     }
 
     public void returnToLanding() {
         if (listener != null) listener.returnToLanding();
     }
 
+    public void switchToAdminDashboard() {
+        if (listener != null) listener.switchToAdminDashboard();
+    }
+
     public void update(float dt) {
+        if (activeNav != lastNav) {
+            lastNav = activeNav;
+            targetScrollY = 0f;
+            scrollY = 0f;
+        }
+
         scrollY = Anim.approach(scrollY, targetScrollY, dt, 14f);
         if (toastTimer > 0f) {
             toastTimer -= dt;
             if (toastTimer <= 0f) toastMessage = "";
         }
+        if (modals != null) modals.update(dt);
     }
 
     public void paint(Graphics2D g, int width, int height) {
         Graphics2D g2 = (Graphics2D) g.create();
         Draw.setQualityHints(g2);
 
-        // 1. Warm Off-White Canvas Background (#F8F7F4)
-        g2.setColor(BG_CANVAS);
+        // 1. Overall Background Canvas
+        g2.setColor(DashboardTheme.BG_CANVAS);
         g2.fillRect(0, 0, width, height);
 
         int sideW = 230;
         int headerH = 60;
 
-        // 2. Content Area (Clipped under header & right of sidebar)
+        // 2. Main Scrollable Content Area (Clipped under header & right of sidebar)
         Shape oldClip = g2.getClip();
         g2.setClip(sideW, headerH, width - sideW, height - headerH);
 
         Graphics2D cg = (Graphics2D) g2.create();
         int contentY = headerH - Math.round(scrollY);
 
-        if (activeNav == NavItem.MY_PROFILE) {
-            paintProfileContent(cg, sideW, contentY, width - sideW, height);
-        } else if (activeNav == NavItem.MESSAGES) {
-            paintMessagesContent(cg, sideW, contentY, width - sideW, height);
-        } else if (activeNav == NavItem.SETTINGS) {
-            paintSettingsContent(cg, sideW, contentY, width - sideW, height);
-        } else if (activeNav == NavItem.MY_TEAMS) {
-            paintMyTeamsContent(cg, sideW, contentY, width - sideW, height);
-        } else {
-            overview.paint(cg, sideW, contentY, width - sideW, height, this);
+        switch (activeNav) {
+            case MY_PROJECTS:
+                myProjectsView.paint(cg, sideW, contentY, width - sideW, height, this);
+                break;
+            case FIND_TEAMMATES:
+                teammatesView.paint(cg, sideW, contentY, width - sideW, height, this);
+                break;
+            case DISCOVER_PROJECTS:
+                projectsView.paint(cg, sideW, contentY, width - sideW, height, this);
+                break;
+            case MY_TEAMS:
+                paintMyTeamsContent(cg, sideW, contentY, width - sideW, height);
+                break;
+            case MESSAGES:
+                paintMessagesContent(cg, sideW, contentY, width - sideW, height);
+                break;
+            case MY_PROFILE:
+                paintProfileContent(cg, sideW, contentY, width - sideW, height);
+                break;
+            case SETTINGS:
+                paintSettingsContent(cg, sideW, contentY, width - sideW, height);
+                break;
+            case OVERVIEW:
+            default:
+                overview.paint(cg, sideW, contentY, width - sideW, height, this);
+                break;
         }
         cg.dispose();
 
         g2.setClip(oldClip);
 
-        // 3. Fixed Sidebar
-        paintSidebar(g2, 0, 0, sideW, height);
+        // 3. Left Fixed Sidebar
+        sidebar.paint(g2, 0, 0, sideW, height, this);
 
-        // 4. Fixed Top Header
-        paintHeader(g2, sideW, 0, width - sideW, headerH);
-
-        if (modals != null && modals.getActiveModal() != ActiveModal.NONE) {
-            modals.paint(g2, width, height, this);
-        }
+        // 4. Top Fixed Header
+        header.paint(g2, sideW, 0, width - sideW, headerH, this);
 
         // 5. Scrollbar for Content (Hidden for Messages split view)
         if (activeNav != NavItem.MESSAGES) {
             paintContentScrollbar(g2, width - 8, headerH, 6, height - headerH);
         }
 
-        // 6. Toast Notification
+        // 6. Active Dropdown Overlays & Profile Modal
+        if (activeNav == NavItem.MY_PROJECTS) {
+            myProjectsView.paintOverlays(g2, width, height);
+        } else if (activeNav == NavItem.DISCOVER_PROJECTS) {
+            projectsView.paintDropdownOverlay(g2);
+        } else if (activeNav == NavItem.FIND_TEAMMATES) {
+            teammatesView.paintOverlays(g2, width, height);
+        }
+
+        // 7. Active Modal Dialog (Instant close if NONE)
+        if (modals != null && modals.getActiveModal() != ActiveModal.NONE) {
+            modals.paint(g2, width, height, this);
+        }
+
+        // 8. Toast Notification (if active)
         if (!toastMessage.isEmpty()) {
             paintToast(g2, width, height);
         }
 
         g2.dispose();
+    }
+
+    private int getCurrentContentHeight() {
+        switch (activeNav) {
+            case MY_PROJECTS:
+                return myProjectsView.getTotalContentHeight();
+            case FIND_TEAMMATES:
+                return teammatesView.getTotalContentHeight();
+            case DISCOVER_PROJECTS:
+                return projectsView.getTotalContentHeight();
+            case OVERVIEW:
+                return overview.getTotalContentHeight();
+            case MY_TEAMS:
+            case MESSAGES:
+            case MY_PROFILE:
+            case SETTINGS:
+            default:
+                return totalContentHeight;
+        }
+    }
+
+    private void paintContentScrollbar(Graphics2D g, int x, int y, int w, int h) {
+        int totalH = getCurrentContentHeight();
+        if (totalH <= h) return;
+        float ratio = (float) h / (float) totalH;
+        int thumbH = Math.max(36, Math.round(h * ratio));
+        int maxScroll = totalH - h;
+        float pct = scrollY / (float) maxScroll;
+        int thumbY = y + Math.round((h - thumbH) * pct);
+
+        RoundRectangle2D thumb = new RoundRectangle2D.Float(x, thumbY, w, thumbH, w, w);
+        g.setColor(new Color(0xD1, 0xD5, 0xDB));
+        g.fill(thumb);
+    }
+
+    private void paintToast(Graphics2D g, int width, int height) {
+        g.setFont(DashboardTheme.FONT_BOLD_12);
+        FontMetrics fm = g.getFontMetrics();
+        int tw = fm.stringWidth(toastMessage) + 36;
+        int th = 36;
+        int tx = (width - tw) / 2;
+        int ty = height - 60;
+
+        RoundRectangle2D tShape = new RoundRectangle2D.Float(tx, ty, tw, th, 18, 18);
+        g.setColor(new Color(0x0D, 0x0C, 0x22, 235));
+        g.fill(tShape);
+        g.setColor(BORDER_COLOR);
+        g.setStroke(new BasicStroke(1f));
+        g.draw(tShape);
+
+        g.setColor(Color.WHITE);
+        g.drawString("✓  " + toastMessage, tx + 18, ty + 22);
     }
 
     // =========================================================================
@@ -2495,708 +2538,541 @@ public class StudentDashboard {
     }
 
     // =========================================================================
-    // 5. SIDEBAR RENDERING (UNIFIED WITH BRAND HOT PINK)
-    // =========================================================================
-    private void paintSidebar(Graphics2D g, int x, int y, int w, int h) {
-        g.setColor(SIDEBAR_BG);
-        g.fillRect(x, y, w, h);
-        g.setColor(BORDER_COLOR);
-        g.drawLine(x + w - 1, y, x + w - 1, y + h);
-
-        int curY = y + 20;
-        int padX = 20;
-
-        paintLogo(g, x + padX, curY);
-        curY += 46;
-
-        int itemH = 38;
-        int itemW = w - padX * 2;
-        NavItem[] items = NavItem.values();
-
-        for (NavItem item : items) {
-            boolean isSel = (item == activeNav);
-            boolean isHov = (item == hoveredNav);
-            int itemX = x + padX;
-            int itemY = curY;
-
-            RoundRectangle2D itemShape = new RoundRectangle2D.Float(itemX, itemY, itemW, itemH, 10, 10);
-            if (isSel) {
-                g.setColor(BRAND_TINT_BG);
-                g.fill(itemShape);
-            } else if (isHov) {
-                g.setColor(BG_CANVAS);
-                g.fill(itemShape);
-            }
-
-            Color iconCol = isSel ? BRAND_ACCENT : TEXT_MUTED;
-            paintNavIcon(g, item, itemX + 12, itemY + 11, 16, iconCol);
-
-            g.setFont(new Font(Font.SANS_SERIF, isSel ? Font.BOLD : Font.PLAIN, 13));
-            g.setColor(isSel ? BRAND_ACCENT : TEXT_MUTED);
-            g.drawString(item.label, itemX + 38, itemY + 24);
-
-            int badgeCount = (item == NavItem.MESSAGES) ? messagesData.getTotalUnreadCount() : item.badge;
-            if (badgeCount > 0) {
-                int bw = 20;
-                int bh = 18;
-                int bx = itemX + itemW - bw - 10;
-                int by = itemY + (itemH - bh) / 2;
-                RoundRectangle2D bShape = new RoundRectangle2D.Float(bx, by, bw, bh, bh, bh);
-                g.setColor(BRAND_TINT_BG);
-                g.fill(bShape);
-                g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 10));
-                g.setColor(BRAND_ACCENT);
-                g.drawString(String.valueOf(badgeCount), bx + 7, by + 13);
-            }
-
-            curY += itemH + 2;
-        }
-
-        int promoCardH = 88;
-        int promoCardY = curY + 14;
-        RoundRectangle2D promoCard = new RoundRectangle2D.Float(x + padX, promoCardY, itemW, promoCardH, 10, 10);
-        g.setColor(Theme.PASTEL_PINK);
-        g.fill(promoCard);
-
-        g.setColor(BRAND_ACCENT);
-        drawSparkle(g, x + padX + 18, promoCardY + 18, 7);
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
-        g.setColor(TEXT_DARK);
-        g.drawString("Better teams start here", x + padX + 12, promoCardY + 38);
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 10));
-        g.setColor(TEXT_MUTED);
-        g.drawString("Keep your skills up to date", x + padX + 12, promoCardY + 54);
-        g.drawString("to find the right", x + padX + 12, promoCardY + 68);
-        g.drawString("collaborators.", x + padX + 12, promoCardY + 80);
-
-        int retY = promoCardY + promoCardH + 12;
-        returnBtnX = x + padX;
-        returnBtnY = retY;
-        returnBtnW = w - padX * 2;
-        returnBtnH = 32;
-        RoundRectangle2D retShape = new RoundRectangle2D.Float(returnBtnX, returnBtnY, returnBtnW, returnBtnH, 8, 8);
-        g.setColor(returnBtnHovered ? BG_CANVAS : Color.WHITE);
-        g.fill(retShape);
-        g.setColor(BORDER_COLOR);
-        g.draw(retShape);
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 10));
-        g.setColor(TEXT_MUTED);
-        g.drawString("← Back to Landing", returnBtnX + 14, returnBtnY + 20);
-
-        int bottomH = 64;
-        int bottomY = h - bottomH;
-        g.setColor(BORDER_COLOR);
-        g.drawLine(x, bottomY, x + w, bottomY);
-
-        int avX = x + padX;
-        int avY = bottomY + 14;
-        int avSize = 34;
-        g.setColor(Theme.PASTEL_PINK);
-        g.fillOval(avX, avY, avSize, avSize);
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
-        g.setColor(BRAND_ACCENT);
-        g.drawString("AM", avX + 8, avY + 22);
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
-        g.setColor(TEXT_DARK);
-        g.drawString(profileData.name, avX + 42, avY + 15);
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 10));
-        g.setColor(TEXT_LIGHT);
-        g.drawString("Personal workspace", avX + 42, avY + 29);
-
-        Draw.drawChevronDown(g, x + w - padX - 8, avY + 12, 8, TEXT_LIGHT, 0f);
-    }
-
-    private void paintLogo(Graphics2D g, int x, int y) {
-        int iconSize = 28;
-        RoundRectangle2D logoBg = new RoundRectangle2D.Float(x, y, iconSize, iconSize, 8, 8);
-        g.setColor(BRAND_ACCENT);
-        g.fill(logoBg);
-
-        g.setColor(Color.WHITE);
-        int d = 6;
-        g.fillRoundRect(x + 6, y + 6, d, d, 2, 2);
-        g.fillRoundRect(x + 16, y + 6, d, d, 2, 2);
-        g.fillRoundRect(x + 6, y + 16, d, d, 2, 2);
-        g.fillRoundRect(x + 16, y + 16, d, d, 2, 2);
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 19));
-        g.setColor(TEXT_DARK);
-        g.drawString("TeamUp", x + 38, y + 21);
-    }
-
-    private void paintNavIcon(Graphics2D g, NavItem item, int x, int y, int size, Color c) {
-        g.setColor(c);
-        g.setStroke(new BasicStroke(1.4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-
-        switch (item) {
-            case OVERVIEW:
-                int s = 5;
-                g.drawRoundRect(x, y, s, s, 2, 2);
-                g.drawRoundRect(x + 9, y, s, s, 2, 2);
-                g.drawRoundRect(x, y + 9, s, s, 2, 2);
-                g.drawRoundRect(x + 9, y + 9, s, s, 2, 2);
-                break;
-            case DISCOVER_PROJECTS:
-                g.drawOval(x + 3, y, 6, 6);
-                g.drawArc(x, y + 8, 12, 8, 0, 180);
-                g.drawOval(x + 10, y + 2, 4, 4);
-                break;
-            case FIND_TEAMMATES:
-                g.drawOval(x, y, size, size);
-                g.drawLine(x + 5, y + 11, x + 11, y + 5);
-                break;
-            case MY_PROJECTS:
-            case MY_TEAMS:
-                g.drawRoundRect(x, y + 3, size - 2, size - 5, 3, 3);
-                g.drawLine(x, y + 6, x + 6, y + 6);
-                break;
-            case MESSAGES:
-                g.drawRoundRect(x, y + 1, size - 2, size - 4, 4, 4);
-                g.drawLine(x + 4, y + size - 3, x + 2, y + size);
-                break;
-            case MY_PROFILE:
-                g.drawOval(x + 4, y + 1, 8, 8);
-                g.drawArc(x + 1, y + 10, 14, 6, 0, 180);
-                break;
-            case SETTINGS:
-                drawGearIcon(g, x, y, size, c);
-                break;
-        }
-    }
-
-    private void paintHeader(Graphics2D g, int x, int y, int w, int h) {
-        g.setColor(SIDEBAR_BG);
-        g.fillRect(x, y, w, h);
-        g.setColor(BORDER_COLOR);
-        g.drawLine(x, y + h - 1, x + w, y + h - 1);
-
-        int padX = 28;
-
-        searchX = x + padX;
-        searchY = y + 12;
-        searchW = Math.min(360, w - 240);
-        searchH = 36;
-        RoundRectangle2D searchPill = new RoundRectangle2D.Float(searchX, searchY, searchW, searchH, 8, 8);
-        g.setColor(searchFocused ? Color.WHITE : BG_CANVAS);
-        g.fill(searchPill);
-        g.setColor(searchFocused ? BRAND_ACCENT : BORDER_COLOR);
-        g.draw(searchPill);
-
-        g.setColor(TEXT_LIGHT);
-        g.setStroke(new BasicStroke(1.4f));
-        g.drawOval(searchX + 14, searchY + 11, 10, 10);
-        g.drawLine(searchX + 22, searchY + 19, searchX + 26, searchY + 23);
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
-        if (searchText.isEmpty() && !searchFocused) {
-            g.setColor(TEXT_LIGHT);
-            g.drawString("Search TeamUp...", searchX + 34, searchY + 22);
-        } else {
-            g.setColor(TEXT_DARK);
-            g.drawString(searchText, searchX + 34, searchY + 22);
-        }
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 10));
-        g.setColor(TEXT_LIGHT);
-        g.drawString("⌘ K", searchX + searchW - 32, searchY + 22);
-
-        int rightX = x + w - padX;
-
-        rightX -= 10;
-        Draw.drawChevronDown(g, rightX, y + (h - 6) / 2, 8, TEXT_LIGHT, 0f);
-
-        int avSize = 32;
-        rightX -= (avSize + 10);
-        int avY = y + (h - avSize) / 2;
-        g.setColor(Theme.PASTEL_PINK);
-        g.fillOval(rightX, avY, avSize, avSize);
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
-        g.setColor(BRAND_ACCENT);
-        g.drawString("AM", rightX + 7, avY + 21);
-
-        rightX -= 34;
-        int bellX = rightX;
-        int bellY = y + 21;
-        g.setColor(TEXT_MUTED);
-        g.setStroke(new BasicStroke(1.4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-        g.drawArc(bellX, bellY, 14, 14, 0, 180);
-        g.drawLine(bellX - 2, bellY + 14, bellX + 16, bellY + 14);
-        g.drawOval(bellX + 5, bellY + 14, 4, 3);
-    }
-
-    private void paintOverviewContent(Graphics2D g, int startX, int startY, int width, int height) {
-        int padX = 36;
-        int padY = 28;
-        int contentW = width - padX * 2;
-        int curY = startY + padY;
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 26));
-        g.setColor(TEXT_DARK);
-        g.drawString("Welcome back, Alex!", startX + padX, curY + 26);
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
-        g.setColor(TEXT_MUTED);
-        g.drawString("A little progress, a great team. Here's what's happening today.", startX + padX, curY + 48);
-        totalContentHeight = curY + 500;
-    }
-
-    private void drawSparkle(Graphics2D g, int cx, int cy, int size) {
-        Path2D.Float p = new Path2D.Float();
-        p.moveTo(cx, cy - size);
-        p.quadTo(cx, cy, cx + size, cy);
-        p.quadTo(cx, cy, cx, cy + size);
-        p.quadTo(cx, cy, cx - size, cy);
-        p.quadTo(cx, cy, cx, cy - size);
-        g.fill(p);
-    }
-
-    private void paintContentScrollbar(Graphics2D g, int x, int y, int w, int h) {
-        if (totalContentHeight <= h) return;
-        float ratio = (float) h / (float) totalContentHeight;
-        int thumbH = Math.max(36, Math.round(h * ratio));
-        int maxScroll = totalContentHeight - h;
-        float pct = scrollY / (float) maxScroll;
-        int thumbY = y + Math.round((h - thumbH) * pct);
-
-        RoundRectangle2D thumb = new RoundRectangle2D.Float(x, thumbY, w, thumbH, w, w);
-        g.setColor(SCROLL_THUMB);
-        g.fill(thumb);
-    }
-
-    private void paintToast(Graphics2D g, int width, int height) {
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
-        FontMetrics fm = g.getFontMetrics();
-        int tw = fm.stringWidth(toastMessage) + 36;
-        int th = 36;
-        int tx = (width - tw) / 2;
-        int ty = height - 60;
-
-        RoundRectangle2D tShape = new RoundRectangle2D.Float(tx, ty, tw, th, 18, 18);
-        g.setColor(Theme.INK_DARK);
-        g.fill(tShape);
-        g.setColor(BORDER_COLOR);
-        g.setStroke(new BasicStroke(1f));
-        g.draw(tShape);
-
-        g.setColor(Color.WHITE);
-        g.drawString("✓  " + toastMessage, tx + 18, ty + 22);
-    }
-
-    // =========================================================================
-    // EVENT HANDLING & USER INTERACTIONS
+    // EVENT HANDLING & USER ACTIONS
     // =========================================================================
     public boolean onClick(int mx, int my) {
-        if (modals != null && modals.onClick(mx, my, this)) return true;
-        if (mx >= returnBtnX && mx <= returnBtnX + returnBtnW && my >= returnBtnY && my <= returnBtnY + returnBtnH) {
-            if (listener != null) listener.returnToLanding();
+        // 1. Modals take priority
+        if (modals != null && modals.onClick(mx, my, this)) {
             return true;
         }
 
-        int sideW = 230;
-        int padX = 20;
-        int curY = 20 + 46;
-        int itemH = 38;
-        int itemW = sideW - padX * 2;
-
-        for (NavItem item : NavItem.values()) {
-            if (mx >= padX && mx <= padX + itemW && my >= curY && my <= curY + itemH) {
-                activeNav = item;
-                targetScrollY = 0f;
-                showToast("Switched to " + item.label);
-                return true;
-            }
-            curY += itemH + 2;
+        // 2. Active View's High Z-index overlays take priority (Dropdowns & Profile Modals)
+        if (activeNav == NavItem.MY_PROJECTS) {
+            if (myProjectsView.onClick(mx, my, this)) return true;
+        } else if (activeNav == NavItem.FIND_TEAMMATES) {
+            if (teammatesView.onClick(mx, my, this)) return true;
+        } else if (activeNav == NavItem.DISCOVER_PROJECTS) {
+            if (projectsView.onClick(mx, my, this)) return true;
         }
 
-        searchFocused = (mx >= searchX && mx <= searchX + searchW && my >= searchY && my <= searchY + searchH);
-
-        // 1. MY PROFILE INTERACTIONS
-        if (activeNav == NavItem.MY_PROFILE) {
-            for (int i = 0; i < profileTabBounds.length; i++) {
-                if (profileTabBounds[i] != null && profileTabBounds[i].contains(mx, my)) {
-                    profileData.activeTabIndex = i;
-                    targetScrollY = 0f;
-                    showToast("Switched to " + profileData.tabs.get(i));
-                    return true;
-                }
-            }
-
-            if (editProfileBtnBox.contains(mx, my)) {
-                if (listener != null) {
-                    listener.openModal("Edit Profile - Alex Morgan", "Update your academic details, availability, headline, and bio.", false);
-                }
-                return true;
-            }
-
-            if (shareProfileBtnBox.contains(mx, my)) {
-                showToast("Profile link copied: teamup.com/u/alexmorgan");
-                return true;
-            }
-
-            for (int i = 0; i < profileSkillBounds.size(); i++) {
-                if (profileSkillBounds.get(i).contains(mx, my)) {
-                    profileData.toggleEndorsement(i % profileData.skills.size());
-                    ProfileData.ProfileSkill s = profileData.skills.get(i % profileData.skills.size());
-                    showToast(s.userEndorsed ? ("Endorsed " + s.name + " (" + s.endorsements + ")") : ("Removed endorsement for " + s.name));
-                    return true;
-                }
-            }
-
-            for (int i = 0; i < profileProjectBounds.size(); i++) {
-                if (profileProjectBounds.get(i).contains(mx, my)) {
-                    ProfileData.ProfileProject p = profileData.projects.get(i % profileData.projects.size());
-                    showToast("Opening workspace for " + p.title + "...");
-                    return true;
-                }
-            }
+        // 3. Header controls
+        if (header != null && header.onClick(mx, my, this)) {
+            return true;
         }
 
-        // 2. MESSAGES INTERACTIONS
-        if (activeNav == NavItem.MESSAGES) {
-            for (int i = 0; i < convBounds.size(); i++) {
-                if (convBounds.get(i).contains(mx, my)) {
-                    messagesData.selectConversation(i);
-                    showToast("Opened: " + messagesData.getActiveConversation().title);
-                    return true;
-                }
-            }
-
-            if (msgInputBox.contains(mx, my)) {
-                messagesData.inputFocused = true;
-                return true;
-            } else {
-                messagesData.inputFocused = false;
-            }
-
-            if (msgSendBtnBox.contains(mx, my)) {
-                messagesData.sendCurrentDraft();
-                showToast("Message sent to " + messagesData.getActiveConversation().title);
-                return true;
-            }
-
-            if (videoCallBtnBox.contains(mx, my)) {
-                if (listener != null) {
-                    listener.openModal("Start Video Meeting", "Connect via UW Zoom or WebRTC with " + messagesData.getActiveConversation().title + ".", false);
-                }
-                return true;
-            }
+        // 4. Sidebar controls
+        if (sidebar != null && sidebar.onClick(mx, my, this)) {
+            return true;
         }
 
-        // 3. SETTINGS INTERACTIONS
-        if (activeNav == NavItem.SETTINGS) {
-            for (int i = 0; i < settingsTabBounds.length; i++) {
-                if (settingsTabBounds[i] != null && settingsTabBounds[i].contains(mx, my)) {
-                    settingsData.activeTab = SettingsData.SettingsTab.values()[i];
-                    targetScrollY = 0f;
-                    showToast("Switched to Settings: " + settingsData.activeTab.label);
-                    return true;
-                }
-            }
-
-            if (settingsData.activeTab == SettingsData.SettingsTab.ACCOUNT) {
-                if (fullNameBox.contains(mx, my)) {
-                    settingsData.focusedField = SettingsData.ActiveField.FULL_NAME;
-                    return true;
-                }
-                if (usernameBox.contains(mx, my)) {
-                    settingsData.focusedField = SettingsData.ActiveField.USERNAME;
-                    return true;
-                }
-                if (emailBox.contains(mx, my)) {
-                    settingsData.focusedField = SettingsData.ActiveField.EMAIL;
-                    return true;
-                }
-                settingsData.focusedField = SettingsData.ActiveField.NONE;
-
-                if (saveAccountBtnBox.contains(mx, my)) {
-                    settingsData.saveAccountChanges();
-                    showToast("Account details updated successfully!");
-                    return true;
-                }
-                if (cancelAccountBtnBox.contains(mx, my)) {
-                    settingsData.cancelAccountChanges();
-                    showToast("Account changes discarded.");
-                    return true;
-                }
-                if (changePassBtnBox.contains(mx, my)) {
-                    if (listener != null) {
-                        listener.openModal("Update Account Password", "Enter your current password and choose a secure new password.", false);
-                    }
-                    return true;
-                }
-            }
-
-            if (settingsData.activeTab == SettingsData.SettingsTab.PROFILE_PRIVACY) {
-                if (radioPublicBox.contains(mx, my)) {
-                    settingsData.visibility = SettingsData.ProfileVisibility.PUBLIC;
-                    showToast("Profile visibility: Public");
-                    return true;
-                }
-                if (radioTeamBox.contains(mx, my)) {
-                    settingsData.visibility = SettingsData.ProfileVisibility.TEAM_MEMBERS;
-                    showToast("Profile visibility: Team members");
-                    return true;
-                }
-                if (radioPrivateBox.contains(mx, my)) {
-                    settingsData.visibility = SettingsData.ProfileVisibility.PRIVATE;
-                    showToast("Profile visibility: Private");
-                    return true;
-                }
-                if (toggleSkillsBox.contains(mx, my)) {
-                    settingsData.showSkills = !settingsData.showSkills;
-                    showToast("Show skills on profile: " + (settingsData.showSkills ? "Enabled" : "Disabled"));
-                    return true;
-                }
-                if (toggleActivityBox.contains(mx, my)) {
-                    settingsData.showActivity = !settingsData.showActivity;
-                    showToast("Show activity on profile: " + (settingsData.showActivity ? "Enabled" : "Disabled"));
-                    return true;
-                }
-                if (savePrivacyBtnBox.contains(mx, my)) {
-                    showToast("Privacy preferences saved!");
-                    return true;
-                }
-                if (cancelPrivacyBtnBox.contains(mx, my)) {
-                    showToast("Privacy changes cancelled.");
-                    return true;
-                }
-            }
-
-            if (settingsData.activeTab == SettingsData.SettingsTab.COLLAB_PREFERENCES) {
-                for (int i = 0; i < catRemoveBounds.size(); i++) {
-                    if (catRemoveBounds.get(i).contains(mx, my)) {
-                        String rem = settingsData.categories.get(i);
-                        settingsData.removeCategory(i);
-                        showToast("Removed: " + rem);
-                        return true;
-                    }
-                }
-                if (addCatBox.contains(mx, my)) {
-                    settingsData.addCategory("Mobile Development");
-                    showToast("Added 'Mobile Development' category!");
-                    return true;
-                }
-                if (checkFrontendBox.contains(mx, my)) {
-                    settingsData.roleFrontendDev = !settingsData.roleFrontendDev;
-                    showToast("Frontend Dev: " + (settingsData.roleFrontendDev ? "Checked" : "Unchecked"));
-                    return true;
-                }
-                if (checkUiBox.contains(mx, my)) {
-                    settingsData.roleUiDev = !settingsData.roleUiDev;
-                    showToast("UI Dev: " + (settingsData.roleUiDev ? "Checked" : "Unchecked"));
-                    return true;
-                }
-                if (checkBackendBox.contains(mx, my)) {
-                    settingsData.roleBackendDev = !settingsData.roleBackendDev;
-                    showToast("Backend Dev: " + (settingsData.roleBackendDev ? "Checked" : "Unchecked"));
-                    return true;
-                }
-                if (checkLeadBox.contains(mx, my)) {
-                    settingsData.roleProjectLead = !settingsData.roleProjectLead;
-                    showToast("Project Lead: " + (settingsData.roleProjectLead ? "Checked" : "Unchecked"));
-                    return true;
-                }
-                if (availDropdown.contains(mx, my)) {
-                    settingsData.toggleWeeklyAvailability();
-                    showToast("Availability: " + settingsData.weeklyAvailability);
-                    return true;
-                }
-                if (commitDropdown.contains(mx, my)) {
-                    settingsData.toggleCommitment();
-                    showToast("Commitment: " + settingsData.preferredCommitment);
-                    return true;
-                }
-                if (modeRemoteBox.contains(mx, my)) {
-                    settingsData.collabMode = SettingsData.CollabMode.REMOTE;
-                    showToast("Collab: Remote");
-                    return true;
-                }
-                if (modeInPersonBox.contains(mx, my)) {
-                    settingsData.collabMode = SettingsData.CollabMode.IN_PERSON;
-                    showToast("Collab: In person");
-                    return true;
-                }
-                if (modeEitherBox.contains(mx, my)) {
-                    settingsData.collabMode = SettingsData.CollabMode.EITHER;
-                    showToast("Collab: Either works");
-                    return true;
-                }
-                if (saveCollabBtnBox.contains(mx, my)) {
-                    showToast("Collaboration preferences saved!");
-                    return true;
-                }
-            }
-
-            if (settingsData.activeTab == SettingsData.SettingsTab.DANGER_ZONE) {
-                if (deactivateBtnBox.contains(mx, my)) {
-                    if (listener != null) {
-                        listener.openModal("Deactivate TeamUp Account", "Take a break without deleting projects. You can reactivate anytime.", false);
-                    }
-                    return true;
-                }
-                if (deleteAccountBtnBox.contains(mx, my)) {
-                    if (listener != null) {
-                        listener.openModal("Delete Account Permanently", "Warning: You own '" + settingsData.ownedProject + "'. Transfer ownership before deleting.", true);
-                    }
-                    return true;
-                }
-            }
-        }
-
-        // 4. MY TEAMS INTERACTIONS
-        if (activeNav == NavItem.MY_TEAMS) {
-            for (int i = 0; i < teamData.tabs.size() && i < teamTabBounds.length; i++) {
-                if (teamTabBounds[i] != null && teamTabBounds[i].contains(mx, my)) {
-                    teamData.activeTabIndex = i;
-                    targetScrollY = 0f;
-                    showToast("Switched to tab: " + teamData.tabs.get(i));
-                    return true;
-                }
-            }
-
-            if (mx >= teamSettingsBtnX && mx <= teamSettingsBtnX + teamSettingsBtnW &&
-                    my >= teamSettingsBtnY && my <= teamSettingsBtnY + teamSettingsBtnH) {
-                activeNav = NavItem.SETTINGS;
-                showToast("Opening workspace settings...");
-                return true;
-            }
-
-            if (mx >= teamMsgBtnX && mx <= teamMsgBtnX + teamMsgBtnW &&
-                    my >= teamMsgBtnY && my <= teamMsgBtnY + teamMsgBtnH) {
-                activeNav = NavItem.MESSAGES;
-                showToast("Opening CampusConnect team chat: #general");
-                return true;
-            }
-
-            if (mx >= inviteMemberBtnX && mx <= inviteMemberBtnX + inviteMemberBtnW &&
-                    my >= inviteMemberBtnY && my <= inviteMemberBtnY + inviteMemberBtnH) {
-                if (listener != null) {
-                    listener.openModal("Invite Member to CampusConnect", "Enter student email or UW NetID to invite them.", true);
-                }
-                return true;
-            }
-
-            if (mx >= viewRoadmapBtnX && mx <= viewRoadmapBtnX + viewRoadmapBtnW &&
-                    my >= viewRoadmapBtnY && my <= viewRoadmapBtnY + viewRoadmapBtnH) {
-                showToast("CampusConnect Q4 Roadmap: MVP Nov 06, Beta Launch Nov 20.");
-                return true;
-            }
-
-            if (mx >= openBoardBtnX && mx <= openBoardBtnX + openBoardBtnW &&
-                    my >= openBoardBtnY && my <= openBoardBtnY + openBoardBtnH) {
-                teamData.activeTabIndex = 2;
-                showToast("Opening Sprint Tasks Kanban Board (28 tasks)...");
-                return true;
-            }
-
-            if ((mx >= reviewAllBtnX && mx <= reviewAllBtnX + reviewAllBtnW &&
-                    my >= reviewAllBtnY && my <= reviewAllBtnY + reviewAllBtnH) ||
-                    (mx >= reviewAppsBtnX && mx <= reviewAppsBtnX + reviewAppsBtnW &&
-                            my >= reviewAppsBtnY && my <= reviewAppsBtnY + reviewAppsBtnH)) {
-                teamData.activeTabIndex = 4;
-                showToast("Viewing 3 pending candidate applications...");
-                return true;
-            }
+        // 5. Main Content Area controls
+        switch (activeNav) {
+            case MY_PROJECTS:
+                if (myProjectsView.onClick(mx, my, this)) return true;
+                break;
+            case FIND_TEAMMATES:
+                if (teammatesView.onClick(mx, my, this)) return true;
+                break;
+            case DISCOVER_PROJECTS:
+                if (projectsView.onClick(mx, my, this)) return true;
+                break;
+            case OVERVIEW:
+                if (overview.onClick(mx, my, this)) return true;
+                break;
+            case MY_PROFILE:
+                if (handleProfileClick(mx, my)) return true;
+                break;
+            case MESSAGES:
+                if (handleMessagesClick(mx, my)) return true;
+                break;
+            case SETTINGS:
+                if (handleSettingsClick(mx, my)) return true;
+                break;
+            case MY_TEAMS:
+                if (handleMyTeamsClick(mx, my)) return true;
+                break;
         }
 
         return false;
     }
 
+    private boolean handleProfileClick(int mx, int my) {
+        for (int i = 0; i < profileTabBounds.length; i++) {
+            if (profileTabBounds[i] != null && profileTabBounds[i].contains(mx, my)) {
+                profileData.activeTabIndex = i;
+                targetScrollY = 0f;
+                showToast("Switched to " + profileData.tabs.get(i));
+                return true;
+            }
+        }
+
+        if (editProfileBtnBox.contains(mx, my)) {
+            if (listener != null) {
+                listener.openModal("Edit Profile - Alex Morgan", "Update your academic details, availability, headline, and bio.", false);
+            }
+            return true;
+        }
+
+        if (shareProfileBtnBox.contains(mx, my)) {
+            showToast("Profile link copied: teamup.com/u/alexmorgan");
+            return true;
+        }
+
+        for (int i = 0; i < profileSkillBounds.size(); i++) {
+            if (profileSkillBounds.get(i).contains(mx, my)) {
+                profileData.toggleEndorsement(i % profileData.skills.size());
+                ProfileData.ProfileSkill s = profileData.skills.get(i % profileData.skills.size());
+                showToast(s.userEndorsed ? ("Endorsed " + s.name + " (" + s.endorsements + ")") : ("Removed endorsement for " + s.name));
+                return true;
+            }
+        }
+
+        for (int i = 0; i < profileProjectBounds.size(); i++) {
+            if (profileProjectBounds.get(i).contains(mx, my)) {
+                ProfileData.ProfileProject p = profileData.projects.get(i % profileData.projects.size());
+                showToast("Opening workspace for " + p.title + "...");
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean handleMessagesClick(int mx, int my) {
+        for (int i = 0; i < convBounds.size(); i++) {
+            if (convBounds.get(i).contains(mx, my)) {
+                messagesData.selectConversation(i);
+                showToast("Opened: " + messagesData.getActiveConversation().title);
+                return true;
+            }
+        }
+
+        if (msgInputBox.contains(mx, my)) {
+            messagesData.inputFocused = true;
+            return true;
+        } else {
+            messagesData.inputFocused = false;
+        }
+
+        if (msgSendBtnBox.contains(mx, my)) {
+            messagesData.sendCurrentDraft();
+            showToast("Message sent to " + messagesData.getActiveConversation().title);
+            return true;
+        }
+
+        if (videoCallBtnBox.contains(mx, my)) {
+            if (listener != null) {
+                listener.openModal("Start Video Meeting", "Connect via UW Zoom or WebRTC with " + messagesData.getActiveConversation().title + ".", false);
+            }
+            return true;
+        }
+        return false;
+    }
+
+    private boolean handleSettingsClick(int mx, int my) {
+        for (int i = 0; i < settingsTabBounds.length; i++) {
+            if (settingsTabBounds[i] != null && settingsTabBounds[i].contains(mx, my)) {
+                settingsData.activeTab = SettingsData.SettingsTab.values()[i];
+                targetScrollY = 0f;
+                showToast("Switched to Settings: " + settingsData.activeTab.label);
+                return true;
+            }
+        }
+
+        if (settingsData.activeTab == SettingsData.SettingsTab.ACCOUNT) {
+            if (fullNameBox.contains(mx, my)) {
+                settingsData.focusedField = SettingsData.ActiveField.FULL_NAME;
+                return true;
+            }
+            if (usernameBox.contains(mx, my)) {
+                settingsData.focusedField = SettingsData.ActiveField.USERNAME;
+                return true;
+            }
+            if (emailBox.contains(mx, my)) {
+                settingsData.focusedField = SettingsData.ActiveField.EMAIL;
+                return true;
+            }
+            settingsData.focusedField = SettingsData.ActiveField.NONE;
+
+            if (saveAccountBtnBox.contains(mx, my)) {
+                settingsData.saveAccountChanges();
+                showToast("Account details updated successfully!");
+                return true;
+            }
+            if (cancelAccountBtnBox.contains(mx, my)) {
+                settingsData.cancelAccountChanges();
+                showToast("Account changes discarded.");
+                return true;
+            }
+            if (changePassBtnBox.contains(mx, my)) {
+                if (listener != null) {
+                    listener.openModal("Update Account Password", "Enter your current password and choose a secure new password.", false);
+                }
+                return true;
+            }
+        }
+
+        if (settingsData.activeTab == SettingsData.SettingsTab.PROFILE_PRIVACY) {
+            if (radioPublicBox.contains(mx, my)) {
+                settingsData.visibility = SettingsData.ProfileVisibility.PUBLIC;
+                showToast("Profile visibility: Public");
+                return true;
+            }
+            if (radioTeamBox.contains(mx, my)) {
+                settingsData.visibility = SettingsData.ProfileVisibility.TEAM_MEMBERS;
+                showToast("Profile visibility: Team members");
+                return true;
+            }
+            if (radioPrivateBox.contains(mx, my)) {
+                settingsData.visibility = SettingsData.ProfileVisibility.PRIVATE;
+                showToast("Profile visibility: Private");
+                return true;
+            }
+            if (toggleSkillsBox.contains(mx, my)) {
+                settingsData.showSkills = !settingsData.showSkills;
+                showToast("Show skills on profile: " + (settingsData.showSkills ? "Enabled" : "Disabled"));
+                return true;
+            }
+            if (toggleActivityBox.contains(mx, my)) {
+                settingsData.showActivity = !settingsData.showActivity;
+                showToast("Show activity on profile: " + (settingsData.showActivity ? "Enabled" : "Disabled"));
+                return true;
+            }
+            if (savePrivacyBtnBox.contains(mx, my)) {
+                showToast("Privacy preferences saved!");
+                return true;
+            }
+            if (cancelPrivacyBtnBox.contains(mx, my)) {
+                showToast("Privacy changes cancelled.");
+                return true;
+            }
+        }
+
+        if (settingsData.activeTab == SettingsData.SettingsTab.COLLAB_PREFERENCES) {
+            for (int i = 0; i < catRemoveBounds.size(); i++) {
+                if (catRemoveBounds.get(i).contains(mx, my)) {
+                    String rem = settingsData.categories.get(i);
+                    settingsData.removeCategory(i);
+                    showToast("Removed: " + rem);
+                    return true;
+                }
+            }
+            if (addCatBox.contains(mx, my)) {
+                settingsData.addCategory("Mobile Development");
+                showToast("Added 'Mobile Development' category!");
+                return true;
+            }
+            if (checkFrontendBox.contains(mx, my)) {
+                settingsData.roleFrontendDev = !settingsData.roleFrontendDev;
+                showToast("Frontend Dev: " + (settingsData.roleFrontendDev ? "Checked" : "Unchecked"));
+                return true;
+            }
+            if (checkUiBox.contains(mx, my)) {
+                settingsData.roleUiDev = !settingsData.roleUiDev;
+                showToast("UI Dev: " + (settingsData.roleUiDev ? "Checked" : "Unchecked"));
+                return true;
+            }
+            if (checkBackendBox.contains(mx, my)) {
+                settingsData.roleBackendDev = !settingsData.roleBackendDev;
+                showToast("Backend Dev: " + (settingsData.roleBackendDev ? "Checked" : "Unchecked"));
+                return true;
+            }
+            if (checkLeadBox.contains(mx, my)) {
+                settingsData.roleProjectLead = !settingsData.roleProjectLead;
+                showToast("Project Lead: " + (settingsData.roleProjectLead ? "Checked" : "Unchecked"));
+                return true;
+            }
+            if (availDropdown.contains(mx, my)) {
+                settingsData.toggleWeeklyAvailability();
+                showToast("Availability: " + settingsData.weeklyAvailability);
+                return true;
+            }
+            if (commitDropdown.contains(mx, my)) {
+                settingsData.toggleCommitment();
+                showToast("Commitment: " + settingsData.preferredCommitment);
+                return true;
+            }
+            if (modeRemoteBox.contains(mx, my)) {
+                settingsData.collabMode = SettingsData.CollabMode.REMOTE;
+                showToast("Collab: Remote");
+                return true;
+            }
+            if (modeInPersonBox.contains(mx, my)) {
+                settingsData.collabMode = SettingsData.CollabMode.IN_PERSON;
+                showToast("Collab: In person");
+                return true;
+            }
+            if (modeEitherBox.contains(mx, my)) {
+                settingsData.collabMode = SettingsData.CollabMode.EITHER;
+                showToast("Collab: Either works");
+                return true;
+            }
+            if (saveCollabBtnBox.contains(mx, my)) {
+                showToast("Collaboration preferences saved!");
+                return true;
+            }
+        }
+
+        if (settingsData.activeTab == SettingsData.SettingsTab.DANGER_ZONE) {
+            if (deactivateBtnBox.contains(mx, my)) {
+                if (listener != null) {
+                    listener.openModal("Deactivate TeamUp Account", "Take a break without deleting projects. You can reactivate anytime.", false);
+                }
+                return true;
+            }
+            if (deleteAccountBtnBox.contains(mx, my)) {
+                if (listener != null) {
+                    listener.openModal("Delete Account Permanently", "Warning: You own '" + settingsData.ownedProject + "'. Transfer ownership before deleting.", true);
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean handleMyTeamsClick(int mx, int my) {
+        for (int i = 0; i < teamData.tabs.size() && i < teamTabBounds.length; i++) {
+            if (teamTabBounds[i] != null && teamTabBounds[i].contains(mx, my)) {
+                teamData.activeTabIndex = i;
+                targetScrollY = 0f;
+                showToast("Switched to tab: " + teamData.tabs.get(i));
+                return true;
+            }
+        }
+
+        if (mx >= teamSettingsBtnX && mx <= teamSettingsBtnX + teamSettingsBtnW &&
+                my >= teamSettingsBtnY && my <= teamSettingsBtnY + teamSettingsBtnH) {
+            activeNav = NavItem.SETTINGS;
+            showToast("Opening workspace settings...");
+            return true;
+        }
+
+        if (mx >= teamMsgBtnX && mx <= teamMsgBtnX + teamMsgBtnW &&
+                my >= teamMsgBtnY && my <= teamMsgBtnY + teamMsgBtnH) {
+            activeNav = NavItem.MESSAGES;
+            showToast("Opening CampusConnect team chat: #general");
+            return true;
+        }
+
+        if (mx >= inviteMemberBtnX && mx <= inviteMemberBtnX + inviteMemberBtnW &&
+                my >= inviteMemberBtnY && my <= inviteMemberBtnY + inviteMemberBtnH) {
+            if (listener != null) {
+                listener.openModal("Invite Member to CampusConnect", "Enter student email or UW NetID to invite them.", true);
+            }
+            return true;
+        }
+
+        if (mx >= viewRoadmapBtnX && mx <= viewRoadmapBtnX + viewRoadmapBtnW &&
+                my >= viewRoadmapBtnY && my <= viewRoadmapBtnY + viewRoadmapBtnH) {
+            showToast("CampusConnect Q4 Roadmap: MVP Nov 06, Beta Launch Nov 20.");
+            return true;
+        }
+
+        if (mx >= openBoardBtnX && mx <= openBoardBtnX + openBoardBtnW &&
+                my >= openBoardBtnY && my <= openBoardBtnY + openBoardBtnH) {
+            teamData.activeTabIndex = 2;
+            showToast("Opening Sprint Tasks Kanban Board (28 tasks)...");
+            return true;
+        }
+
+        if ((mx >= reviewAllBtnX && mx <= reviewAllBtnX + reviewAllBtnW &&
+                my >= reviewAllBtnY && my <= reviewAllBtnY + reviewAllBtnH) ||
+                (mx >= reviewAppsBtnX && mx <= reviewAppsBtnX + reviewAppsBtnW &&
+                        my >= reviewAppsBtnY && my <= reviewAppsBtnY + reviewAppsBtnH)) {
+            teamData.activeTabIndex = 4;
+            showToast("Viewing 3 pending candidate applications...");
+            return true;
+        }
+        return false;
+    }
+
     public boolean onMouseMove(int mx, int my) {
-        if (modals != null && modals.onMouseMove(mx, my)) return true;
+        if (modals != null && modals.onMouseMove(mx, my)) {
+            return true;
+        }
+
+        boolean hHov = header != null && header.onMouseMove(mx, my);
+        boolean sHov = sidebar != null && sidebar.onMouseMove(mx, my, this);
+
+        boolean vHov = false;
+        switch (activeNav) {
+            case MY_PROJECTS:
+                vHov = myProjectsView.onMouseMove(mx, my);
+                break;
+            case FIND_TEAMMATES:
+                vHov = teammatesView.onMouseMove(mx, my);
+                break;
+            case DISCOVER_PROJECTS:
+                vHov = projectsView.onMouseMove(mx, my);
+                break;
+            case OVERVIEW:
+                vHov = overview.onMouseMove(mx, my);
+                break;
+            case MY_PROFILE:
+                vHov = handleProfileMouseMove(mx, my);
+                break;
+            case MESSAGES:
+                vHov = handleMessagesMouseMove(mx, my);
+                break;
+            case SETTINGS:
+                vHov = handleSettingsMouseMove(mx, my);
+                break;
+            case MY_TEAMS:
+                vHov = handleMyTeamsMouseMove(mx, my);
+                break;
+        }
+
+        return hHov || sHov || vHov;
+    }
+
+    private boolean handleProfileMouseMove(int mx, int my) {
         boolean changed = false;
+        boolean pEdit = editProfileHovered;
+        editProfileHovered = editProfileBtnBox.contains(mx, my);
+        if (editProfileHovered != pEdit) changed = true;
 
-        boolean p1 = returnBtnHovered;
-        returnBtnHovered = (mx >= returnBtnX && mx <= returnBtnX + returnBtnW && my >= returnBtnY && my <= returnBtnY + returnBtnH);
-        if (returnBtnHovered != p1) changed = true;
+        boolean pShare = shareProfileHovered;
+        shareProfileHovered = shareProfileBtnBox.contains(mx, my);
+        if (shareProfileHovered != pShare) changed = true;
 
-        if (activeNav == NavItem.MY_PROFILE) {
-            boolean pEdit = editProfileHovered;
-            editProfileHovered = editProfileBtnBox.contains(mx, my);
-            if (editProfileHovered != pEdit) changed = true;
-
-            boolean pShare = shareProfileHovered;
-            shareProfileHovered = shareProfileBtnBox.contains(mx, my);
-            if (shareProfileHovered != pShare) changed = true;
-
-            int oldTabHov = hoveredProfileTab;
-            hoveredProfileTab = -1;
-            for (int i = 0; i < profileTabBounds.length; i++) {
-                if (profileTabBounds[i] != null && profileTabBounds[i].contains(mx, my)) {
-                    hoveredProfileTab = i;
-                    break;
-                }
-            }
-            if (hoveredProfileTab != oldTabHov) changed = true;
-        }
-
-        if (activeNav == NavItem.MESSAGES) {
-            boolean pSend = msgSendHovered;
-            msgSendHovered = msgSendBtnBox.contains(mx, my);
-            if (msgSendHovered != pSend) changed = true;
-
-            boolean pCall = videoCallHovered;
-            videoCallHovered = videoCallBtnBox.contains(mx, my);
-            if (videoCallHovered != pCall) changed = true;
-
-            int oldConvHov = hoveredConvIndex;
-            hoveredConvIndex = -1;
-            for (int i = 0; i < convBounds.size(); i++) {
-                if (convBounds.get(i).contains(mx, my)) {
-                    hoveredConvIndex = i;
-                    break;
-                }
-            }
-            if (hoveredConvIndex != oldConvHov) changed = true;
-        }
-
-        if (activeNav == NavItem.SETTINGS) {
-            int oldHov = hoveredSettingsTab;
-            hoveredSettingsTab = -1;
-            for (int i = 0; i < settingsTabBounds.length; i++) {
-                if (settingsTabBounds[i] != null && settingsTabBounds[i].contains(mx, my)) {
-                    hoveredSettingsTab = i;
-                    break;
-                }
-            }
-            if (hoveredSettingsTab != oldHov) changed = true;
-        }
-
-        // Sidebar Hover
-        NavItem oldHover = hoveredNav;
-        hoveredNav = null;
-        int sideW = 230;
-        int padX = 20;
-        int curY = 20 + 46;
-        int itemH = 38;
-        int itemW = sideW - padX * 2;
-
-        for (NavItem item : NavItem.values()) {
-            if (mx >= padX && mx <= padX + itemW && my >= curY && my <= curY + itemH) {
-                hoveredNav = item;
+        int oldTabHov = hoveredProfileTab;
+        hoveredProfileTab = -1;
+        for (int i = 0; i < profileTabBounds.length; i++) {
+            if (profileTabBounds[i] != null && profileTabBounds[i].contains(mx, my)) {
+                hoveredProfileTab = i;
                 break;
             }
-            curY += itemH + 2;
         }
-        if (hoveredNav != oldHover) changed = true;
+        if (hoveredProfileTab != oldTabHov) changed = true;
+        return changed || editProfileHovered;
+    }
 
-        return changed || returnBtnHovered || editProfileHovered || msgSendHovered;
+    private boolean handleMessagesMouseMove(int mx, int my) {
+        boolean changed = false;
+        boolean pSend = msgSendHovered;
+        msgSendHovered = msgSendBtnBox.contains(mx, my);
+        if (msgSendHovered != pSend) changed = true;
+
+        boolean pCall = videoCallHovered;
+        videoCallHovered = videoCallBtnBox.contains(mx, my);
+        if (videoCallHovered != pCall) changed = true;
+
+        int oldConvHov = hoveredConvIndex;
+        hoveredConvIndex = -1;
+        for (int i = 0; i < convBounds.size(); i++) {
+            if (convBounds.get(i).contains(mx, my)) {
+                hoveredConvIndex = i;
+                break;
+            }
+        }
+        if (hoveredConvIndex != oldConvHov) changed = true;
+        return changed || msgSendHovered;
+    }
+
+    private boolean handleSettingsMouseMove(int mx, int my) {
+        boolean changed = false;
+        int oldHov = hoveredSettingsTab;
+        hoveredSettingsTab = -1;
+        for (int i = 0; i < settingsTabBounds.length; i++) {
+            if (settingsTabBounds[i] != null && settingsTabBounds[i].contains(mx, my)) {
+                hoveredSettingsTab = i;
+                break;
+            }
+        }
+        if (hoveredSettingsTab != oldHov) changed = true;
+        return changed;
+    }
+
+    private boolean handleMyTeamsMouseMove(int mx, int my) {
+        boolean changed = false;
+        boolean p1 = teamSettingsBtnHovered;
+        teamSettingsBtnHovered = (mx >= teamSettingsBtnX && mx <= teamSettingsBtnX + teamSettingsBtnW &&
+                my >= teamSettingsBtnY && my <= teamSettingsBtnY + teamSettingsBtnH);
+        if (teamSettingsBtnHovered != p1) changed = true;
+
+        boolean p2 = teamMsgBtnHovered;
+        teamMsgBtnHovered = (mx >= teamMsgBtnX && mx <= teamMsgBtnX + teamMsgBtnW &&
+                my >= teamMsgBtnY && my <= teamMsgBtnY + teamMsgBtnH);
+        if (teamMsgBtnHovered != p2) changed = true;
+
+        boolean p3 = inviteMemberBtnHovered;
+        inviteMemberBtnHovered = (mx >= inviteMemberBtnX && mx <= inviteMemberBtnX + inviteMemberBtnW &&
+                my >= inviteMemberBtnY && my <= inviteMemberBtnY + inviteMemberBtnH);
+        if (inviteMemberBtnHovered != p3) changed = true;
+
+        boolean p4 = viewRoadmapBtnHovered;
+        viewRoadmapBtnHovered = (mx >= viewRoadmapBtnX && mx <= viewRoadmapBtnX + viewRoadmapBtnW &&
+                my >= viewRoadmapBtnY && my <= viewRoadmapBtnY + viewRoadmapBtnH);
+        if (viewRoadmapBtnHovered != p4) changed = true;
+
+        boolean p5 = openBoardBtnHovered;
+        openBoardBtnHovered = (mx >= openBoardBtnX && mx <= openBoardBtnX + openBoardBtnW &&
+                my >= openBoardBtnY && my <= openBoardBtnY + openBoardBtnH);
+        if (openBoardBtnHovered != p5) changed = true;
+
+        boolean p6 = reviewAllBtnHovered;
+        reviewAllBtnHovered = (mx >= reviewAllBtnX && mx <= reviewAllBtnX + reviewAllBtnW &&
+                my >= reviewAllBtnY && my <= reviewAllBtnY + reviewAllBtnH);
+        if (reviewAllBtnHovered != p6) changed = true;
+
+        boolean p7 = reviewAppsBtnHovered;
+        reviewAppsBtnHovered = (mx >= reviewAppsBtnX && mx <= reviewAppsBtnX + reviewAppsBtnW &&
+                my >= reviewAppsBtnY && my <= reviewAppsBtnY + reviewAppsBtnH);
+        if (reviewAppsBtnHovered != p7) changed = true;
+
+        int oldTabHov = hoveredTeamTabIndex;
+        hoveredTeamTabIndex = -1;
+        for (int i = 0; i < teamData.tabs.size() && i < teamTabBounds.length; i++) {
+            if (teamTabBounds[i] != null && teamTabBounds[i].contains(mx, my)) {
+                hoveredTeamTabIndex = i;
+                break;
+            }
+        }
+        if (hoveredTeamTabIndex != oldTabHov) changed = true;
+
+        return changed || teamSettingsBtnHovered || teamMsgBtnHovered || inviteMemberBtnHovered;
     }
 
     public void onMouseWheel(int wheelRotation, int screenH) {
         if (activeNav == NavItem.MESSAGES) return;
-        int maxScroll = Math.max(0, totalContentHeight - (screenH - 60));
+        int maxScroll = Math.max(0, getCurrentContentHeight() - (screenH - 60));
         targetScrollY = Math.max(0, Math.min(targetScrollY + wheelRotation * 45, maxScroll));
     }
 
     public boolean onKey(KeyEvent e) {
-        if (modals != null && modals.onKey(e, this)) return true;
-        // Messages composer typing
-        if (activeNav == NavItem.MESSAGES && messagesData.inputFocused) {
+        // Modal keys take priority
+        if (modals != null && modals.onKey(e, this)) {
+            return true;
+        }
+
+        // Header search keys
+        if (header != null && header.onKey(e, this)) {
+            return true;
+        }
+
+        // Active View keys (Search boxes etc.)
+        switch (activeNav) {
+            case MY_PROJECTS:
+                if (myProjectsView.onKey(e)) return true;
+                break;
+            case FIND_TEAMMATES:
+                if (teammatesView.onKey(e)) return true;
+                break;
+            case DISCOVER_PROJECTS:
+                if (projectsView.onKey(e)) return true;
+                break;
+            case MESSAGES:
+                return handleMessagesKey(e);
+            case SETTINGS:
+                return handleSettingsKey(e);
+            default:
+                break;
+        }
+
+        return false;
+    }
+
+    private boolean handleMessagesKey(KeyEvent e) {
+        if (messagesData.inputFocused) {
             if (e.getKeyCode() == KeyEvent.VK_ENTER) {
                 messagesData.sendCurrentDraft();
                 showToast("Message sent to " + messagesData.getActiveConversation().title);
@@ -3214,9 +3090,11 @@ public class StudentDashboard {
                 return true;
             }
         }
+        return false;
+    }
 
-        // Settings editable inputs
-        if (activeNav == NavItem.SETTINGS && settingsData.focusedField != SettingsData.ActiveField.NONE) {
+    private boolean handleSettingsKey(KeyEvent e) {
+        if (settingsData.focusedField != SettingsData.ActiveField.NONE) {
             if (e.getKeyCode() == KeyEvent.VK_BACK_SPACE) {
                 if (settingsData.focusedField == SettingsData.ActiveField.FULL_NAME && settingsData.fullName.length() > 0) {
                     settingsData.fullName = settingsData.fullName.substring(0, settingsData.fullName.length() - 1);
@@ -3254,7 +3132,63 @@ public class StudentDashboard {
                 }
             }
         }
-
         return false;
     }
+
+    // Getters and Setters
+    public NavItem getActiveNav() { return activeNav; }
+    public void setActiveNav(NavItem nav) {
+        this.activeNav = nav;
+        this.targetScrollY = 0f;
+        this.scrollY = 0f;
+    }
+
+    public NavItem getHoveredNav() { return hoveredNav; }
+    public void setHoveredNav(NavItem nav) { this.hoveredNav = nav; }
+
+    public int getActiveProjectsCount() { return activeProjectsCount; }
+    public void setActiveProjectsCount(int c) { this.activeProjectsCount = c; }
+
+    public int getMyTeamsCount() { return myTeamsCount; }
+    public void setMyTeamsCount(int c) { this.myTeamsCount = c; }
+
+    public int getPendingRequestsCount() { return pendingRequestsCount; }
+    public void setPendingRequestsCount(int c) { this.pendingRequestsCount = c; }
+
+    public int getTasksDueCount() { return tasksDueCount; }
+    public void setTasksDueCount(int c) { this.tasksDueCount = c; }
+
+    public int getProfileCompletePercent() { return profileCompletePercent; }
+    public void setProfileCompletePercent(int p) { this.profileCompletePercent = p; }
+
+    public String getProfileName() { return profileName; }
+    public void setProfileName(String n) { this.profileName = n; }
+
+    public String getProfileBio() { return profileBio; }
+    public void setProfileBio(String b) { this.profileBio = b; }
+
+    public String getProfilePortfolio() { return profilePortfolio; }
+    public void setProfilePortfolio(String u) { this.profilePortfolio = u; }
+
+    public ProjectItem getSelectedProject() { return selectedProject; }
+    public void setSelectedProject(ProjectItem p) { this.selectedProject = p; }
+
+    public TeammateItem getSelectedTeammate() { return selectedTeammate; }
+    public void setSelectedTeammate(TeammateItem t) { this.selectedTeammate = t; }
+
+    public List<ProjectItem> getProjects() { return projects; }
+    public List<TeammateItem> getTeammates() { return teammates; }
+    public List<TaskItem> getTasks() { return tasks; }
+    public List<ActivityItem> getActivities() { return activities; }
+    public List<String> getNotifications() { return notifications; }
+    public List<String> getChatHistory() { return chatHistory; }
+
+    public DashboardProjects getProjectsView() { return projectsView; }
+    public DashboardTeammates getTeammatesView() { return teammatesView; }
+    public DashboardMyProjects getMyProjectsView() { return myProjectsView; }
+
+    public TeamWorkspaceData getTeamData() { return teamData; }
+    public SettingsData getSettingsData() { return settingsData; }
+    public ProfileData getProfileData() { return profileData; }
+    public MessagesData getMessagesData() { return messagesData; }
 }

@@ -64,19 +64,23 @@ public class Anim {
     }
 
     public static float approach(float current, float target, float dt, float speed) {
-        if (!Theme.motionEnabled) return target;
+        if (!Theme.motionEnabled)
+            return target;
         float diff = target - current;
-        if (Math.abs(diff) < 0.0005f) return target;
+        if (Math.abs(diff) < 0.0005f)
+            return target;
         return current + diff * Math.min(1f, dt * speed);
     }
 
     public static float loop(float period, float offset) {
-        if (!Theme.motionEnabled) return 0f;
+        if (!Theme.motionEnabled)
+            return 0f;
         return ((globalTime + offset) % period) / period;
     }
 
     public static float pulse(float min, float max, float speed) {
-        if (!Theme.motionEnabled) return (min + max) * 0.5f;
+        if (!Theme.motionEnabled)
+            return (min + max) * 0.5f;
         float s = (float) (Math.sin(globalTime * speed) * 0.5 + 0.5);
         return min + s * (max - min);
     }
@@ -93,9 +97,9 @@ public class Anim {
         if (dist < maxDist && dist > 1f && Theme.motionEnabled) {
             float strength = (1f - dist / maxDist);
             float pull = strength * maxPull;
-            return new float[]{(dx / dist) * pull, (dy / dist) * pull};
+            return new float[] { (dx / dist) * pull, (dy / dist) * pull };
         }
-        return new float[]{0f, 0f};
+        return new float[] { 0f, 0f };
     }
 
     public static class RevealState {
@@ -113,7 +117,8 @@ public class Anim {
             }
             if (triggered && progress < 1f) {
                 progress += dt / 0.5f;
-                if (progress > 1f) progress = 1f;
+                if (progress > 1f)
+                    progress = 1f;
             }
         }
 
