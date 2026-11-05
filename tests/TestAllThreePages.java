@@ -8,8 +8,13 @@ public class TestAllThreePages {
         System.out.println("=== Testing All 3 Student Dashboard Pages ===");
 
         StudentDashboard dashboard = new StudentDashboard(new StudentDashboard.DashboardListener() {
-            @Override public void returnToLanding() {}
-            @Override public void openModal(String title, String message, boolean isRegister) {}
+            @Override
+            public void returnToLanding() {
+            }
+
+            @Override
+            public void openModal(String title, String message, boolean isRegister) {
+            }
         });
 
         BufferedImage img = new BufferedImage(1280, 800, BufferedImage.TYPE_INT_ARGB);
@@ -37,14 +42,16 @@ public class TestAllThreePages {
         // Test typing in Teammates search
         dashboard.onClick(300, 120); // Focus search box
         for (char c : "Daniel".toCharArray()) {
-            KeyEvent ke = new KeyEvent(new Canvas(), KeyEvent.KEY_TYPED, System.currentTimeMillis(), 0, KeyEvent.VK_UNDEFINED, c);
+            KeyEvent ke = new KeyEvent(new Canvas(), KeyEvent.KEY_TYPED, System.currentTimeMillis(), 0,
+                    KeyEvent.VK_UNDEFINED, c);
             dashboard.onKey(ke);
         }
         dashboard.paint(g, 1280, 800);
         System.out.println("  Typed 'Daniel' into teammate search, verified no errors.");
 
         // Clear search with ESC
-        KeyEvent escKey = new KeyEvent(new Canvas(), KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_ESCAPE, KeyEvent.CHAR_UNDEFINED);
+        KeyEvent escKey = new KeyEvent(new Canvas(), KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0,
+                KeyEvent.VK_ESCAPE, KeyEvent.CHAR_UNDEFINED);
         dashboard.onKey(escKey);
 
         // 2. Test DISCOVER_PROJECTS Page
@@ -64,7 +71,8 @@ public class TestAllThreePages {
         // Click "View details ->" on first project
         dashboard.paint(g, 1280, 800);
         boolean viewDetailsClicked = dashboard.onClick(600, 440);
-        System.out.println("  Clicked 'View details ->' on project card: " + viewDetailsClicked + ", activeModal=" + dashboard.getActiveModal());
+        System.out.println("  Clicked 'View details ->' on project card: " + viewDetailsClicked + ", activeModal="
+                + dashboard.getActiveModal());
         dashboard.closeModal();
 
         // 3. Test OVERVIEW Page
@@ -75,12 +83,14 @@ public class TestAllThreePages {
 
         // Click "+ Create Project" button at (1120, 100)
         boolean createClicked = dashboard.onClick(1120, 100);
-        System.out.println("  Clicked '+ Create Project' on Overview: " + createClicked + ", activeModal=" + dashboard.getActiveModal());
+        System.out.println("  Clicked '+ Create Project' on Overview: " + createClicked + ", activeModal="
+                + dashboard.getActiveModal());
         dashboard.closeModal();
 
         // Click "Explore all ->" at (800, 415)
         boolean exploreAllClicked = dashboard.onClick(800, 415);
-        System.out.println("  Clicked 'Explore all ->': " + exploreAllClicked + ", activeNav=" + dashboard.getActiveNav());
+        System.out.println(
+                "  Clicked 'Explore all ->': " + exploreAllClicked + ", activeNav=" + dashboard.getActiveNav());
 
         // Return to Overview
         dashboard.setActiveNav(StudentDashboard.NavItem.OVERVIEW);
@@ -96,7 +106,8 @@ public class TestAllThreePages {
 
         // Click "Find Teammates" widget button on Overview at (950, 565)
         boolean navFindTeammates = dashboard.onClick(950, 565);
-        System.out.println("  Clicked 'Find Teammates' button on Overview: " + navFindTeammates + ", activeNav=" + dashboard.getActiveNav());
+        System.out.println("  Clicked 'Find Teammates' button on Overview: " + navFindTeammates + ", activeNav="
+                + dashboard.getActiveNav());
 
         System.out.println("\n==================================================");
         System.out.println("ALL 3 PAGES VERIFIED AND WORKING 100%!");
