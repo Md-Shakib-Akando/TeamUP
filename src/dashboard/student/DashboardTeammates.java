@@ -633,9 +633,9 @@ public class DashboardTeammates {
         for (String s : tm.skills) {
             int sw = sfm.stringWidth(s) + 14;
             RoundRectangle2D skShape = new RoundRectangle2D.Float(skX, skY, sw, 22, 6, 6);
-            g.setColor(new Color(0xF1, 0xF5, 0xF9));
+            g.setColor(new Color(0xF4, 0xF2, 0xEE));
             g.fill(skShape);
-            g.setColor(new Color(0x47, 0x55, 0x69));
+            g.setColor(DashboardTheme.TEXT_MUTED);
             g.drawString(s, skX + 7, skY + 15);
             tm.skillHits.add(new TeammateCard.SkillHitbox(s, skX, skY, sw, 22));
             skX += sw + 6;

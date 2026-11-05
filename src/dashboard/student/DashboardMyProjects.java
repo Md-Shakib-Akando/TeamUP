@@ -556,7 +556,7 @@ public class DashboardMyProjects {
 
         // Role Tag
         RoundRectangle2D roleTag = new RoundRectangle2D.Float(curX, curY - 14, p.isLead ? 88 : 68, 20, 6, 6);
-        g.setColor(p.isLead ? DashboardTheme.PURPLE_TINT_BG : new Color(0xF1, 0xF5, 0xF9));
+        g.setColor(p.isLead ? DashboardTheme.PURPLE_TINT_BG : new Color(0xF4, 0xF2, 0xEE));
         g.fill(roleTag);
         g.setFont(DashboardTheme.FONT_BOLD_10);
         g.setColor(p.isLead ? DashboardTheme.BRAND_PURPLE : DashboardTheme.TEXT_MUTED);
@@ -619,18 +619,18 @@ public class DashboardMyProjects {
         for (String s : p.skills) {
             int sw = sfm.stringWidth(s) + 14;
             RoundRectangle2D sk = new RoundRectangle2D.Float(skX, curY, sw, 22, 6, 6);
-            g.setColor(new Color(0xF8, 0xFA, 0xFC));
+            g.setColor(new Color(0xF4, 0xF2, 0xEE));
             g.fill(sk);
             g.setColor(DashboardTheme.BORDER_COLOR);
             g.draw(sk);
-            g.setColor(new Color(0x47, 0x55, 0x69));
+            g.setColor(DashboardTheme.TEXT_MUTED);
             g.drawString(s, skX + 7, curY + 15);
             skX += sw + 6;
         }
 
         // Divider line
         curY += 34;
-        g.setColor(new Color(0xF1, 0xF5, 0xF9));
+        g.setColor(new Color(0xEE, 0xEB, 0xE5));
         g.drawLine(cx + 20, curY, cx + cw - 20, curY);
 
         // Bottom Footer: Team Members Avatars + Action Buttons
