@@ -243,6 +243,28 @@ public class AdminDashboard {
         modals.openAddSkill();
     }
 
+    public void openUserDetailsModal(AdminDataStore.UserModel user) {
+        modals.openUserDetails(user);
+    }
+
+    public void openAddUserModal() {
+        modals.openAddUser();
+    }
+
+    public void closeModal() {
+        if (modals != null) {
+            modals.closeModal();
+        }
+    }
+
+    public AdminUsers getUsersView() {
+        return usersView;
+    }
+
+    public AdminModals getModals() {
+        return modals;
+    }
+
     public boolean onClick(int mx, int my) {
         // Modal consumes all clicks when open (0ms dismiss)
         if (modals.getActiveModal() != AdminModals.ActiveModal.NONE) {

@@ -5,90 +5,191 @@ import java.util.List;
 
 /**
  * Admin Dashboard - Users Management View.
- * Displays user list, status filters, search, role management, suspend/reactivate actions.
+ * Displays user list, interactive search, multi-criteria filter dropdowns,
+ * full responsive table layout, dynamic pagination, and live store actions.
  * Wired directly to AdminDataStore for full real-time reactivity.
- * Matches Figma reference Image 2 with exact precision.
  */
 public class AdminUsers {
 
-    public static class UserRowHitbox {
-        public String name;
-        public String role;
-        public String status;
-        public int actionX, actionY, actionW, actionH;
-        public boolean viewHovered = false;
-        public boolean suspendHovered = false;
-        public boolean editRoleHovered = false;
+    public static class DropdownItemHitbox {
+        public int index;
+        public String label;
+        public int x, y, w, h;
+        public boolean hovered = false;
+        public boolean selected = false;
+
+        public DropdownItemHitbox(int index, String label, int x, int y, int w, int h, boolean hovered, boolean selected) {
+            this.index = index;
+            this.label = label;
+            this.x = x;
+            this.y = y;
+            this.w = w;
+            this.h = h;
+            this.hovered = hovered;
+            this.selected = selected;
+        }
     }
 
-    private final List<UserRowHitbox> hitboxes = new ArrayList<>();
+    public static class PageBtnHitbox {
+        public int pageNumber;
+        public int x, y, w, h;
+        public boolean active = false;
+        public boolean hovered = false;
+
+        public PageBtnHitbox(int pageNumber, int x, int y, int w, int h, boolean active) {
+            this.pageNumber = pageNumber;
+            this.x = x;
+            this.y = y;
+            this.w = w;
+            this.h = h;
+            this.active = active;
+        }
+    }
+
+    public static class UserRowHitbox {
+        public AdminDataStore.UserModel user;
+        public int rowX, rowY, rowW, rowH;
+        public boolean rowHovered = false;
+
+        public int viewBtnX, viewBtnY, viewBtnW, viewBtnH;
+        public boolean viewHovered = false;
+
+        public int suspendBtnX, suspendBtnY, suspendBtnW, suspendBtnH;
+        public boolean suspendHovered = false;
+
+        public int editRoleBtnX, editRoleBtnY, editRoleBtnW, editRoleBtnH;
+        public boolean editRoleHovered = false;
+
+        public int deleteBtnX, deleteBtnY, deleteBtnW, deleteBtnH;
+        public boolean deleteHovered = false;
+    }
+
+    private final List<UserRowHitbox> hitboxes = new ArrayList<UserRowHitbox>();
+    private final List<DropdownItemHitbox> popoverHitboxes = new ArrayList<DropdownItemHitbox>();
+    private final List<PageBtnHitbox> pageHitboxes = new ArrayList<PageBtnHitbox>();
+
+    // Search state
     private String searchQuery = "";
     private boolean searchFocused = false;
+    private int searchX, searchY, searchW = 320, searchH = 36;
+    private int clearSearchX, clearSearchY, clearSearchSize = 20;
 
     // Filter dropdown bounds & state
     private final String[] roleOptions = {"All roles", "Member", "Moderator", "Admin"};
     private int roleFilterIndex = 0;
-    private int roleDropX, roleDropY, roleDropW = 100, roleDropH = 34;
+    private int roleDropX, roleDropY, roleDropW = 105, roleDropH = 36;
+    private boolean roleDropHovered = false;
 
     private final String[] statusOptions = {"All statuses", "Active", "Suspended"};
     private int statusFilterIndex = 0;
-    private int statusDropX, statusDropY, statusDropW = 110, statusDropH = 34;
+    private int statusDropX, statusDropY, statusDropW = 115, statusDropH = 36;
+    private boolean statusDropHovered = false;
 
     private final String[] joinedOptions = {"Joined: Any time", "Last 7 days", "Last 30 days", "This year"};
     private int joinedFilterIndex = 0;
-    private int joinedDropX, joinedDropY, joinedDropW = 130, joinedDropH = 34;
+    private int joinedDropX, joinedDropY, joinedDropW = 140, joinedDropH = 36;
+    private boolean joinedDropHovered = false;
 
-    private int exportBtnX, exportBtnY, exportBtnW = 120, exportBtnH = 36;
+    // Active open popover: 0 = None, 1 = Role, 2 = Status, 3 = Joined
+    private int activePopover = 0;
+
+    // Reset filters button
+    private int resetBtnX, resetBtnY, resetBtnW = 92, resetBtnH = 26;
+    private boolean resetBtnHovered = false;
+
+    // Header buttons
+    private int addUserBtnX, addUserBtnY, addUserBtnW = 112, addUserBtnH = 36;
+    private boolean addUserHovered = false;
+
+    private int exportBtnX, exportBtnY, exportBtnW = 124, exportBtnH = 36;
     private boolean exportHovered = false;
-
-    // Search input bounds
-    private int searchX, searchY, searchW = 320, searchH = 34;
 
     // Pagination bounds & state
     private int currentPage = 1;
-    private int prevBtnX, prevBtnY, prevBtnW = 72, prevBtnH = 32;
-    private int p1BtnX, p1BtnY, p1BtnW = 32, p1BtnH = 32;
-    private int p2BtnX, p2BtnY, p2BtnW = 32, p2BtnH = 32;
-    private int p3BtnX, p3BtnY, p3BtnW = 32, p3BtnH = 32;
-    private int nextBtnX, nextBtnY, nextBtnW = 54, nextBtnH = 32;
+    private final int pageSize = 8;
+    private int prevBtnX, prevBtnY, prevBtnW = 76, prevBtnH = 32;
+    private boolean prevHovered = false;
+    private boolean prevEnabled = false;
+
+    private int nextBtnX, nextBtnY, nextBtnW = 58, nextBtnH = 32;
+    private boolean nextHovered = false;
+    private boolean nextEnabled = false;
+
+    // Empty state reset button
+    private int emptyResetBtnX, emptyResetBtnY, emptyResetBtnW = 130, emptyResetBtnH = 34;
+    private boolean emptyResetHovered = false;
 
     public AdminUsers() {
     }
 
     public int getComputedHeight(int width) {
-        return 920;
+        int padX = width < 600 ? 16 : 36;
+        int contentW = width - padX * 2;
+
+        int h = 32; // top pad
+        // Header
+        h += (contentW < 680) ? 116 : 74;
+        // Summary pills
+        h += (contentW < 560) ? 58 : 38;
+        // Filter bar
+        h += (contentW < 760) ? 92 : 52;
+        // Users Table
+        List<AdminDataStore.UserModel> list = getFilteredUsers();
+        int rows = Math.min(pageSize, list.size());
+        if (rows == 0) {
+            h += 240; // empty state height
+        } else {
+            h += 42 + rows * 55; // table header + rows
+        }
+        // Pagination
+        h += 52;
+        // Notice Banner
+        h += 68;
+        // Bottom pad
+        h += 40;
+
+        return Math.max(900, h);
+    }
+
+    private List<AdminDataStore.UserModel> getFilteredUsers() {
+        return AdminDataStore.getInstance().filterUsers(
+                searchQuery,
+                roleOptions[roleFilterIndex],
+                statusOptions[statusFilterIndex],
+                joinedOptions[joinedFilterIndex]
+        );
     }
 
     public void paint(Graphics2D g, int x, int y, int width, int height, AdminDashboard dashboard) {
-        int padX = 36;
-        int curY = y + 28;
+        int padX = width < 600 ? 16 : 36;
+        int curY = y + 26;
         int contentW = width - padX * 2;
 
-        // 1. Header
-        paintHeader(g, x + padX, curY, contentW);
-        curY += 76;
+        // 1. Header (Users title + Add user + Export users)
+        curY = paintHeader(g, x + padX, curY, contentW, dashboard);
 
         // 2. Metrics summary pills
-        paintSummaryPills(g, x + padX, curY);
-        curY += 38;
+        curY = paintSummaryPills(g, x + padX, curY, contentW);
 
         // 3. Filter Bar (Search + Dropdowns)
-        paintFilterBar(g, x + padX, curY, contentW);
-        curY += 50;
+        curY = paintFilterBar(g, x + padX, curY, contentW);
 
         // 4. Users Table
-        paintUsersTable(g, x + padX, curY, contentW, dashboard);
-        curY += 500;
+        curY = paintUsersTable(g, x + padX, curY, contentW, dashboard);
 
         // 5. Pagination Bar
-        paintPagination(g, x + padX, curY, contentW);
-        curY += 48;
+        curY = paintPagination(g, x + padX, curY, contentW);
 
         // 6. Bottom Notice Banner
         paintNoticeBanner(g, x + padX, curY, contentW);
+
+        // 7. Floating Dropdown Popover (drawn on top of all layers)
+        if (activePopover != 0) {
+            paintActivePopover(g);
+        }
     }
 
-    private void paintHeader(Graphics2D g, int x, int y, int w) {
+    private int paintHeader(Graphics2D g, int x, int y, int w, AdminDashboard dashboard) {
         // Title: "Users"
         g.setFont(AdminTheme.FONT_HEADING);
         FontMetrics hfm = g.getFontMetrics();
@@ -97,24 +198,32 @@ public class AdminUsers {
 
         int titleW = hfm.stringWidth("Users");
 
-        // "Sample data" Pill
+        // "Directory" Pill
         int pillX = x + titleW + 12;
-        int pillY = y + 8;
-        RoundRectangle2D pill = new RoundRectangle2D.Float(pillX, pillY, 76, 20, 10, 10);
+        int pillY = y + 7;
+        RoundRectangle2D pill = new RoundRectangle2D.Float(pillX, pillY, 78, 22, 11, 11);
         g.setColor(new Color(0xF1, 0xF5, 0xF9));
         g.fill(pill);
-        g.setFont(AdminTheme.FONT_REG_11);
+        g.setFont(AdminTheme.FONT_BOLD_10);
         g.setColor(AdminTheme.TEXT_MUTED);
-        g.drawString("Sample data", pillX + 8, pillY + 14);
+        g.drawString("Directory", pillX + 13, pillY + 15);
 
         // Subtitle
         g.setFont(AdminTheme.FONT_REG_13);
         g.setColor(AdminTheme.TEXT_MUTED);
         g.drawString("Manage community members, account status and platform roles.", x, y + 48);
 
-        // Top Right: "Export users" Button
-        exportBtnX = x + w - exportBtnW;
-        exportBtnY = y + 8;
+        // Header Action Buttons
+        boolean wrapButtons = (w < 680);
+        int btnY = wrapButtons ? y + 68 : y + 8;
+        int rightX = wrapButtons ? (x + w) : (x + w);
+
+        // "Export users" Button (Secondary Outline)
+        exportBtnW = 120;
+        exportBtnH = 36;
+        exportBtnX = rightX - exportBtnW;
+        exportBtnY = btnY;
+
         RoundRectangle2D expBox = new RoundRectangle2D.Float(exportBtnX, exportBtnY, exportBtnW, exportBtnH, 8, 8);
         g.setColor(exportHovered ? new Color(0xF8, 0xFA, 0xFC) : Color.WHITE);
         g.fill(expBox);
@@ -124,49 +233,123 @@ public class AdminUsers {
 
         // Download icon
         g.setColor(AdminTheme.TEXT_MUTED);
-        g.drawRect(exportBtnX + 12, exportBtnY + 12, 12, 10);
-        g.drawLine(exportBtnX + 18, exportBtnY + 8, exportBtnX + 18, exportBtnY + 16);
-        g.drawLine(exportBtnX + 15, exportBtnY + 13, exportBtnX + 18, exportBtnY + 16);
-        g.drawLine(exportBtnX + 21, exportBtnY + 13, exportBtnX + 18, exportBtnY + 16);
+        g.drawRect(exportBtnX + 12, exportBtnY + 13, 11, 9);
+        g.drawLine(exportBtnX + 17, exportBtnY + 9, exportBtnX + 17, exportBtnY + 16);
+        g.drawLine(exportBtnX + 14, exportBtnY + 13, exportBtnX + 17, exportBtnY + 16);
+        g.drawLine(exportBtnX + 20, exportBtnY + 13, exportBtnX + 17, exportBtnY + 16);
 
         g.setFont(AdminTheme.FONT_BOLD_11);
         g.setColor(AdminTheme.TEXT_DARK);
-        g.drawString("Export users", exportBtnX + 32, exportBtnY + 22);
+        g.drawString("Export users", exportBtnX + 31, exportBtnY + 22);
+
+        // "+ Add user" Button (Primary Forest Green)
+        addUserBtnW = 110;
+        addUserBtnH = 36;
+        addUserBtnX = exportBtnX - addUserBtnW - 10;
+        addUserBtnY = btnY;
+
+        RoundRectangle2D addBox = new RoundRectangle2D.Float(addUserBtnX, addUserBtnY, addUserBtnW, addUserBtnH, 8, 8);
+        g.setColor(addUserHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.BRAND_GREEN_DARK);
+        g.fill(addBox);
+
+        // Plus icon
+        g.setColor(Color.WHITE);
+        g.setStroke(new BasicStroke(1.8f));
+        g.drawLine(addUserBtnX + 16, addUserBtnY + 18, addUserBtnX + 24, addUserBtnY + 18);
+        g.drawLine(addUserBtnX + 20, addUserBtnY + 14, addUserBtnX + 20, addUserBtnY + 22);
+
+        g.setFont(AdminTheme.FONT_BOLD_11);
+        g.drawString("Add user", addUserBtnX + 32, addUserBtnY + 22);
+
+        return wrapButtons ? (btnY + addUserBtnH + 18) : (y + 74);
     }
 
-    private void paintSummaryPills(Graphics2D g, int x, int y) {
+    private int paintSummaryPills(Graphics2D g, int x, int y, int w) {
         int total = AdminDataStore.getInstance().baseTotalUsers;
         int active = AdminDataStore.getInstance().getActiveUsersCount();
         int suspended = AdminDataStore.getInstance().getSuspendedUsersCount();
+        List<AdminDataStore.UserModel> filtered = getFilteredUsers();
 
+        int curX = x;
+
+        // Total members text
         g.setFont(AdminTheme.FONT_BOLD_12);
-        g.setColor(AdminTheme.TEXT_MUTED);
-        g.drawString(String.format("%,d total members", total), x, y + 16);
+        g.setColor(AdminTheme.TEXT_DARK);
+        String totStr = String.format("%,d total members", total);
+        g.drawString(totStr, curX, y + 16);
+        FontMetrics fm = g.getFontMetrics();
+        curX += fm.stringWidth(totStr) + 16;
 
         // Active pill
-        int actX = x + 150;
-        RoundRectangle2D actPill = new RoundRectangle2D.Float(actX, y, 92, 24, 12, 12);
+        int actW = 94;
+        RoundRectangle2D actPill = new RoundRectangle2D.Float(curX, y, actW, 24, 12, 12);
         g.setColor(new Color(0xE6, 0xF4, 0xEA));
         g.fill(actPill);
-        g.setColor(new Color(0x06, 0x5F, 0x46));
+        // Green dot
+        g.setColor(new Color(0x10, 0xB9, 0x81));
+        g.fillOval(curX + 10, y + 8, 8, 8);
         g.setFont(AdminTheme.FONT_BOLD_11);
-        g.drawString(String.format("%,d active", active), actX + 10, y + 16);
+        g.setColor(new Color(0x06, 0x5F, 0x46));
+        g.drawString(String.format("%,d active", active), curX + 24, y + 16);
+        curX += actW + 10;
 
         // Suspended pill
-        int susX = actX + 102;
-        RoundRectangle2D susPill = new RoundRectangle2D.Float(susX, y, 98, 24, 12, 12);
+        int susW = 100;
+        RoundRectangle2D susPill = new RoundRectangle2D.Float(curX, y, susW, 24, 12, 12);
         g.setColor(new Color(0xFE, 0xE2, 0xE2));
         g.fill(susPill);
+        // Red dot
+        g.setColor(new Color(0xEF, 0x44, 0x44));
+        g.fillOval(curX + 10, y + 8, 8, 8);
+        g.setFont(AdminTheme.FONT_BOLD_11);
         g.setColor(new Color(0x99, 0x1B, 0x1B));
-        g.drawString(suspended + " suspended", susX + 10, y + 16);
+        g.drawString(suspended + " suspended", curX + 24, y + 16);
+        curX += susW + 12;
+
+        // Filter status / Reset button
+        boolean hasFilters = !searchQuery.isEmpty() || roleFilterIndex != 0 || statusFilterIndex != 0 || joinedFilterIndex != 0;
+        if (hasFilters) {
+            String filterMatchStr = filtered.size() + " matching";
+            g.setFont(AdminTheme.FONT_REG_11);
+            g.setColor(AdminTheme.TEXT_MUTED);
+            g.drawString(filterMatchStr, curX, y + 16);
+            curX += g.getFontMetrics().stringWidth(filterMatchStr) + 12;
+
+            resetBtnX = curX;
+            resetBtnY = y;
+            resetBtnW = 88;
+            resetBtnH = 24;
+            RoundRectangle2D rBox = new RoundRectangle2D.Float(resetBtnX, resetBtnY, resetBtnW, resetBtnH, 12, 12);
+            g.setColor(resetBtnHovered ? new Color(0xF1, 0xF5, 0xF9) : Color.WHITE);
+            g.fill(rBox);
+            g.setColor(AdminTheme.BORDER_COLOR);
+            g.setStroke(new BasicStroke(1.0f));
+            g.draw(rBox);
+
+            g.setFont(AdminTheme.FONT_BOLD_10);
+            g.setColor(AdminTheme.BRAND_GREEN_DARK);
+            g.drawString("✕ Reset filters", resetBtnX + 10, resetBtnY + 16);
+        } else {
+            resetBtnX = -100;
+        }
+
+        return y + 36;
     }
 
-    private void paintFilterBar(Graphics2D g, int x, int y, int w) {
-        // Search Box
+    private int paintFilterBar(Graphics2D g, int x, int y, int w) {
+        boolean wrapFilters = (w < 760);
+
+        // Search Input
         searchX = x;
         searchY = y;
-        searchW = Math.min(380, w - 380);
-        searchH = 34;
+        searchH = 36;
+
+        if (wrapFilters) {
+            searchW = w;
+        } else {
+            int rightPads = joinedDropW + statusDropW + roleDropW + 36;
+            searchW = Math.max(220, w - rightPads);
+        }
 
         RoundRectangle2D sBox = new RoundRectangle2D.Float(searchX, searchY, searchW, searchH, 8, 8);
         g.setColor(Color.WHITE);
@@ -175,45 +358,87 @@ public class AdminUsers {
         g.setStroke(new BasicStroke(1.2f));
         g.draw(sBox);
 
-        Draw.drawSearchIcon(g, searchX + 10, searchY + 9, 16, AdminTheme.TEXT_LIGHT);
+        Draw.drawSearchIcon(g, searchX + 12, searchY + 10, 16, AdminTheme.TEXT_LIGHT);
         g.setFont(AdminTheme.FONT_REG_12);
-        g.setColor(searchQuery.isEmpty() ? AdminTheme.TEXT_LIGHT : AdminTheme.TEXT_DARK);
-        g.drawString(searchQuery.isEmpty() ? "Search by name or email..." : searchQuery, searchX + 34, searchY + 22);
 
-        // Dropdowns on the right
-        joinedDropW = 136;
-        joinedDropX = x + w - joinedDropW;
-        joinedDropY = y;
-        paintDropdown(g, joinedDropX, joinedDropY, joinedDropW, searchH, joinedOptions[joinedFilterIndex]);
+        if (searchQuery.isEmpty()) {
+            g.setColor(AdminTheme.TEXT_LIGHT);
+            g.drawString("Search by name or email...", searchX + 36, searchY + 23);
+        } else {
+            g.setColor(AdminTheme.TEXT_DARK);
+            String cursor = (searchFocused && (System.currentTimeMillis() % 1000 < 500)) ? "|" : "";
+            g.drawString(searchQuery + cursor, searchX + 36, searchY + 23);
 
-        statusDropW = 106;
+            // Clear search button (✕)
+            clearSearchSize = 18;
+            clearSearchX = searchX + searchW - clearSearchSize - 10;
+            clearSearchY = searchY + (searchH - clearSearchSize) / 2;
+            g.setColor(new Color(0x94, 0xA3, 0xB8));
+            g.fillOval(clearSearchX, clearSearchY, clearSearchSize, clearSearchSize);
+            g.setColor(Color.WHITE);
+            g.setFont(AdminTheme.FONT_BOLD_10);
+            g.drawString("✕", clearSearchX + 5, clearSearchY + 13);
+        }
+
+        // Dropdowns row
+        int dropY = wrapFilters ? (searchY + searchH + 10) : y;
+        int rightAnchor = x + w;
+
+        // Joined Dropdown
+        joinedDropW = 140;
+        joinedDropH = 36;
+        joinedDropX = rightAnchor - joinedDropW;
+        joinedDropY = dropY;
+        paintDropdownButton(g, joinedDropX, joinedDropY, joinedDropW, joinedDropH, joinedOptions[joinedFilterIndex], joinedDropHovered, activePopover == 3);
+
+        // Status Dropdown
+        statusDropW = 115;
+        statusDropH = 36;
         statusDropX = joinedDropX - statusDropW - 10;
-        statusDropY = y;
-        paintDropdown(g, statusDropX, statusDropY, statusDropW, searchH, statusOptions[statusFilterIndex]);
+        statusDropY = dropY;
+        paintDropdownButton(g, statusDropX, statusDropY, statusDropW, statusDropH, statusOptions[statusFilterIndex], statusDropHovered, activePopover == 2);
 
-        roleDropW = 96;
+        // Role Dropdown
+        roleDropW = 105;
+        roleDropH = 36;
         roleDropX = statusDropX - roleDropW - 10;
-        roleDropY = y;
-        paintDropdown(g, roleDropX, roleDropY, roleDropW, searchH, roleOptions[roleFilterIndex]);
+        roleDropY = dropY;
+        paintDropdownButton(g, roleDropX, roleDropY, roleDropW, roleDropH, roleOptions[roleFilterIndex], roleDropHovered, activePopover == 1);
+
+        return wrapFilters ? (dropY + joinedDropH + 16) : (y + searchH + 16);
     }
 
-    private void paintDropdown(Graphics2D g, int dx, int dy, int dw, int dh, String text) {
+    private void paintDropdownButton(Graphics2D g, int dx, int dy, int dw, int dh, String text, boolean hovered, boolean isOpen) {
         RoundRectangle2D box = new RoundRectangle2D.Float(dx, dy, dw, dh, 8, 8);
-        g.setColor(Color.WHITE);
+        g.setColor(hovered || isOpen ? new Color(0xF8, 0xFA, 0xFC) : Color.WHITE);
         g.fill(box);
-        g.setColor(AdminTheme.BORDER_COLOR);
+        g.setColor(isOpen ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.BORDER_COLOR);
         g.setStroke(new BasicStroke(1.2f));
         g.draw(box);
 
         g.setFont(AdminTheme.FONT_REG_11);
         g.setColor(AdminTheme.TEXT_DARK);
-        g.drawString(text, dx + 12, dy + 21);
+        g.drawString(text, dx + 12, dy + 22);
 
-        Draw.drawChevronDown(g, dx + dw - 18, dy + 14, 8, AdminTheme.TEXT_LIGHT, 0f);
+        Draw.drawChevronDown(g, dx + dw - 18, dy + 14, 8, AdminTheme.TEXT_LIGHT, isOpen ? 180f : 0f);
     }
 
-    private void paintUsersTable(Graphics2D g, int x, int y, int w, AdminDashboard dashboard) {
-        int tableH = 480;
+    private int paintUsersTable(Graphics2D g, int x, int y, int w, AdminDashboard dashboard) {
+        List<AdminDataStore.UserModel> userList = getFilteredUsers();
+        hitboxes.clear();
+
+        // Calculate pagination bounds
+        int totalFiltered = userList.size();
+        int totalPages = Math.max(1, (int) Math.ceil((double) totalFiltered / pageSize));
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
+        int fromIndex = (currentPage - 1) * pageSize;
+        int toIndex = Math.min(fromIndex + pageSize, totalFiltered);
+        int rowsCount = Math.max(0, toIndex - fromIndex);
+
+        int tableH = (rowsCount == 0) ? 230 : (42 + rowsCount * 55);
+
         RoundRectangle2D card = new RoundRectangle2D.Float(x, y, w, tableH, 12, 12);
         g.setColor(Color.WHITE);
         g.fill(card);
@@ -221,70 +446,81 @@ public class AdminUsers {
         g.setStroke(new BasicStroke(1.2f));
         g.draw(card);
 
-        // Header
+        // Header Row
         int thY = y;
         g.setColor(new Color(0xF8, 0xFA, 0xFC));
-        g.fillRect(x + 1, thY + 1, w - 2, 38);
+        g.fillRect(x + 1, thY + 1, w - 2, 40);
         g.setColor(AdminTheme.BORDER_COLOR);
-        g.drawLine(x, thY + 38, x + w, thY + 38);
+        g.drawLine(x, thY + 41, x + w, thY + 41);
 
-        int colUser = x + 24;
-        int colEmail = x + Math.round(w * 0.28f);
-        int colRole = x + Math.round(w * 0.52f);
-        int colJoined = x + Math.round(w * 0.63f);
-        int colStatus = x + Math.round(w * 0.76f);
-        int colAction = x + Math.round(w * 0.86f);
+        // Responsive Column Positions
+        boolean isCompact = (w < 720);
+        int colUser = x + 20;
+        int colEmail = x + (int) (w * (isCompact ? 0.35f : 0.28f));
+        int colRole = x + (int) (w * (isCompact ? 0.65f : 0.50f));
+        int colJoined = isCompact ? -1 : x + (int) (w * 0.63f);
+        int colStatus = x + (int) (w * (isCompact ? 0.80f : 0.74f));
+        int colAction = x + (int) (w * (isCompact ? 0.88f : 0.84f));
 
         g.setFont(AdminTheme.FONT_BOLD_11);
         g.setColor(AdminTheme.TEXT_MUTED);
-        g.drawString("User", colUser, thY + 24);
-        g.drawString("Email", colEmail, thY + 24);
-        g.drawString("Role", colRole, thY + 24);
-        g.drawString("Joined", colJoined, thY + 24);
-        g.drawString("Status", colStatus, thY + 24);
-        g.drawString("Actions", colAction, thY + 24);
+        g.drawString("User", colUser, thY + 25);
+        g.drawString("Email", colEmail, thY + 25);
+        g.drawString("Role", colRole, thY + 25);
+        if (!isCompact) {
+            g.drawString("Joined", colJoined, thY + 25);
+        }
+        g.drawString("Status", colStatus, thY + 25);
+        g.drawString("Actions", colAction, thY + 25);
+
+        // Empty State Check
+        if (rowsCount == 0) {
+            paintEmptyState(g, x, thY + 42, w, tableH - 42);
+            return y + tableH + 16;
+        }
 
         int rowH = 55;
-        int curRowY = thY + 38;
-
-        List<AdminDataStore.UserModel> userList = AdminDataStore.getInstance().filterUsers(
-                searchQuery, roleOptions[roleFilterIndex], statusOptions[statusFilterIndex]
-        );
-
-        hitboxes.clear();
-
-        int pageSize = 8;
-        int fromIndex = Math.min((currentPage - 1) * pageSize, Math.max(0, userList.size() - 1));
-        if (userList.isEmpty()) fromIndex = 0;
-        int toIndex = Math.min(fromIndex + pageSize, userList.size());
+        int curRowY = thY + 42;
 
         for (int i = fromIndex; i < toIndex; i++) {
             AdminDataStore.UserModel u = userList.get(i);
             UserRowHitbox hb = new UserRowHitbox();
-            hb.name = u.name;
-            hb.role = u.role;
-            hb.status = u.status;
+            hb.user = u;
+            hb.rowX = x;
+            hb.rowY = curRowY;
+            hb.rowW = w;
+            hb.rowH = rowH;
 
-            // Avatar circle
+            // Hover row highlight
+            if (hb.rowHovered) {
+                g.setColor(new Color(0xF8, 0xFA, 0xFC));
+                g.fillRect(x + 1, curRowY, w - 2, rowH);
+            }
+
+            // Avatar circle with initials
             int avSize = 28;
             int avY = curRowY + (rowH - avSize) / 2;
             g.setColor(new Color(0xE2, 0xEE, 0xE7));
             g.fillOval(colUser, avY, avSize, avSize);
             g.setFont(AdminTheme.FONT_BOLD_10);
             g.setColor(AdminTheme.BRAND_GREEN_DARK);
-            g.drawString(u.initials, colUser + 6, avY + 18);
+            FontMetrics afm = g.getFontMetrics();
+            int initX = colUser + (avSize - afm.stringWidth(u.initials)) / 2;
+            g.drawString(u.initials, initX, avY + 18);
 
             // User Name
             g.setFont(AdminTheme.FONT_BOLD_12);
             g.setColor(AdminTheme.TEXT_DARK);
-            g.drawString(u.name, colUser + 36, curRowY + 32);
+            int maxNameW = Math.max(60, colEmail - colUser - 44);
+            g.drawString(truncateWithEllipsis(g, u.name, maxNameW), colUser + 36, curRowY + 32);
 
-            // Email
+            // User Email
             g.setFont(AdminTheme.FONT_REG_12);
             g.setColor(AdminTheme.TEXT_MUTED);
-            g.drawString(u.email, colEmail, curRowY + 32);
+            int maxEmailW = Math.max(60, colRole - colEmail - 16);
+            g.drawString(truncateWithEllipsis(g, u.email, maxEmailW), colEmail, curRowY + 32);
 
-            // Role
+            // Role Badge
             if ("Admin".equalsIgnoreCase(u.role)) {
                 RoundRectangle2D rolePill = new RoundRectangle2D.Float(colRole, curRowY + 18, 54, 20, 10, 10);
                 g.setColor(new Color(0xE6, 0xF4, 0xEA));
@@ -305,10 +541,12 @@ public class AdminUsers {
                 g.drawString(u.role, colRole, curRowY + 32);
             }
 
-            // Joined date
-            g.setFont(AdminTheme.FONT_REG_11);
-            g.setColor(AdminTheme.TEXT_LIGHT);
-            g.drawString(u.joined, colJoined, curRowY + 32);
+            // Joined date (omitted on compact)
+            if (!isCompact && colJoined > 0) {
+                g.setFont(AdminTheme.FONT_REG_11);
+                g.setColor(AdminTheme.TEXT_LIGHT);
+                g.drawString(u.joined, colJoined, curRowY + 32);
+            }
 
             // Status pill
             boolean isActive = "Active".equalsIgnoreCase(u.status);
@@ -320,86 +558,168 @@ public class AdminUsers {
             g.setColor(isActive ? new Color(0x06, 0x5F, 0x46) : new Color(0x99, 0x1B, 0x1B));
             g.drawString(u.status, colStatus + 8, curRowY + 32);
 
-            // Action links: "View" · "Suspend/Reactivate" · "Edit Role"
+            // Action links: "View" · "Suspend/Reactivate" · "Edit" · "Delete"
             int ax = colAction;
             g.setFont(AdminTheme.FONT_BOLD_11);
 
-            hb.actionX = ax;
-            hb.actionY = curRowY + 12;
-            hb.actionH = 26;
-
-            // 1. View
-            g.setColor(AdminTheme.TEXT_DARK);
+            // 1. View Button
+            hb.viewBtnX = ax;
+            hb.viewBtnY = curRowY + 14;
+            hb.viewBtnW = 32;
+            hb.viewBtnH = 24;
+            g.setColor(hb.viewHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.TEXT_DARK);
             g.drawString("View", ax, curRowY + 32);
-            ax += 36;
+            ax += hb.viewBtnW + 8;
 
-            // 2. Suspend / Reactivate
+            // 2. Suspend / Reactivate Button
             String susAction = isActive ? "Suspend" : "Reactivate";
-            g.setColor(isActive ? new Color(0x99, 0x1B, 0x1B) : AdminTheme.BRAND_GREEN_DARK);
+            FontMetrics safm = g.getFontMetrics();
+            int susW = safm.stringWidth(susAction);
+            hb.suspendBtnX = ax;
+            hb.suspendBtnY = curRowY + 14;
+            hb.suspendBtnW = susW;
+            hb.suspendBtnH = 24;
+            g.setColor(isActive ? (hb.suspendHovered ? new Color(0x7F, 0x1D, 0x1D) : new Color(0xDC, 0x26, 0x26))
+                                : (hb.suspendHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.BRAND_GREEN_DARK));
             g.drawString(susAction, ax, curRowY + 32);
-            FontMetrics afm = g.getFontMetrics();
-            ax += afm.stringWidth(susAction) + 12;
+            ax += susW + 10;
 
-            // 3. Edit Role
-            g.setColor(AdminTheme.TEXT_DARK);
-            g.drawString("Edit Role", ax, curRowY + 32);
-            ax += 60;
+            // 3. Edit Role Button
+            hb.editRoleBtnX = ax;
+            hb.editRoleBtnY = curRowY + 14;
+            hb.editRoleBtnW = 28;
+            hb.editRoleBtnH = 24;
+            g.setColor(hb.editRoleHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.TEXT_DARK);
+            g.drawString("Edit", ax, curRowY + 32);
+            ax += hb.editRoleBtnW + 8;
 
-            hb.actionW = ax - hb.actionX;
+            // 4. Delete Action
+            hb.deleteBtnX = ax;
+            hb.deleteBtnY = curRowY + 14;
+            hb.deleteBtnW = 22;
+            hb.deleteBtnH = 24;
+            g.setColor(hb.deleteHovered ? new Color(0x99, 0x1B, 0x1B) : new Color(0xEF, 0x44, 0x44));
+            g.drawString("✕", ax + 4, curRowY + 31);
+
             hitboxes.add(hb);
 
             // Row divider line
             curRowY += rowH;
-            if (i < Math.min(8, userList.size()) - 1) {
+            if (i < toIndex - 1) {
                 g.setColor(new Color(0xF1, 0xF5, 0xF9));
                 g.drawLine(x, curRowY, x + w, curRowY);
             }
         }
+
+        return y + tableH + 16;
     }
 
-    private void paintPagination(Graphics2D g, int x, int y, int w) {
+    private void paintEmptyState(Graphics2D g, int x, int y, int w, int h) {
+        int midX = x + w / 2;
+        int midY = y + h / 2 - 20;
+
+        // Search icon circle
+        int iconCircle = 44;
+        g.setColor(new Color(0xF1, 0xF5, 0xF9));
+        g.fillOval(midX - iconCircle / 2, midY - 24, iconCircle, iconCircle);
+        Draw.drawSearchIcon(g, midX - 9, midY - 15, 18, AdminTheme.TEXT_LIGHT);
+
+        g.setFont(AdminTheme.FONT_BOLD_13);
+        g.setColor(AdminTheme.TEXT_DARK);
+        String msg = searchQuery.isEmpty() ? "No users matching active filters" : "No users found matching \"" + searchQuery + "\"";
+        FontMetrics fm = g.getFontMetrics();
+        g.drawString(msg, midX - fm.stringWidth(msg) / 2, midY + 34);
+
+        g.setFont(AdminTheme.FONT_REG_11);
+        g.setColor(AdminTheme.TEXT_MUTED);
+        String sub = "Try searching for a different name, email, or reset your filters.";
+        FontMetrics sfm = g.getFontMetrics();
+        g.drawString(sub, midX - sfm.stringWidth(sub) / 2, midY + 52);
+
+        // Reset button
+        emptyResetBtnW = 124;
+        emptyResetBtnH = 32;
+        emptyResetBtnX = midX - emptyResetBtnW / 2;
+        emptyResetBtnY = midY + 68;
+
+        RoundRectangle2D rBox = new RoundRectangle2D.Float(emptyResetBtnX, emptyResetBtnY, emptyResetBtnW, emptyResetBtnH, 8, 8);
+        g.setColor(emptyResetHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.BRAND_GREEN_DARK);
+        g.fill(rBox);
+        g.setFont(AdminTheme.FONT_BOLD_11);
+        g.setColor(Color.WHITE);
+        FontMetrics rfm = g.getFontMetrics();
+        g.drawString("Reset All Filters", emptyResetBtnX + (emptyResetBtnW - rfm.stringWidth("Reset All Filters")) / 2, emptyResetBtnY + 20);
+    }
+
+    private int paintPagination(Graphics2D g, int x, int y, int w) {
+        List<AdminDataStore.UserModel> userList = getFilteredUsers();
+        int totalFiltered = userList.size();
+        int totalPages = Math.max(1, (int) Math.ceil((double) totalFiltered / pageSize));
+
+        int startU = totalFiltered == 0 ? 0 : (currentPage - 1) * pageSize + 1;
+        int endU = Math.min(currentPage * pageSize, totalFiltered);
+
         g.setFont(AdminTheme.FONT_REG_12);
         g.setColor(AdminTheme.TEXT_MUTED);
-        int startU = (currentPage - 1) * 8 + 1;
-        int endU = Math.min(currentPage * 8, 12480);
-        g.drawString("Showing " + startU + "-" + endU + " of 12,480 users", x, y + 20);
+        g.drawString("Showing " + startU + "-" + endU + " of " + String.format("%,d", totalFiltered) + " users", x, y + 21);
 
         int curX = x + w;
 
         // Next button
+        nextBtnW = 58;
+        nextBtnH = 32;
         nextBtnX = curX - nextBtnW;
         nextBtnY = y + 2;
-        paintPageBtn(g, nextBtnX, nextBtnY, nextBtnW, nextBtnH, "Next", false);
+        nextEnabled = (currentPage < totalPages);
+        paintPageBtn(g, nextBtnX, nextBtnY, nextBtnW, nextBtnH, "Next", false, nextEnabled, nextHovered);
 
-        // Page 3
-        p3BtnX = nextBtnX - 8 - p3BtnW;
-        p3BtnY = y + 2;
-        paintPageBtn(g, p3BtnX, p3BtnY, p3BtnW, p3BtnH, "3", currentPage == 3);
+        curX = nextBtnX - 8;
 
-        // Page 2
-        p2BtnX = p3BtnX - 6 - p2BtnW;
-        p2BtnY = y + 2;
-        paintPageBtn(g, p2BtnX, p2BtnY, p2BtnW, p2BtnH, "2", currentPage == 2);
+        // Dynamic page numbers (shows up to 4 page numbers around currentPage)
+        pageHitboxes.clear();
+        int startP = Math.max(1, Math.min(currentPage - 1, totalPages - 3));
+        int endP = Math.min(totalPages, startP + 3);
 
-        // Page 1
-        p1BtnX = p2BtnX - 6 - p1BtnW;
-        p1BtnY = y + 2;
-        paintPageBtn(g, p1BtnX, p1BtnY, p1BtnW, p1BtnH, "1", currentPage == 1);
+        for (int p = endP; p >= startP; p--) {
+            int pBtnW = 32;
+            int pBtnH = 32;
+            int pBtnX = curX - pBtnW;
+            int pBtnY = y + 2;
+            boolean isActive = (p == currentPage);
+
+            PageBtnHitbox ph = new PageBtnHitbox(p, pBtnX, pBtnY, pBtnW, pBtnH, isActive);
+            pageHitboxes.add(ph);
+
+            paintPageBtn(g, pBtnX, pBtnY, pBtnW, pBtnH, String.valueOf(p), isActive, true, ph.hovered);
+            curX = pBtnX - 6;
+        }
 
         // Previous button
-        prevBtnX = p1BtnX - 8 - prevBtnW;
+        prevBtnW = 76;
+        prevBtnH = 32;
+        prevBtnX = curX - 2 - prevBtnW;
         prevBtnY = y + 2;
-        paintPageBtn(g, prevBtnX, prevBtnY, prevBtnW, prevBtnH, "Previous", false);
+        prevEnabled = (currentPage > 1);
+        paintPageBtn(g, prevBtnX, prevBtnY, prevBtnW, prevBtnH, "Previous", false, prevEnabled, prevHovered);
+
+        return y + 48;
     }
 
-    private void paintPageBtn(Graphics2D g, int bx, int by, int bw, int bh, String text, boolean active) {
+    private void paintPageBtn(Graphics2D g, int bx, int by, int bw, int bh, String text, boolean active, boolean enabled, boolean hovered) {
         RoundRectangle2D b = new RoundRectangle2D.Float(bx, by, bw, bh, 6, 6);
         if (active) {
             g.setColor(AdminTheme.BRAND_GREEN_DARK);
             g.fill(b);
             g.setColor(Color.WHITE);
+        } else if (!enabled) {
+            g.setColor(new Color(0xF8, 0xFA, 0xFC));
+            g.fill(b);
+            g.setColor(new Color(0xEA, 0xEE, 0xF4));
+            g.setStroke(new BasicStroke(1.0f));
+            g.draw(b);
+            g.setColor(new Color(0x94, 0xA3, 0xB8));
         } else {
-            g.setColor(Color.WHITE);
+            g.setColor(hovered ? new Color(0xF1, 0xF5, 0xF9) : Color.WHITE);
             g.fill(b);
             g.setColor(AdminTheme.BORDER_COLOR);
             g.setStroke(new BasicStroke(1.2f));
@@ -420,29 +740,162 @@ public class AdminUsers {
         g.setStroke(new BasicStroke(1.2f));
         g.draw(banner);
 
-        // Checkmark circle
+        // Checkmark badge
         g.setColor(new Color(0x16, 0xA3, 0x4A));
-        g.drawOval(x + 18, y + 18, 18, 18);
-        g.drawLine(x + 22, y + 27, x + 25, y + 31);
-        g.drawLine(x + 25, y + 31, x + 31, y + 23);
+        g.fillOval(x + 18, y + 18, 20, 20);
+        g.setColor(Color.WHITE);
+        g.setStroke(new BasicStroke(2.0f));
+        g.drawLine(x + 23, y + 28, x + 26, y + 31);
+        g.drawLine(x + 26, y + 31, x + 32, y + 24);
 
         g.setFont(AdminTheme.FONT_BOLD_12);
         g.setColor(new Color(0x14, 0x53, 0x2D));
-        g.drawString("Role changes affect platform access", x + 46, y + 24);
+        g.drawString("Role changes affect platform access immediately", x + 48, y + 25);
 
         g.setFont(AdminTheme.FONT_REG_11);
         g.setColor(new Color(0x16, 0x65, 0x34));
-        g.drawString("Review a member's responsibilities before editing their role. Administrative actions are recorded in Activity Logs.", x + 46, y + 42);
+        g.drawString("Review member permissions before editing roles. All suspensions and role upgrades are recorded in Activity Logs.", x + 48, y + 43);
+    }
+
+    private void paintActivePopover(Graphics2D g) {
+        String[] opts;
+        int activeIdx;
+        int popX, popY, popW;
+
+        if (activePopover == 1) {
+            opts = roleOptions;
+            activeIdx = roleFilterIndex;
+            popX = roleDropX;
+            popY = roleDropY + roleDropH + 4;
+            popW = Math.max(120, roleDropW);
+        } else if (activePopover == 2) {
+            opts = statusOptions;
+            activeIdx = statusFilterIndex;
+            popX = statusDropX;
+            popY = statusDropY + statusDropH + 4;
+            popW = Math.max(130, statusDropW);
+        } else if (activePopover == 3) {
+            opts = joinedOptions;
+            activeIdx = joinedFilterIndex;
+            popX = joinedDropX;
+            popY = joinedDropY + joinedDropH + 4;
+            popW = Math.max(150, joinedDropW);
+        } else {
+            return;
+        }
+
+        int itemH = 34;
+        int popH = opts.length * itemH + 8;
+
+        // Shadow
+        g.setColor(new Color(0, 0, 0, 18));
+        g.fillRoundRect(popX - 2, popY, popW + 4, popH + 4, 10, 10);
+
+        // Popover Box
+        RoundRectangle2D pBox = new RoundRectangle2D.Float(popX, popY, popW, popH, 8, 8);
+        g.setColor(Color.WHITE);
+        g.fill(pBox);
+        g.setColor(AdminTheme.BORDER_COLOR);
+        g.setStroke(new BasicStroke(1.2f));
+        g.draw(pBox);
+
+        popoverHitboxes.clear();
+        int itemY = popY + 4;
+
+        for (int i = 0; i < opts.length; i++) {
+            boolean isSel = (i == activeIdx);
+            DropdownItemHitbox dh = new DropdownItemHitbox(i, opts[i], popX + 4, itemY, popW - 8, itemH, false, isSel);
+
+            if (dh.hovered) {
+                g.setColor(new Color(0xF1, 0xF5, 0xF9));
+                g.fillRoundRect(dh.x, dh.y, dh.w, dh.h, 6, 6);
+            }
+
+            g.setFont(isSel ? AdminTheme.FONT_BOLD_11 : AdminTheme.FONT_REG_11);
+            g.setColor(isSel ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.TEXT_DARK);
+            g.drawString(opts[i], dh.x + 10, dh.y + 21);
+
+            // Checkmark if selected
+            if (isSel) {
+                g.setColor(AdminTheme.BRAND_GREEN_DARK);
+                g.setFont(AdminTheme.FONT_BOLD_12);
+                g.drawString("✓", dh.x + dh.w - 18, dh.y + 22);
+            }
+
+            popoverHitboxes.add(dh);
+            itemY += itemH;
+        }
+    }
+
+    private String truncateWithEllipsis(Graphics2D g, String text, int maxW) {
+        if (text == null) return "";
+        FontMetrics fm = g.getFontMetrics();
+        if (fm.stringWidth(text) <= maxW) return text;
+        String ell = "...";
+        int ellW = fm.stringWidth(ell);
+        int len = text.length();
+        while (len > 0 && fm.stringWidth(text.substring(0, len)) + ellW > maxW) {
+            len--;
+        }
+        return text.substring(0, Math.max(0, len)) + ell;
     }
 
     public boolean onClick(int mx, int my, AdminDashboard dashboard) {
-        if (mx >= exportBtnX && mx <= exportBtnX + exportBtnW && my >= exportBtnY && my <= exportBtnY + exportBtnH) {
-            dashboard.showToast("Exporting user records to CSV (12,480 total)...");
-            AdminDataStore.getInstance().logActivity("Jordan Lee", "JL", "Exported user list", "Users · October 2026", true);
+        // 1. Popover click handling (if open)
+        if (activePopover != 0) {
+            for (DropdownItemHitbox d : popoverHitboxes) {
+                if (mx >= d.x && mx <= d.x + d.w && my >= d.y && my <= d.y + d.h) {
+                    if (activePopover == 1) {
+                        roleFilterIndex = d.index;
+                        dashboard.showToast("Filter role: " + roleOptions[roleFilterIndex]);
+                    } else if (activePopover == 2) {
+                        statusFilterIndex = d.index;
+                        dashboard.showToast("Filter status: " + statusOptions[statusFilterIndex]);
+                    } else if (activePopover == 3) {
+                        joinedFilterIndex = d.index;
+                        dashboard.showToast("Filter joined: " + joinedOptions[joinedFilterIndex]);
+                    }
+                    currentPage = 1;
+                    activePopover = 0;
+                    return true;
+                }
+            }
+            // Click outside popover closes it
+            activePopover = 0;
             return true;
         }
 
-        // Search Box Focus
+        // 2. Add User Button
+        if (mx >= addUserBtnX && mx <= addUserBtnX + addUserBtnW && my >= addUserBtnY && my <= addUserBtnY + addUserBtnH) {
+            dashboard.openAddUserModal();
+            return true;
+        }
+
+        // 3. Export Users Button
+        if (mx >= exportBtnX && mx <= exportBtnX + exportBtnW && my >= exportBtnY && my <= exportBtnY + exportBtnH) {
+            String path = AdminDataStore.getInstance().exportUsersToCsv();
+            int total = AdminDataStore.getInstance().getAllUsers().size();
+            dashboard.showToast("Exported " + total + " users to " + path);
+            return true;
+        }
+
+        // 4. Reset Filters Buttons
+        if (mx >= resetBtnX && mx <= resetBtnX + resetBtnW && my >= resetBtnY && my <= resetBtnY + resetBtnH) {
+            resetAllFilters(dashboard);
+            return true;
+        }
+        if (mx >= emptyResetBtnX && mx <= emptyResetBtnX + emptyResetBtnW && my >= emptyResetBtnY && my <= emptyResetBtnY + emptyResetBtnH) {
+            resetAllFilters(dashboard);
+            return true;
+        }
+
+        // 5. Search Box & Clear
+        if (!searchQuery.isEmpty() && mx >= clearSearchX && mx <= clearSearchX + clearSearchSize && my >= clearSearchY && my <= clearSearchY + clearSearchSize) {
+            searchQuery = "";
+            currentPage = 1;
+            dashboard.showToast("Search cleared");
+            return true;
+        }
         if (mx >= searchX && mx <= searchX + searchW && my >= searchY && my <= searchY + searchH) {
             searchFocused = true;
             return true;
@@ -450,110 +903,186 @@ public class AdminUsers {
             searchFocused = false;
         }
 
-        // Role Dropdown click (Cycles through: All roles -> Member -> Moderator -> Admin)
+        // 6. Dropdown Popover Toggles
         if (mx >= roleDropX && mx <= roleDropX + roleDropW && my >= roleDropY && my <= roleDropY + roleDropH) {
-            roleFilterIndex = (roleFilterIndex + 1) % roleOptions.length;
-            dashboard.showToast("Filtered by: " + roleOptions[roleFilterIndex]);
+            activePopover = (activePopover == 1) ? 0 : 1;
             return true;
         }
-
-        // Status Dropdown click (Cycles through: All statuses -> Active -> Suspended)
         if (mx >= statusDropX && mx <= statusDropX + statusDropW && my >= statusDropY && my <= statusDropY + statusDropH) {
-            statusFilterIndex = (statusFilterIndex + 1) % statusOptions.length;
-            currentPage = 1;
-            dashboard.showToast("Filtered by: " + statusOptions[statusFilterIndex]);
+            activePopover = (activePopover == 2) ? 0 : 2;
             return true;
         }
-
-        // Joined Dropdown click
         if (mx >= joinedDropX && mx <= joinedDropX + joinedDropW && my >= joinedDropY && my <= joinedDropY + joinedDropH) {
-            joinedFilterIndex = (joinedFilterIndex + 1) % joinedOptions.length;
-            currentPage = 1;
-            dashboard.showToast("Filtered by: " + joinedOptions[joinedFilterIndex]);
+            activePopover = (activePopover == 3) ? 0 : 3;
             return true;
         }
 
-        // Pagination Clicks
-        if (mx >= p1BtnX && mx <= p1BtnX + p1BtnW && my >= p1BtnY && my <= p1BtnY + p1BtnH) {
-            currentPage = 1;
-            dashboard.showToast("Page 1 of users");
-            return true;
-        }
-        if (mx >= p2BtnX && mx <= p2BtnX + p2BtnW && my >= p2BtnY && my <= p2BtnY + p2BtnH) {
-            currentPage = 2;
-            dashboard.showToast("Page 2 of users");
-            return true;
-        }
-        if (mx >= p3BtnX && mx <= p3BtnX + p3BtnW && my >= p3BtnY && my <= p3BtnY + p3BtnH) {
-            currentPage = 3;
-            dashboard.showToast("Page 3 of users");
-            return true;
-        }
-        if (mx >= nextBtnX && mx <= nextBtnX + nextBtnW && my >= nextBtnY && my <= nextBtnY + nextBtnH) {
-            currentPage = Math.min(3, currentPage + 1);
-            dashboard.showToast("Page " + currentPage + " of users");
-            return true;
-        }
-        if (mx >= prevBtnX && mx <= prevBtnX + prevBtnW && my >= prevBtnY && my <= prevBtnY + prevBtnH) {
-            currentPage = Math.max(1, currentPage - 1);
-            dashboard.showToast("Page " + currentPage + " of users");
-            return true;
-        }
-
-        // Table actions
+        // 7. Table Row Actions
         for (UserRowHitbox u : hitboxes) {
-            if (mx >= u.actionX && mx <= u.actionX + u.actionW && my >= u.actionY && my <= u.actionY + u.actionH) {
-                int localX = mx - u.actionX;
-                if (localX < 36) {
-                    dashboard.showToast("Opening profile details for " + u.name);
-                } else if (localX < 100) {
-                    if ("Active".equalsIgnoreCase(u.status)) {
-                        AdminDataStore.getInstance().suspendUser(u.name);
-                        dashboard.showToast("Suspended account for " + u.name);
-                    } else {
-                        AdminDataStore.getInstance().reactivateUser(u.name);
-                        dashboard.showToast("Reactivated account for " + u.name);
-                    }
+            if (mx >= u.viewBtnX && mx <= u.viewBtnX + u.viewBtnW && my >= u.viewBtnY && my <= u.viewBtnY + u.viewBtnH) {
+                dashboard.openUserDetailsModal(u.user);
+                return true;
+            }
+            if (mx >= u.suspendBtnX && mx <= u.suspendBtnX + u.suspendBtnW && my >= u.suspendBtnY && my <= u.suspendBtnY + u.suspendBtnH) {
+                if ("Active".equalsIgnoreCase(u.user.status)) {
+                    AdminDataStore.getInstance().suspendUser(u.user.name);
+                    dashboard.showToast("Account suspended for " + u.user.name);
                 } else {
-                    dashboard.openEditRoleModal(u.name, u.role);
+                    AdminDataStore.getInstance().reactivateUser(u.user.name);
+                    dashboard.showToast("Account reactivated for " + u.user.name);
                 }
                 return true;
             }
+            if (mx >= u.editRoleBtnX && mx <= u.editRoleBtnX + u.editRoleBtnW && my >= u.editRoleBtnY && my <= u.editRoleBtnY + u.editRoleBtnH) {
+                dashboard.openEditRoleModal(u.user.name, u.user.role);
+                return true;
+            }
+            if (mx >= u.deleteBtnX && mx <= u.deleteBtnX + u.deleteBtnW && my >= u.deleteBtnY && my <= u.deleteBtnY + u.deleteBtnH) {
+                String dName = u.user.name;
+                AdminDataStore.getInstance().deleteUser(dName);
+                dashboard.showToast("Deleted user record: " + dName);
+                return true;
+            }
+        }
+
+        // 8. Pagination Clicks
+        for (PageBtnHitbox p : pageHitboxes) {
+            if (mx >= p.x && mx <= p.x + p.w && my >= p.y && my <= p.y + p.h) {
+                currentPage = p.pageNumber;
+                dashboard.showToast("Page " + currentPage);
+                return true;
+            }
+        }
+        if (prevEnabled && mx >= prevBtnX && mx <= prevBtnX + prevBtnW && my >= prevBtnY && my <= prevBtnY + prevBtnH) {
+            currentPage = Math.max(1, currentPage - 1);
+            dashboard.showToast("Page " + currentPage);
+            return true;
+        }
+        if (nextEnabled && mx >= nextBtnX && mx <= nextBtnX + nextBtnW && my >= nextBtnY && my <= nextBtnY + nextBtnH) {
+            currentPage++;
+            dashboard.showToast("Page " + currentPage);
+            return true;
         }
 
         return false;
     }
 
+    private void resetAllFilters(AdminDashboard dashboard) {
+        searchQuery = "";
+        roleFilterIndex = 0;
+        statusFilterIndex = 0;
+        joinedFilterIndex = 0;
+        currentPage = 1;
+        activePopover = 0;
+        dashboard.showToast("All filters reset");
+    }
+
     public boolean onMouseMove(int mx, int my) {
         boolean changed = false;
 
-        boolean pExp = exportHovered;
-        exportHovered = (mx >= exportBtnX && mx <= exportBtnX + exportBtnW && my >= exportBtnY && my <= exportBtnY + exportBtnH);
-        if (exportHovered != pExp) changed = true;
-
-        for (UserRowHitbox u : hitboxes) {
-            boolean inRow = (mx >= u.actionX && mx <= u.actionX + u.actionW && my >= u.actionY && my <= u.actionY + u.actionH);
-            if (inRow) {
-                int lx = mx - u.actionX;
-                u.viewHovered = lx < 36;
-                u.suspendHovered = lx >= 36 && lx < 100;
-                u.editRoleHovered = lx >= 100;
-                changed = true;
-            } else {
-                if (u.viewHovered || u.suspendHovered || u.editRoleHovered) {
-                    u.viewHovered = false;
-                    u.suspendHovered = false;
-                    u.editRoleHovered = false;
+        // Popover hover
+        if (activePopover != 0) {
+            for (DropdownItemHitbox d : popoverHitboxes) {
+                boolean h = (mx >= d.x && mx <= d.x + d.w && my >= d.y && my <= d.y + d.h);
+                if (d.hovered != h) {
+                    d.hovered = h;
                     changed = true;
                 }
             }
+            return changed;
         }
 
-        return changed || exportHovered;
+        // Header buttons hover
+        boolean pAdd = addUserHovered;
+        addUserHovered = (mx >= addUserBtnX && mx <= addUserBtnX + addUserBtnW && my >= addUserBtnY && my <= addUserBtnY + addUserBtnH);
+        if (pAdd != addUserHovered) changed = true;
+
+        boolean pExp = exportHovered;
+        exportHovered = (mx >= exportBtnX && mx <= exportBtnX + exportBtnW && my >= exportBtnY && my <= exportBtnY + exportBtnH);
+        if (pExp != exportHovered) changed = true;
+
+        // Reset button hover
+        boolean pRes = resetBtnHovered;
+        resetBtnHovered = (mx >= resetBtnX && mx <= resetBtnX + resetBtnW && my >= resetBtnY && my <= resetBtnY + resetBtnH);
+        if (pRes != resetBtnHovered) changed = true;
+
+        boolean pEmptyRes = emptyResetHovered;
+        emptyResetHovered = (mx >= emptyResetBtnX && mx <= emptyResetBtnX + emptyResetBtnW && my >= emptyResetBtnY && my <= emptyResetBtnY + emptyResetBtnH);
+        if (pEmptyRes != emptyResetHovered) changed = true;
+
+        // Dropdown buttons hover
+        boolean pR = roleDropHovered;
+        roleDropHovered = (mx >= roleDropX && mx <= roleDropX + roleDropW && my >= roleDropY && my <= roleDropY + roleDropH);
+        if (pR != roleDropHovered) changed = true;
+
+        boolean pS = statusDropHovered;
+        statusDropHovered = (mx >= statusDropX && mx <= statusDropX + statusDropW && my >= statusDropY && my <= statusDropY + statusDropH);
+        if (pS != statusDropHovered) changed = true;
+
+        boolean pJ = joinedDropHovered;
+        joinedDropHovered = (mx >= joinedDropX && mx <= joinedDropX + joinedDropW && my >= joinedDropY && my <= joinedDropY + joinedDropH);
+        if (pJ != joinedDropHovered) changed = true;
+
+        // Row and Action buttons hover
+        for (UserRowHitbox u : hitboxes) {
+            boolean rH = (mx >= u.rowX && mx <= u.rowX + u.rowW && my >= u.rowY && my <= u.rowY + u.rowH);
+            if (u.rowHovered != rH) {
+                u.rowHovered = rH;
+                changed = true;
+            }
+
+            boolean vH = (mx >= u.viewBtnX && mx <= u.viewBtnX + u.viewBtnW && my >= u.viewBtnY && my <= u.viewBtnY + u.viewBtnH);
+            if (u.viewHovered != vH) {
+                u.viewHovered = vH;
+                changed = true;
+            }
+
+            boolean sH = (mx >= u.suspendBtnX && mx <= u.suspendBtnX + u.suspendBtnW && my >= u.suspendBtnY && my <= u.suspendBtnY + u.suspendBtnH);
+            if (u.suspendHovered != sH) {
+                u.suspendHovered = sH;
+                changed = true;
+            }
+
+            boolean eH = (mx >= u.editRoleBtnX && mx <= u.editRoleBtnX + u.editRoleBtnW && my >= u.editRoleBtnY && my <= u.editRoleBtnY + u.editRoleBtnH);
+            if (u.editRoleHovered != eH) {
+                u.editRoleHovered = eH;
+                changed = true;
+            }
+
+            boolean dH = (mx >= u.deleteBtnX && mx <= u.deleteBtnX + u.deleteBtnW && my >= u.deleteBtnY && my <= u.deleteBtnY + u.deleteBtnH);
+            if (u.deleteHovered != dH) {
+                u.deleteHovered = dH;
+                changed = true;
+            }
+        }
+
+        // Pagination buttons hover
+        boolean prevH = (mx >= prevBtnX && mx <= prevBtnX + prevBtnW && my >= prevBtnY && my <= prevBtnY + prevBtnH);
+        if (prevHovered != prevH) {
+            prevHovered = prevH;
+            changed = true;
+        }
+
+        boolean nextH = (mx >= nextBtnX && mx <= nextBtnX + nextBtnW && my >= nextBtnY && my <= nextBtnY + nextBtnH);
+        if (nextHovered != nextH) {
+            nextHovered = nextH;
+            changed = true;
+        }
+
+        for (PageBtnHitbox p : pageHitboxes) {
+            boolean ph = (mx >= p.x && mx <= p.x + p.w && my >= p.y && my <= p.y + p.h);
+            if (p.hovered != ph) {
+                p.hovered = ph;
+                changed = true;
+            }
+        }
+
+        return changed;
     }
 
     public boolean onKey(char ch, int keyCode, AdminDashboard dashboard) {
         if (!searchFocused) return false;
+
         if (keyCode == java.awt.event.KeyEvent.VK_BACK_SPACE) {
             if (searchQuery.length() > 0) {
                 searchQuery = searchQuery.substring(0, searchQuery.length() - 1);
@@ -561,6 +1090,9 @@ public class AdminUsers {
                 return true;
             }
         } else if (keyCode == java.awt.event.KeyEvent.VK_ESCAPE) {
+            searchFocused = false;
+            return true;
+        } else if (keyCode == java.awt.event.KeyEvent.VK_ENTER) {
             searchFocused = false;
             return true;
         } else if (ch >= 32 && ch <= 126) {

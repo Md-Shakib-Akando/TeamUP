@@ -7,9 +7,11 @@ import java.util.List;
 
 /**
  * Pixel-perfect Student Workspace Desktop Application for TeamUp.
- * Fully integrates modular views (DashboardOverview, DashboardProjects, DashboardTeammates, DashboardMyProjects)
+ * Fully integrates modular views (DashboardOverview, DashboardProjects,
+ * DashboardTeammates, DashboardMyProjects)
  * and dedicated interactive views (My Teams, Messages, My Profile, Settings).
- * All 4 dedicated views are 100% unified with the exact landing page design tokens from Theme.java:
+ * All 4 dedicated views are 100% unified with the exact landing page design
+ * tokens from Theme.java:
  * - Brand Hot Pink (#EA4C89)
  * - Deep Ink Dark (#0D0C22)
  * - Warm Off-White Canvas (#F8F7F4)
@@ -20,8 +22,11 @@ public class StudentDashboard {
 
     public interface DashboardListener {
         void returnToLanding();
+
         void openModal(String title, String message, boolean isRegister);
-        default void switchToAdminDashboard() {}
+
+        default void switchToAdminDashboard() {
+        }
     }
 
     private final DashboardListener listener;
@@ -59,6 +64,7 @@ public class StudentDashboard {
 
         public final String label;
         public final int badge;
+
         NavItem(String label, int badge) {
             this.label = label;
             this.badge = badge;
@@ -110,7 +116,8 @@ public class StudentDashboard {
         public int hitX, hitY, hitW, hitH;
         public int bmX, bmY;
 
-        public ProjectItem(String title, String author, String desc, String[] skills, String footer, boolean isGreen, int type) {
+        public ProjectItem(String title, String author, String desc, String[] skills, String footer, boolean isGreen,
+                int type) {
             this.title = title;
             this.author = author;
             this.desc = desc;
@@ -129,7 +136,8 @@ public class StudentDashboard {
         public boolean invited;
         public int hitX, hitY, hitW, hitH;
 
-        public TeammateItem(String initials, Color avBg, Color avText, String name, String role, String matchScore, String bio, String university) {
+        public TeammateItem(String initials, Color avBg, Color avText, String name, String role, String matchScore,
+                String bio, String university) {
             this.initials = initials;
             this.avBg = avBg;
             this.avText = avText;
@@ -162,7 +170,8 @@ public class StudentDashboard {
         public String title, subtitle, badgeText;
         public Color badgeBg, badgeTextCol;
 
-        public ActivityItem(String initials, Color avBg, Color avText, String title, String subtitle, String badgeText, Color badgeBg, Color badgeTextCol) {
+        public ActivityItem(String initials, Color avBg, Color avText, String title, String subtitle, String badgeText,
+                Color badgeBg, Color badgeTextCol) {
             this.initials = initials;
             this.avBg = avBg;
             this.avText = avText;
@@ -177,6 +186,7 @@ public class StudentDashboard {
     public static class PillHitbox {
         public String name;
         public int x, y, w, h;
+
         public PillHitbox(String name, int x, int y, int w, int h) {
             this.name = name;
             this.x = x;
@@ -195,8 +205,7 @@ public class StudentDashboard {
     private final List<String> chatHistory = new ArrayList<String>(Arrays.asList(
             "Priya Shah: Hey Alex, have you checked the new UI mockups for GreenRoute?",
             "Alex Morgan: Yes! Looks super clean, especially the route mapping cards.",
-            "Priya Shah: Awesome! Let's sync today at 4 PM to finalize the schema."
-    ));
+            "Priya Shah: Awesome! Let's sync today at 4 PM to finalize the schema."));
 
     // =========================================================================
     // HITBOXES - MY PROFILE
@@ -405,12 +414,15 @@ public class StudentDashboard {
     }
 
     public void openModal(ActiveModal modal) {
-        if (header != null) header.closePopups();
-        if (modals != null) modals.open(modal);
+        if (header != null)
+            header.closePopups();
+        if (modals != null)
+            modals.open(modal);
     }
 
     public void closeModal() {
-        if (modals != null) modals.closeModal();
+        if (modals != null)
+            modals.closeModal();
     }
 
     public ActiveModal getActiveModal() {
@@ -418,11 +430,13 @@ public class StudentDashboard {
     }
 
     public void returnToLanding() {
-        if (listener != null) listener.returnToLanding();
+        if (listener != null)
+            listener.returnToLanding();
     }
 
     public void switchToAdminDashboard() {
-        if (listener != null) listener.switchToAdminDashboard();
+        if (listener != null)
+            listener.switchToAdminDashboard();
     }
 
     public void update(float dt) {
@@ -435,9 +449,11 @@ public class StudentDashboard {
         scrollY = Anim.approach(scrollY, targetScrollY, dt, 14f);
         if (toastTimer > 0f) {
             toastTimer -= dt;
-            if (toastTimer <= 0f) toastMessage = "";
+            if (toastTimer <= 0f)
+                toastMessage = "";
         }
-        if (modals != null) modals.update(dt);
+        if (modals != null)
+            modals.update(dt);
     }
 
     public void paint(Graphics2D g, int width, int height) {
@@ -543,7 +559,8 @@ public class StudentDashboard {
 
     private void paintContentScrollbar(Graphics2D g, int x, int y, int w, int h) {
         int totalH = getCurrentContentHeight();
-        if (totalH <= h) return;
+        if (totalH <= h)
+            return;
         float ratio = (float) h / (float) totalH;
         int thumbH = Math.max(36, Math.round(h * ratio));
         int maxScroll = totalH - h;
@@ -604,8 +621,7 @@ public class StudentDashboard {
         // Gradient cover banner strip from Pastel Pink to Pastel Violet
         GradientPaint coverGrad = new GradientPaint(
                 startX + padX, curY, Theme.PASTEL_PINK,
-                startX + padX + contentW, curY, Theme.PASTEL_VIOLET
-        );
+                startX + padX + contentW, curY, Theme.PASTEL_VIOLET);
         g.setPaint(coverGrad);
         g.fill(new RoundRectangle2D.Float(startX + padX, curY, contentW, 64, 14, 14));
         g.fillRect(startX + padX, curY + 20, contentW, 44);
@@ -625,7 +641,8 @@ public class StudentDashboard {
         int btnY = curY + 76;
 
         shareProfileBtnBox.setBounds(startX + padX + contentW - shareW - 20, btnY, shareW, btnH);
-        RoundRectangle2D shareBtn = new RoundRectangle2D.Float(shareProfileBtnBox.x, shareProfileBtnBox.y, shareProfileBtnBox.width, shareProfileBtnBox.height, 8, 8);
+        RoundRectangle2D shareBtn = new RoundRectangle2D.Float(shareProfileBtnBox.x, shareProfileBtnBox.y,
+                shareProfileBtnBox.width, shareProfileBtnBox.height, 8, 8);
         g.setColor(shareProfileHovered ? BG_CANVAS : Color.WHITE);
         g.fill(shareBtn);
         g.setColor(BORDER_COLOR);
@@ -635,7 +652,8 @@ public class StudentDashboard {
         g.drawString("🔗 Share profile", shareProfileBtnBox.x + 12, shareProfileBtnBox.y + 20);
 
         editProfileBtnBox.setBounds(shareProfileBtnBox.x - editW - 10, btnY, editW, btnH);
-        RoundRectangle2D editBtn = new RoundRectangle2D.Float(editProfileBtnBox.x, editProfileBtnBox.y, editProfileBtnBox.width, editProfileBtnBox.height, 8, 8);
+        RoundRectangle2D editBtn = new RoundRectangle2D.Float(editProfileBtnBox.x, editProfileBtnBox.y,
+                editProfileBtnBox.width, editProfileBtnBox.height, 8, 8);
         g.setColor(editProfileHovered ? BRAND_ACCENT_HOVER : BRAND_ACCENT);
         g.fill(editBtn);
         g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
@@ -674,7 +692,8 @@ public class StudentDashboard {
 
         g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
         g.setColor(TEXT_MUTED);
-        g.drawString(profileData.university + " · " + profileData.department + " · " + profileData.gradYear, textX, infoY + 60);
+        g.drawString(profileData.university + " · " + profileData.department + " · " + profileData.gradYear, textX,
+                infoY + 60);
 
         // Bio
         g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
@@ -684,7 +703,9 @@ public class StudentDashboard {
         // Contact info line
         g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
         g.setColor(TEXT_MUTED);
-        g.drawString(profileData.location + "   ·   " + profileData.email + "   ·   " + profileData.github + "   ·   " + profileData.portfolio,
+        g.drawString(
+                profileData.location + "   ·   " + profileData.email + "   ·   " + profileData.github + "   ·   "
+                        + profileData.portfolio,
                 startX + padX + 24, curY + 172);
 
         curY += heroH + 18;
@@ -694,10 +715,14 @@ public class StudentDashboard {
         int statW = (contentW - statGap * 3) / 4;
         int statH = 92;
 
-        paintProfileStatCard(g, startX + padX, curY, statW, statH, "Active Projects", String.valueOf(profileData.activeProjectsCount), "Across 3 collaborative teams", 0);
-        paintProfileStatCard(g, startX + padX + (statW + statGap), curY, statW, statH, "Teammates", String.valueOf(profileData.totalTeammatesCount), "Collaborated with at UW", 1);
-        paintProfileStatCard(g, startX + padX + (statW + statGap) * 2, curY, statW, statH, "On-Time Completion", profileData.completionRatePercent + "%", "Tasks delivered before deadline", 2);
-        paintProfileStatCard(g, startX + padX + (statW + statGap) * 3, curY, statW, statH, "Peer Rating", profileData.peerRating + " ★", "From " + profileData.totalReviewsCount + " verified peer reviews", 3);
+        paintProfileStatCard(g, startX + padX, curY, statW, statH, "Active Projects",
+                String.valueOf(profileData.activeProjectsCount), "Across 3 collaborative teams", 0);
+        paintProfileStatCard(g, startX + padX + (statW + statGap), curY, statW, statH, "Teammates",
+                String.valueOf(profileData.totalTeammatesCount), "Collaborated with at UW", 1);
+        paintProfileStatCard(g, startX + padX + (statW + statGap) * 2, curY, statW, statH, "On-Time Completion",
+                profileData.completionRatePercent + "%", "Tasks delivered before deadline", 2);
+        paintProfileStatCard(g, startX + padX + (statW + statGap) * 3, curY, statW, statH, "Peer Rating",
+                profileData.peerRating + " ★", "From " + profileData.totalReviewsCount + " verified peer reviews", 3);
 
         curY += statH + 20;
 
@@ -755,7 +780,8 @@ public class StudentDashboard {
         }
     }
 
-    private void paintProfileStatCard(Graphics2D g, int x, int y, int w, int h, String title, String val, String sub, int type) {
+    private void paintProfileStatCard(Graphics2D g, int x, int y, int w, int h, String title, String val, String sub,
+            int type) {
         RoundRectangle2D shape = new RoundRectangle2D.Float(x, y, w, h, 12, 12);
         g.setColor(Color.WHITE);
         g.fill(shape);
@@ -958,7 +984,8 @@ public class StudentDashboard {
 
             g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
             g.setColor(s.userEndorsed ? BRAND_ACCENT : Theme.ACCENT_VIOLET);
-            g.drawString(s.endorsements + " endorsements" + (s.userEndorsed ? " ✓" : " +"), rowX + w / 2 - 160, rowY + 22);
+            g.drawString(s.endorsements + " endorsements" + (s.userEndorsed ? " ✓" : " +"), rowX + w / 2 - 160,
+                    rowY + 22);
         }
         return y + cardH + 20;
     }
@@ -1046,7 +1073,8 @@ public class StudentDashboard {
             Rectangle itemBox = new Rectangle(paneX + 8, convY, leftPaneW - 16, convItemH);
             convBounds.add(itemBox);
 
-            RoundRectangle2D itemShape = new RoundRectangle2D.Float(itemBox.x, itemBox.y, itemBox.width, itemBox.height, 8, 8);
+            RoundRectangle2D itemShape = new RoundRectangle2D.Float(itemBox.x, itemBox.y, itemBox.width, itemBox.height,
+                    8, 8);
             if (isSel) {
                 g.setColor(BRAND_TINT_BG);
                 g.fill(itemShape);
@@ -1073,11 +1101,13 @@ public class StudentDashboard {
 
             g.setColor(TEXT_MUTED);
             String prev = c.lastPreview;
-            if (prev.length() > 28) prev = prev.substring(0, 26) + "...";
+            if (prev.length() > 28)
+                prev = prev.substring(0, 26) + "...";
             g.drawString(prev, itemBox.x + 46, itemBox.y + 42);
 
             if (c.unreadCount > 0) {
-                RoundRectangle2D uPill = new RoundRectangle2D.Float(itemBox.x + itemBox.width - 24, itemBox.y + 32, 16, 16, 16, 16);
+                RoundRectangle2D uPill = new RoundRectangle2D.Float(itemBox.x + itemBox.width - 24, itemBox.y + 32, 16,
+                        16, 16, 16);
                 g.setColor(BRAND_ACCENT);
                 g.fill(uPill);
                 g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 9));
@@ -1109,7 +1139,8 @@ public class StudentDashboard {
         g.drawString(activeConv.subtitle, chatX + 54, curY + 40);
 
         videoCallBtnBox.setBounds(chatX + rightPaneW - 110, curY + 14, 94, 28);
-        RoundRectangle2D callBtn = new RoundRectangle2D.Float(videoCallBtnBox.x, videoCallBtnBox.y, videoCallBtnBox.width, videoCallBtnBox.height, 6, 6);
+        RoundRectangle2D callBtn = new RoundRectangle2D.Float(videoCallBtnBox.x, videoCallBtnBox.y,
+                videoCallBtnBox.width, videoCallBtnBox.height, 6, 6);
         g.setColor(videoCallHovered ? BG_CANVAS : Color.WHITE);
         g.fill(callBtn);
         g.setColor(BORDER_COLOR);
@@ -1126,7 +1157,8 @@ public class StudentDashboard {
         int curMsgY = historyY;
 
         for (MessagesData.ChatMessage msg : msgList) {
-            if (curMsgY > historyY + maxHistoryH) break;
+            if (curMsgY > historyY + maxHistoryH)
+                break;
 
             if (msg.isOutgoing) {
                 // Outgoing Bubble (Right side in signature Brand Hot Pink #EA4C89)
@@ -1189,7 +1221,8 @@ public class StudentDashboard {
         g.drawLine(chatX, compY, chatX + rightPaneW, compY);
 
         msgInputBox.setBounds(chatX + 16, compY + 9, rightPaneW - 84, 36);
-        RoundRectangle2D inShape = new RoundRectangle2D.Float(msgInputBox.x, msgInputBox.y, msgInputBox.width, msgInputBox.height, 8, 8);
+        RoundRectangle2D inShape = new RoundRectangle2D.Float(msgInputBox.x, msgInputBox.y, msgInputBox.width,
+                msgInputBox.height, 8, 8);
         g.setColor(messagesData.inputFocused ? Color.WHITE : BG_CANVAS);
         g.fill(inShape);
         g.setColor(messagesData.inputFocused ? BRAND_ACCENT : BORDER_COLOR);
@@ -1201,7 +1234,8 @@ public class StudentDashboard {
 
         if (messagesData.inputDraft.isEmpty()) {
             g.setColor(TEXT_LIGHT);
-            g.drawString("Type a message to " + activeConv.title + " (Press Enter to send)...", msgInputBox.x + 32, msgInputBox.y + 22);
+            g.drawString("Type a message to " + activeConv.title + " (Press Enter to send)...", msgInputBox.x + 32,
+                    msgInputBox.y + 22);
         } else {
             g.setColor(TEXT_DARK);
             g.drawString(messagesData.inputDraft, msgInputBox.x + 32, msgInputBox.y + 22);
@@ -1215,7 +1249,8 @@ public class StudentDashboard {
 
         // Send Button (➤) in signature Brand Hot Pink #EA4C89
         msgSendBtnBox.setBounds(chatX + rightPaneW - 56, compY + 9, 40, 36);
-        RoundRectangle2D sendBtn = new RoundRectangle2D.Float(msgSendBtnBox.x, msgSendBtnBox.y, msgSendBtnBox.width, msgSendBtnBox.height, 8, 8);
+        RoundRectangle2D sendBtn = new RoundRectangle2D.Float(msgSendBtnBox.x, msgSendBtnBox.y, msgSendBtnBox.width,
+                msgSendBtnBox.height, 8, 8);
         g.setColor(msgSendHovered ? BRAND_ACCENT_HOVER : BRAND_ACCENT);
         g.fill(sendBtn);
         g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
@@ -1389,7 +1424,8 @@ public class StudentDashboard {
         int fnX = x + 24;
         int fnY = fieldY + 20;
         fullNameBox.setBounds(fnX, fnY, halfW, inputH);
-        paintInputField(g, fullNameBox, settingsData.fullName, settingsData.focusedField == SettingsData.ActiveField.FULL_NAME);
+        paintInputField(g, fullNameBox, settingsData.fullName,
+                settingsData.focusedField == SettingsData.ActiveField.FULL_NAME);
 
         g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 10));
         g.setColor(TEXT_LIGHT);
@@ -1401,7 +1437,8 @@ public class StudentDashboard {
         g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
         g.setColor(TEXT_DARK);
         g.drawString("Username", unX, fieldY + 12);
-        paintInputField(g, usernameBox, settingsData.username, settingsData.focusedField == SettingsData.ActiveField.USERNAME);
+        paintInputField(g, usernameBox, settingsData.username,
+                settingsData.focusedField == SettingsData.ActiveField.USERNAME);
 
         g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 10));
         g.setColor(TEXT_LIGHT);
@@ -1419,7 +1456,8 @@ public class StudentDashboard {
 
         g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 10));
         g.setColor(TEXT_LIGHT);
-        g.drawString("Your email is verified. We'll notify this address about important account changes.", x + 24, emY + inputH + 14);
+        g.drawString("Your email is verified. We'll notify this address about important account changes.", x + 24,
+                emY + inputH + 14);
 
         int alertY = emY + inputH + 26;
         int alertH = 46;
@@ -1447,7 +1485,8 @@ public class StudentDashboard {
 
         // [Save changes] Button in Brand Hot Pink
         saveAccountBtnBox.setBounds(x + 24, btnY, saveW, btnH);
-        RoundRectangle2D saveBtn = new RoundRectangle2D.Float(saveAccountBtnBox.x, saveAccountBtnBox.y, saveAccountBtnBox.width, saveAccountBtnBox.height, 8, 8);
+        RoundRectangle2D saveBtn = new RoundRectangle2D.Float(saveAccountBtnBox.x, saveAccountBtnBox.y,
+                saveAccountBtnBox.width, saveAccountBtnBox.height, 8, 8);
         g.setColor(saveAccountHovered ? BRAND_ACCENT_HOVER : BRAND_ACCENT);
         g.fill(saveBtn);
         g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
@@ -1455,7 +1494,8 @@ public class StudentDashboard {
         g.drawString("Save changes", saveAccountBtnBox.x + 16, saveAccountBtnBox.y + 21);
 
         cancelAccountBtnBox.setBounds(saveAccountBtnBox.x + saveW + 10, btnY, cancelW, btnH);
-        RoundRectangle2D canBtn = new RoundRectangle2D.Float(cancelAccountBtnBox.x, cancelAccountBtnBox.y, cancelAccountBtnBox.width, cancelAccountBtnBox.height, 8, 8);
+        RoundRectangle2D canBtn = new RoundRectangle2D.Float(cancelAccountBtnBox.x, cancelAccountBtnBox.y,
+                cancelAccountBtnBox.width, cancelAccountBtnBox.height, 8, 8);
         g.setColor(cancelAccountHovered ? BG_CANVAS : Color.WHITE);
         g.fill(canBtn);
         g.setColor(BORDER_COLOR);
@@ -1492,7 +1532,8 @@ public class StudentDashboard {
         int cpW = 128;
         int cpH = 34;
         changePassBtnBox.setBounds(x + w - cpW - 24, curY + 60, cpW, cpH);
-        RoundRectangle2D cpBtn = new RoundRectangle2D.Float(changePassBtnBox.x, changePassBtnBox.y, changePassBtnBox.width, changePassBtnBox.height, 8, 8);
+        RoundRectangle2D cpBtn = new RoundRectangle2D.Float(changePassBtnBox.x, changePassBtnBox.y,
+                changePassBtnBox.width, changePassBtnBox.height, 8, 8);
         g.setColor(changePassHovered ? BG_CANVAS : Color.WHITE);
         g.fill(cpBtn);
         g.setColor(BORDER_COLOR);
@@ -1505,7 +1546,8 @@ public class StudentDashboard {
 
         g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
         g.setColor(TEXT_LIGHT);
-        g.drawString("Member since " + settingsData.memberSince + " · Account ID " + settingsData.accountId, x, curY + 14);
+        g.drawString("Member since " + settingsData.memberSince + " · Account ID " + settingsData.accountId, x,
+                curY + 14);
 
         return curY + 40;
     }
@@ -1537,15 +1579,18 @@ public class StudentDashboard {
         int optH = 56;
 
         radioPublicBox.setBounds(x + 24, optY, optW, optH);
-        paintVisibilityOptionCard(g, radioPublicBox, SettingsData.ProfileVisibility.PUBLIC, settingsData.visibility == SettingsData.ProfileVisibility.PUBLIC);
+        paintVisibilityOptionCard(g, radioPublicBox, SettingsData.ProfileVisibility.PUBLIC,
+                settingsData.visibility == SettingsData.ProfileVisibility.PUBLIC);
 
         optY += optH + 12;
         radioTeamBox.setBounds(x + 24, optY, optW, optH);
-        paintVisibilityOptionCard(g, radioTeamBox, SettingsData.ProfileVisibility.TEAM_MEMBERS, settingsData.visibility == SettingsData.ProfileVisibility.TEAM_MEMBERS);
+        paintVisibilityOptionCard(g, radioTeamBox, SettingsData.ProfileVisibility.TEAM_MEMBERS,
+                settingsData.visibility == SettingsData.ProfileVisibility.TEAM_MEMBERS);
 
         optY += optH + 12;
         radioPrivateBox.setBounds(x + 24, optY, optW, optH);
-        paintVisibilityOptionCard(g, radioPrivateBox, SettingsData.ProfileVisibility.PRIVATE, settingsData.visibility == SettingsData.ProfileVisibility.PRIVATE);
+        paintVisibilityOptionCard(g, radioPrivateBox, SettingsData.ProfileVisibility.PRIVATE,
+                settingsData.visibility == SettingsData.ProfileVisibility.PRIVATE);
 
         int togY = optY + optH + 24;
 
@@ -1590,7 +1635,8 @@ public class StudentDashboard {
 
         int btnY = togY + 60;
         savePrivacyBtnBox.setBounds(x + 24, btnY, 104, 34);
-        RoundRectangle2D saveBtn = new RoundRectangle2D.Float(savePrivacyBtnBox.x, savePrivacyBtnBox.y, savePrivacyBtnBox.width, savePrivacyBtnBox.height, 8, 8);
+        RoundRectangle2D saveBtn = new RoundRectangle2D.Float(savePrivacyBtnBox.x, savePrivacyBtnBox.y,
+                savePrivacyBtnBox.width, savePrivacyBtnBox.height, 8, 8);
         g.setColor(savePrivacyHovered ? BRAND_ACCENT_HOVER : BRAND_ACCENT);
         g.fill(saveBtn);
         g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
@@ -1598,7 +1644,8 @@ public class StudentDashboard {
         g.drawString("Save changes", savePrivacyBtnBox.x + 16, savePrivacyBtnBox.y + 21);
 
         cancelPrivacyBtnBox.setBounds(savePrivacyBtnBox.x + 104 + 10, btnY, 72, 34);
-        RoundRectangle2D canBtn = new RoundRectangle2D.Float(cancelPrivacyBtnBox.x, cancelPrivacyBtnBox.y, cancelPrivacyBtnBox.width, cancelPrivacyBtnBox.height, 8, 8);
+        RoundRectangle2D canBtn = new RoundRectangle2D.Float(cancelPrivacyBtnBox.x, cancelPrivacyBtnBox.y,
+                cancelPrivacyBtnBox.width, cancelPrivacyBtnBox.height, 8, 8);
         g.setColor(cancelPrivacyHovered ? BG_CANVAS : Color.WHITE);
         g.fill(canBtn);
         g.setColor(BORDER_COLOR);
@@ -1610,7 +1657,8 @@ public class StudentDashboard {
         return curY + cardH + 30;
     }
 
-    private void paintVisibilityOptionCard(Graphics2D g, Rectangle b, SettingsData.ProfileVisibility opt, boolean isSelected) {
+    private void paintVisibilityOptionCard(Graphics2D g, Rectangle b, SettingsData.ProfileVisibility opt,
+            boolean isSelected) {
         RoundRectangle2D shape = new RoundRectangle2D.Float(b.x, b.y, b.width, b.height, 8, 8);
         if (isSelected) {
             g.setColor(BRAND_TINT_BG);
@@ -1710,7 +1758,8 @@ public class StudentDashboard {
 
         int fullInputW = w - 48;
         addCatBox.setBounds(x + 24, addY + 20, fullInputW, 36);
-        RoundRectangle2D addCatShape = new RoundRectangle2D.Float(addCatBox.x, addCatBox.y, addCatBox.width, addCatBox.height, 8, 8);
+        RoundRectangle2D addCatShape = new RoundRectangle2D.Float(addCatBox.x, addCatBox.y, addCatBox.width,
+                addCatBox.height, 8, 8);
         g.setColor(Color.WHITE);
         g.fill(addCatShape);
         g.setColor(BORDER_COLOR);
@@ -1787,7 +1836,8 @@ public class StudentDashboard {
 
         int btnY = segY + segH + 32;
         saveCollabBtnBox.setBounds(x + 24, btnY, 104, 34);
-        RoundRectangle2D saveBtn = new RoundRectangle2D.Float(saveCollabBtnBox.x, saveCollabBtnBox.y, saveCollabBtnBox.width, saveCollabBtnBox.height, 8, 8);
+        RoundRectangle2D saveBtn = new RoundRectangle2D.Float(saveCollabBtnBox.x, saveCollabBtnBox.y,
+                saveCollabBtnBox.width, saveCollabBtnBox.height, 8, 8);
         g.setColor(saveCollabHovered ? BRAND_ACCENT_HOVER : BRAND_ACCENT);
         g.fill(saveBtn);
         g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
@@ -1795,7 +1845,8 @@ public class StudentDashboard {
         g.drawString("Save changes", saveCollabBtnBox.x + 16, saveCollabBtnBox.y + 21);
 
         cancelCollabBtnBox.setBounds(saveCollabBtnBox.x + 104 + 10, btnY, 72, 34);
-        RoundRectangle2D canBtn = new RoundRectangle2D.Float(cancelCollabBtnBox.x, cancelCollabBtnBox.y, cancelCollabBtnBox.width, cancelCollabBtnBox.height, 8, 8);
+        RoundRectangle2D canBtn = new RoundRectangle2D.Float(cancelCollabBtnBox.x, cancelCollabBtnBox.y,
+                cancelCollabBtnBox.width, cancelCollabBtnBox.height, 8, 8);
         g.setColor(cancelCollabHovered ? BG_CANVAS : Color.WHITE);
         g.fill(canBtn);
         g.setColor(BORDER_COLOR);
@@ -1898,7 +1949,9 @@ public class StudentDashboard {
         g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
         g.setColor(TEXT_MUTED);
         g.drawString("Take a break without permanently deleting your information.", x + 24, curY + 48);
-        g.drawString("Your profile will be hidden from discovery and you won't receive new invitations. Your projects, messages and contributions will", x + 24, curY + 76);
+        g.drawString(
+                "Your profile will be hidden from discovery and you won't receive new invitations. Your projects, messages and contributions will",
+                x + 24, curY + 76);
         g.drawString("remain available to your teammates.", x + 24, curY + 92);
 
         g.drawString("•  You can reactivate by signing back in.", x + 24, curY + 118);
@@ -1906,7 +1959,8 @@ public class StudentDashboard {
         g.drawString("•  Transfer any project ownership before taking a break.", x + 24, curY + 154);
 
         deactivateBtnBox.setBounds(x + 24, curY + 168, 136, 32);
-        RoundRectangle2D deactBtn = new RoundRectangle2D.Float(deactivateBtnBox.x, deactivateBtnBox.y, deactivateBtnBox.width, deactivateBtnBox.height, 8, 8);
+        RoundRectangle2D deactBtn = new RoundRectangle2D.Float(deactivateBtnBox.x, deactivateBtnBox.y,
+                deactivateBtnBox.width, deactivateBtnBox.height, 8, 8);
         g.setColor(deactivateHovered ? BG_CANVAS : Color.WHITE);
         g.fill(deactBtn);
         g.setColor(BORDER_COLOR);
@@ -1933,7 +1987,8 @@ public class StudentDashboard {
 
         g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
         g.setColor(TEXT_MUTED);
-        g.drawString("Permanently delete your TeamUp account and personal profile. This action cannot be undone.", x + 24, curY + 54);
+        g.drawString("Permanently delete your TeamUp account and personal profile. This action cannot be undone.",
+                x + 24, curY + 54);
         g.drawString("•  Your profile, skills and saved preferences will be removed.", x + 24, curY + 80);
         g.drawString("•  Shared project contributions may remain without your name.", x + 24, curY + 98);
         g.drawString("•  You'll leave 2 teams and lose access to team conversations.", x + 24, curY + 116);
@@ -1956,7 +2011,8 @@ public class StudentDashboard {
 
         // Solid Delete Button in Theme.ERROR_RED
         deleteAccountBtnBox.setBounds(x + 24, curY + 194, 126, 36);
-        RoundRectangle2D delBtn = new RoundRectangle2D.Float(deleteAccountBtnBox.x, deleteAccountBtnBox.y, deleteAccountBtnBox.width, deleteAccountBtnBox.height, 8, 8);
+        RoundRectangle2D delBtn = new RoundRectangle2D.Float(deleteAccountBtnBox.x, deleteAccountBtnBox.y,
+                deleteAccountBtnBox.width, deleteAccountBtnBox.height, 8, 8);
         g.setColor(deleteAccountHovered ? ERROR_RED_HOVER : ERROR_RED);
         g.fill(delBtn);
         drawTrashIcon(g, deleteAccountBtnBox.x + 14, deleteAccountBtnBox.y + 11, 13, Color.WHITE);
@@ -2054,7 +2110,8 @@ public class StudentDashboard {
         teamSettingsBtnX = teamMsgBtnX - teamSettingsBtnW - 12;
         teamSettingsBtnY = teamMsgBtnY;
 
-        RoundRectangle2D setBtnShape = new RoundRectangle2D.Float(teamSettingsBtnX, teamSettingsBtnY, teamSettingsBtnW, teamSettingsBtnH, 10, 10);
+        RoundRectangle2D setBtnShape = new RoundRectangle2D.Float(teamSettingsBtnX, teamSettingsBtnY, teamSettingsBtnW,
+                teamSettingsBtnH, 10, 10);
         g.setColor(teamSettingsBtnHovered ? BG_CANVAS : Color.WHITE);
         g.fill(setBtnShape);
         g.setColor(BORDER_COLOR);
@@ -2066,7 +2123,8 @@ public class StudentDashboard {
         g.drawString("Team settings", teamSettingsBtnX + 34, teamSettingsBtnY + 22);
 
         // [Message team] Solid Button in signature Brand Hot Pink #EA4C89
-        RoundRectangle2D msgBtnShape = new RoundRectangle2D.Float(teamMsgBtnX, teamMsgBtnY, teamMsgBtnW, teamMsgBtnH, 10, 10);
+        RoundRectangle2D msgBtnShape = new RoundRectangle2D.Float(teamMsgBtnX, teamMsgBtnY, teamMsgBtnW, teamMsgBtnH,
+                10, 10);
         g.setColor(teamMsgBtnHovered ? BRAND_ACCENT_HOVER : BRAND_ACCENT);
         g.fill(msgBtnShape);
 
@@ -2155,7 +2213,8 @@ public class StudentDashboard {
         totalContentHeight = Math.max(curLeftY, curRightY) - startY + 50;
     }
 
-    private void paintKpiCard(Graphics2D g, int x, int y, int w, int h, String title, String val, String sub, int type) {
+    private void paintKpiCard(Graphics2D g, int x, int y, int w, int h, String title, String val, String sub,
+            int type) {
         RoundRectangle2D shape = new RoundRectangle2D.Float(x, y, w, h, 14, 14);
         g.setColor(Color.WHITE);
         g.fill(shape);
@@ -2357,9 +2416,12 @@ public class StudentDashboard {
         int statY = y + 46;
 
         paintSummaryColumn(g, x + 20, statY, colW, String.valueOf(teamData.taskSummary.todo), "To Do", TEXT_DARK);
-        paintSummaryColumn(g, x + 20 + colW, statY, colW, String.valueOf(teamData.taskSummary.inProgress), "In Progress", TEXT_DARK);
-        paintSummaryColumn(g, x + 20 + colW * 2, statY, colW, String.valueOf(teamData.taskSummary.inReview), "In Review", TEXT_DARK);
-        paintSummaryColumn(g, x + 20 + colW * 3, statY, colW, String.valueOf(teamData.taskSummary.done), "Done", SUCCESS_GREEN);
+        paintSummaryColumn(g, x + 20 + colW, statY, colW, String.valueOf(teamData.taskSummary.inProgress),
+                "In Progress", TEXT_DARK);
+        paintSummaryColumn(g, x + 20 + colW * 2, statY, colW, String.valueOf(teamData.taskSummary.inReview),
+                "In Review", TEXT_DARK);
+        paintSummaryColumn(g, x + 20 + colW * 3, statY, colW, String.valueOf(teamData.taskSummary.done), "Done",
+                SUCCESS_GREEN);
     }
 
     private void paintSummaryColumn(Graphics2D g, int x, int y, int w, String val, String label, Color numColor) {
@@ -2546,13 +2608,17 @@ public class StudentDashboard {
             return true;
         }
 
-        // 2. Active View's High Z-index overlays take priority (Dropdowns & Profile Modals)
+        // 2. Active View's High Z-index overlays take priority (Dropdowns & Profile
+        // Modals)
         if (activeNav == NavItem.MY_PROJECTS) {
-            if (myProjectsView.onClick(mx, my, this)) return true;
+            if (myProjectsView.onClick(mx, my, this))
+                return true;
         } else if (activeNav == NavItem.FIND_TEAMMATES) {
-            if (teammatesView.onClick(mx, my, this)) return true;
+            if (teammatesView.onClick(mx, my, this))
+                return true;
         } else if (activeNav == NavItem.DISCOVER_PROJECTS) {
-            if (projectsView.onClick(mx, my, this)) return true;
+            if (projectsView.onClick(mx, my, this))
+                return true;
         }
 
         // 3. Header controls
@@ -2568,28 +2634,36 @@ public class StudentDashboard {
         // 5. Main Content Area controls
         switch (activeNav) {
             case MY_PROJECTS:
-                if (myProjectsView.onClick(mx, my, this)) return true;
+                if (myProjectsView.onClick(mx, my, this))
+                    return true;
                 break;
             case FIND_TEAMMATES:
-                if (teammatesView.onClick(mx, my, this)) return true;
+                if (teammatesView.onClick(mx, my, this))
+                    return true;
                 break;
             case DISCOVER_PROJECTS:
-                if (projectsView.onClick(mx, my, this)) return true;
+                if (projectsView.onClick(mx, my, this))
+                    return true;
                 break;
             case OVERVIEW:
-                if (overview.onClick(mx, my, this)) return true;
+                if (overview.onClick(mx, my, this))
+                    return true;
                 break;
             case MY_PROFILE:
-                if (handleProfileClick(mx, my)) return true;
+                if (handleProfileClick(mx, my))
+                    return true;
                 break;
             case MESSAGES:
-                if (handleMessagesClick(mx, my)) return true;
+                if (handleMessagesClick(mx, my))
+                    return true;
                 break;
             case SETTINGS:
-                if (handleSettingsClick(mx, my)) return true;
+                if (handleSettingsClick(mx, my))
+                    return true;
                 break;
             case MY_TEAMS:
-                if (handleMyTeamsClick(mx, my)) return true;
+                if (handleMyTeamsClick(mx, my))
+                    return true;
                 break;
         }
 
@@ -2608,7 +2682,8 @@ public class StudentDashboard {
 
         if (editProfileBtnBox.contains(mx, my)) {
             if (listener != null) {
-                listener.openModal("Edit Profile - Alex Morgan", "Update your academic details, availability, headline, and bio.", false);
+                listener.openModal("Edit Profile - Alex Morgan",
+                        "Update your academic details, availability, headline, and bio.", false);
             }
             return true;
         }
@@ -2622,7 +2697,8 @@ public class StudentDashboard {
             if (profileSkillBounds.get(i).contains(mx, my)) {
                 profileData.toggleEndorsement(i % profileData.skills.size());
                 ProfileData.ProfileSkill s = profileData.skills.get(i % profileData.skills.size());
-                showToast(s.userEndorsed ? ("Endorsed " + s.name + " (" + s.endorsements + ")") : ("Removed endorsement for " + s.name));
+                showToast(s.userEndorsed ? ("Endorsed " + s.name + " (" + s.endorsements + ")")
+                        : ("Removed endorsement for " + s.name));
                 return true;
             }
         }
@@ -2661,7 +2737,9 @@ public class StudentDashboard {
 
         if (videoCallBtnBox.contains(mx, my)) {
             if (listener != null) {
-                listener.openModal("Start Video Meeting", "Connect via UW Zoom or WebRTC with " + messagesData.getActiveConversation().title + ".", false);
+                listener.openModal("Start Video Meeting",
+                        "Connect via UW Zoom or WebRTC with " + messagesData.getActiveConversation().title + ".",
+                        false);
             }
             return true;
         }
@@ -2705,7 +2783,8 @@ public class StudentDashboard {
             }
             if (changePassBtnBox.contains(mx, my)) {
                 if (listener != null) {
-                    listener.openModal("Update Account Password", "Enter your current password and choose a secure new password.", false);
+                    listener.openModal("Update Account Password",
+                            "Enter your current password and choose a secure new password.", false);
                 }
                 return true;
             }
@@ -2815,13 +2894,16 @@ public class StudentDashboard {
         if (settingsData.activeTab == SettingsData.SettingsTab.DANGER_ZONE) {
             if (deactivateBtnBox.contains(mx, my)) {
                 if (listener != null) {
-                    listener.openModal("Deactivate TeamUp Account", "Take a break without deleting projects. You can reactivate anytime.", false);
+                    listener.openModal("Deactivate TeamUp Account",
+                            "Take a break without deleting projects. You can reactivate anytime.", false);
                 }
                 return true;
             }
             if (deleteAccountBtnBox.contains(mx, my)) {
                 if (listener != null) {
-                    listener.openModal("Delete Account Permanently", "Warning: You own '" + settingsData.ownedProject + "'. Transfer ownership before deleting.", true);
+                    listener.openModal("Delete Account Permanently",
+                            "Warning: You own '" + settingsData.ownedProject + "'. Transfer ownership before deleting.",
+                            true);
                 }
                 return true;
             }
@@ -2856,7 +2938,8 @@ public class StudentDashboard {
         if (mx >= inviteMemberBtnX && mx <= inviteMemberBtnX + inviteMemberBtnW &&
                 my >= inviteMemberBtnY && my <= inviteMemberBtnY + inviteMemberBtnH) {
             if (listener != null) {
-                listener.openModal("Invite Member to CampusConnect", "Enter student email or UW NetID to invite them.", true);
+                listener.openModal("Invite Member to CampusConnect", "Enter student email or UW NetID to invite them.",
+                        true);
             }
             return true;
         }
@@ -2928,11 +3011,13 @@ public class StudentDashboard {
         boolean changed = false;
         boolean pEdit = editProfileHovered;
         editProfileHovered = editProfileBtnBox.contains(mx, my);
-        if (editProfileHovered != pEdit) changed = true;
+        if (editProfileHovered != pEdit)
+            changed = true;
 
         boolean pShare = shareProfileHovered;
         shareProfileHovered = shareProfileBtnBox.contains(mx, my);
-        if (shareProfileHovered != pShare) changed = true;
+        if (shareProfileHovered != pShare)
+            changed = true;
 
         int oldTabHov = hoveredProfileTab;
         hoveredProfileTab = -1;
@@ -2942,7 +3027,8 @@ public class StudentDashboard {
                 break;
             }
         }
-        if (hoveredProfileTab != oldTabHov) changed = true;
+        if (hoveredProfileTab != oldTabHov)
+            changed = true;
         return changed || editProfileHovered;
     }
 
@@ -2950,11 +3036,13 @@ public class StudentDashboard {
         boolean changed = false;
         boolean pSend = msgSendHovered;
         msgSendHovered = msgSendBtnBox.contains(mx, my);
-        if (msgSendHovered != pSend) changed = true;
+        if (msgSendHovered != pSend)
+            changed = true;
 
         boolean pCall = videoCallHovered;
         videoCallHovered = videoCallBtnBox.contains(mx, my);
-        if (videoCallHovered != pCall) changed = true;
+        if (videoCallHovered != pCall)
+            changed = true;
 
         int oldConvHov = hoveredConvIndex;
         hoveredConvIndex = -1;
@@ -2964,7 +3052,8 @@ public class StudentDashboard {
                 break;
             }
         }
-        if (hoveredConvIndex != oldConvHov) changed = true;
+        if (hoveredConvIndex != oldConvHov)
+            changed = true;
         return changed || msgSendHovered;
     }
 
@@ -2978,7 +3067,8 @@ public class StudentDashboard {
                 break;
             }
         }
-        if (hoveredSettingsTab != oldHov) changed = true;
+        if (hoveredSettingsTab != oldHov)
+            changed = true;
         return changed;
     }
 
@@ -2987,37 +3077,44 @@ public class StudentDashboard {
         boolean p1 = teamSettingsBtnHovered;
         teamSettingsBtnHovered = (mx >= teamSettingsBtnX && mx <= teamSettingsBtnX + teamSettingsBtnW &&
                 my >= teamSettingsBtnY && my <= teamSettingsBtnY + teamSettingsBtnH);
-        if (teamSettingsBtnHovered != p1) changed = true;
+        if (teamSettingsBtnHovered != p1)
+            changed = true;
 
         boolean p2 = teamMsgBtnHovered;
         teamMsgBtnHovered = (mx >= teamMsgBtnX && mx <= teamMsgBtnX + teamMsgBtnW &&
                 my >= teamMsgBtnY && my <= teamMsgBtnY + teamMsgBtnH);
-        if (teamMsgBtnHovered != p2) changed = true;
+        if (teamMsgBtnHovered != p2)
+            changed = true;
 
         boolean p3 = inviteMemberBtnHovered;
         inviteMemberBtnHovered = (mx >= inviteMemberBtnX && mx <= inviteMemberBtnX + inviteMemberBtnW &&
                 my >= inviteMemberBtnY && my <= inviteMemberBtnY + inviteMemberBtnH);
-        if (inviteMemberBtnHovered != p3) changed = true;
+        if (inviteMemberBtnHovered != p3)
+            changed = true;
 
         boolean p4 = viewRoadmapBtnHovered;
         viewRoadmapBtnHovered = (mx >= viewRoadmapBtnX && mx <= viewRoadmapBtnX + viewRoadmapBtnW &&
                 my >= viewRoadmapBtnY && my <= viewRoadmapBtnY + viewRoadmapBtnH);
-        if (viewRoadmapBtnHovered != p4) changed = true;
+        if (viewRoadmapBtnHovered != p4)
+            changed = true;
 
         boolean p5 = openBoardBtnHovered;
         openBoardBtnHovered = (mx >= openBoardBtnX && mx <= openBoardBtnX + openBoardBtnW &&
                 my >= openBoardBtnY && my <= openBoardBtnY + openBoardBtnH);
-        if (openBoardBtnHovered != p5) changed = true;
+        if (openBoardBtnHovered != p5)
+            changed = true;
 
         boolean p6 = reviewAllBtnHovered;
         reviewAllBtnHovered = (mx >= reviewAllBtnX && mx <= reviewAllBtnX + reviewAllBtnW &&
                 my >= reviewAllBtnY && my <= reviewAllBtnY + reviewAllBtnH);
-        if (reviewAllBtnHovered != p6) changed = true;
+        if (reviewAllBtnHovered != p6)
+            changed = true;
 
         boolean p7 = reviewAppsBtnHovered;
         reviewAppsBtnHovered = (mx >= reviewAppsBtnX && mx <= reviewAppsBtnX + reviewAppsBtnW &&
                 my >= reviewAppsBtnY && my <= reviewAppsBtnY + reviewAppsBtnH);
-        if (reviewAppsBtnHovered != p7) changed = true;
+        if (reviewAppsBtnHovered != p7)
+            changed = true;
 
         int oldTabHov = hoveredTeamTabIndex;
         hoveredTeamTabIndex = -1;
@@ -3027,13 +3124,15 @@ public class StudentDashboard {
                 break;
             }
         }
-        if (hoveredTeamTabIndex != oldTabHov) changed = true;
+        if (hoveredTeamTabIndex != oldTabHov)
+            changed = true;
 
         return changed || teamSettingsBtnHovered || teamMsgBtnHovered || inviteMemberBtnHovered;
     }
 
     public void onMouseWheel(int wheelRotation, int screenH) {
-        if (activeNav == NavItem.MESSAGES) return;
+        if (activeNav == NavItem.MESSAGES)
+            return;
         int maxScroll = Math.max(0, getCurrentContentHeight() - (screenH - 60));
         targetScrollY = Math.max(0, Math.min(targetScrollY + wheelRotation * 45, maxScroll));
     }
@@ -3052,13 +3151,16 @@ public class StudentDashboard {
         // Active View keys (Search boxes etc.)
         switch (activeNav) {
             case MY_PROJECTS:
-                if (myProjectsView.onKey(e)) return true;
+                if (myProjectsView.onKey(e))
+                    return true;
                 break;
             case FIND_TEAMMATES:
-                if (teammatesView.onKey(e)) return true;
+                if (teammatesView.onKey(e))
+                    return true;
                 break;
             case DISCOVER_PROJECTS:
-                if (projectsView.onKey(e)) return true;
+                if (projectsView.onKey(e))
+                    return true;
                 break;
             case MESSAGES:
                 return handleMessagesKey(e);
@@ -3080,7 +3182,8 @@ public class StudentDashboard {
             }
             if (e.getKeyCode() == KeyEvent.VK_BACK_SPACE) {
                 if (messagesData.inputDraft.length() > 0) {
-                    messagesData.inputDraft = messagesData.inputDraft.substring(0, messagesData.inputDraft.length() - 1);
+                    messagesData.inputDraft = messagesData.inputDraft.substring(0,
+                            messagesData.inputDraft.length() - 1);
                 }
                 return true;
             }
@@ -3096,12 +3199,14 @@ public class StudentDashboard {
     private boolean handleSettingsKey(KeyEvent e) {
         if (settingsData.focusedField != SettingsData.ActiveField.NONE) {
             if (e.getKeyCode() == KeyEvent.VK_BACK_SPACE) {
-                if (settingsData.focusedField == SettingsData.ActiveField.FULL_NAME && settingsData.fullName.length() > 0) {
+                if (settingsData.focusedField == SettingsData.ActiveField.FULL_NAME
+                        && settingsData.fullName.length() > 0) {
                     settingsData.fullName = settingsData.fullName.substring(0, settingsData.fullName.length() - 1);
                     settingsData.hasUnsavedChanges = true;
                     return true;
                 }
-                if (settingsData.focusedField == SettingsData.ActiveField.USERNAME && settingsData.username.length() > 0) {
+                if (settingsData.focusedField == SettingsData.ActiveField.USERNAME
+                        && settingsData.username.length() > 0) {
                     settingsData.username = settingsData.username.substring(0, settingsData.username.length() - 1);
                     settingsData.hasUnsavedChanges = true;
                     return true;
@@ -3115,12 +3220,14 @@ public class StudentDashboard {
 
             char c = e.getKeyChar();
             if (c >= 32 && c <= 126) {
-                if (settingsData.focusedField == SettingsData.ActiveField.FULL_NAME && settingsData.fullName.length() < 40) {
+                if (settingsData.focusedField == SettingsData.ActiveField.FULL_NAME
+                        && settingsData.fullName.length() < 40) {
                     settingsData.fullName += c;
                     settingsData.hasUnsavedChanges = true;
                     return true;
                 }
-                if (settingsData.focusedField == SettingsData.ActiveField.USERNAME && settingsData.username.length() < 30) {
+                if (settingsData.focusedField == SettingsData.ActiveField.USERNAME
+                        && settingsData.username.length() < 30) {
                     settingsData.username += Character.toLowerCase(c);
                     settingsData.hasUnsavedChanges = true;
                     return true;
@@ -3136,59 +3243,153 @@ public class StudentDashboard {
     }
 
     // Getters and Setters
-    public NavItem getActiveNav() { return activeNav; }
+    public NavItem getActiveNav() {
+        return activeNav;
+    }
+
     public void setActiveNav(NavItem nav) {
         this.activeNav = nav;
         this.targetScrollY = 0f;
         this.scrollY = 0f;
     }
 
-    public NavItem getHoveredNav() { return hoveredNav; }
-    public void setHoveredNav(NavItem nav) { this.hoveredNav = nav; }
+    public NavItem getHoveredNav() {
+        return hoveredNav;
+    }
 
-    public int getActiveProjectsCount() { return activeProjectsCount; }
-    public void setActiveProjectsCount(int c) { this.activeProjectsCount = c; }
+    public void setHoveredNav(NavItem nav) {
+        this.hoveredNav = nav;
+    }
 
-    public int getMyTeamsCount() { return myTeamsCount; }
-    public void setMyTeamsCount(int c) { this.myTeamsCount = c; }
+    public int getActiveProjectsCount() {
+        return activeProjectsCount;
+    }
 
-    public int getPendingRequestsCount() { return pendingRequestsCount; }
-    public void setPendingRequestsCount(int c) { this.pendingRequestsCount = c; }
+    public void setActiveProjectsCount(int c) {
+        this.activeProjectsCount = c;
+    }
 
-    public int getTasksDueCount() { return tasksDueCount; }
-    public void setTasksDueCount(int c) { this.tasksDueCount = c; }
+    public int getMyTeamsCount() {
+        return myTeamsCount;
+    }
 
-    public int getProfileCompletePercent() { return profileCompletePercent; }
-    public void setProfileCompletePercent(int p) { this.profileCompletePercent = p; }
+    public void setMyTeamsCount(int c) {
+        this.myTeamsCount = c;
+    }
 
-    public String getProfileName() { return profileName; }
-    public void setProfileName(String n) { this.profileName = n; }
+    public int getPendingRequestsCount() {
+        return pendingRequestsCount;
+    }
 
-    public String getProfileBio() { return profileBio; }
-    public void setProfileBio(String b) { this.profileBio = b; }
+    public void setPendingRequestsCount(int c) {
+        this.pendingRequestsCount = c;
+    }
 
-    public String getProfilePortfolio() { return profilePortfolio; }
-    public void setProfilePortfolio(String u) { this.profilePortfolio = u; }
+    public int getTasksDueCount() {
+        return tasksDueCount;
+    }
 
-    public ProjectItem getSelectedProject() { return selectedProject; }
-    public void setSelectedProject(ProjectItem p) { this.selectedProject = p; }
+    public void setTasksDueCount(int c) {
+        this.tasksDueCount = c;
+    }
 
-    public TeammateItem getSelectedTeammate() { return selectedTeammate; }
-    public void setSelectedTeammate(TeammateItem t) { this.selectedTeammate = t; }
+    public int getProfileCompletePercent() {
+        return profileCompletePercent;
+    }
 
-    public List<ProjectItem> getProjects() { return projects; }
-    public List<TeammateItem> getTeammates() { return teammates; }
-    public List<TaskItem> getTasks() { return tasks; }
-    public List<ActivityItem> getActivities() { return activities; }
-    public List<String> getNotifications() { return notifications; }
-    public List<String> getChatHistory() { return chatHistory; }
+    public void setProfileCompletePercent(int p) {
+        this.profileCompletePercent = p;
+    }
 
-    public DashboardProjects getProjectsView() { return projectsView; }
-    public DashboardTeammates getTeammatesView() { return teammatesView; }
-    public DashboardMyProjects getMyProjectsView() { return myProjectsView; }
+    public String getProfileName() {
+        return profileName;
+    }
 
-    public TeamWorkspaceData getTeamData() { return teamData; }
-    public SettingsData getSettingsData() { return settingsData; }
-    public ProfileData getProfileData() { return profileData; }
-    public MessagesData getMessagesData() { return messagesData; }
+    public void setProfileName(String n) {
+        this.profileName = n;
+    }
+
+    public String getProfileBio() {
+        return profileBio;
+    }
+
+    public void setProfileBio(String b) {
+        this.profileBio = b;
+    }
+
+    public String getProfilePortfolio() {
+        return profilePortfolio;
+    }
+
+    public void setProfilePortfolio(String u) {
+        this.profilePortfolio = u;
+    }
+
+    public ProjectItem getSelectedProject() {
+        return selectedProject;
+    }
+
+    public void setSelectedProject(ProjectItem p) {
+        this.selectedProject = p;
+    }
+
+    public TeammateItem getSelectedTeammate() {
+        return selectedTeammate;
+    }
+
+    public void setSelectedTeammate(TeammateItem t) {
+        this.selectedTeammate = t;
+    }
+
+    public List<ProjectItem> getProjects() {
+        return projects;
+    }
+
+    public List<TeammateItem> getTeammates() {
+        return teammates;
+    }
+
+    public List<TaskItem> getTasks() {
+        return tasks;
+    }
+
+    public List<ActivityItem> getActivities() {
+        return activities;
+    }
+
+    public List<String> getNotifications() {
+        return notifications;
+    }
+
+    public List<String> getChatHistory() {
+        return chatHistory;
+    }
+
+    public DashboardProjects getProjectsView() {
+        return projectsView;
+    }
+
+    public DashboardTeammates getTeammatesView() {
+        return teammatesView;
+    }
+
+    public DashboardMyProjects getMyProjectsView() {
+        return myProjectsView;
+    }
+
+    public TeamWorkspaceData getTeamData() {
+        return teamData;
+    }
+
+    public SettingsData getSettingsData() {
+        return settingsData;
+    }
+
+    public ProfileData getProfileData() {
+        return profileData;
+    }
+
+    public MessagesData getMessagesData() {
+        return messagesData;
+    }
 }

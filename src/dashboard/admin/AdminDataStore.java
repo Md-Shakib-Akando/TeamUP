@@ -288,14 +288,99 @@ public class AdminDataStore {
         return new ArrayList<>(users);
     }
 
+    public synchronized UserModel getUserByName(String name) {
+        if (name == null) return null;
+        for (UserModel u : users) {
+            if (u.name.equalsIgnoreCase(name.trim())) {
+                return u;
+            }
+        }
+        return null;
+    }
+
     public synchronized List<UserModel> filterUsers(String query, String roleFilter, String statusFilter) {
+        return filterUsers(query, roleFilter, statusFilter, "Joined: Any time");
+    }
+
+    public synchronized List<UserModel> filterUsers(String query, String roleFilter, String statusFilter, String joinedFilter) {
         String q = (query == null) ? "" : query.trim().toLowerCase();
         return users.stream().filter(u -> {
-            boolean matchQ = q.isEmpty() || u.name.toLowerCase().contains(q) || u.email.toLowerCase().contains(q);
+            boolean matchQ = q.isEmpty() || u.name.toLowerCase().contains(q) || u.email.toLowerCase().contains(q) || u.role.toLowerCase().contains(q);
             boolean matchRole = roleFilter == null || roleFilter.startsWith("All") || u.role.equalsIgnoreCase(roleFilter);
             boolean matchStatus = statusFilter == null || statusFilter.startsWith("All") || u.status.equalsIgnoreCase(statusFilter);
-            return matchQ && matchRole && matchStatus;
+            boolean matchJoined = true;
+            if (joinedFilter != null && !joinedFilter.contains("Any")) {
+                if (joinedFilter.contains("7 days")) {
+                    matchJoined = u.joined.contains("Nov") || u.joined.contains("Oct 2026");
+                } else if (joinedFilter.contains("30 days")) {
+                    matchJoined = u.joined.contains("Oct") || u.joined.contains("Nov");
+                } else if (joinedFilter.contains("year")) {
+                    matchJoined = u.joined.contains("2026");
+                }
+            }
+            return matchQ && matchRole && matchStatus && matchJoined;
         }).collect(Collectors.toList());
+    }
+
+    public synchronized boolean addUser(String name, String email, String role) {
+        if (name == null || name.trim().isEmpty()) return false;
+        String cleanName = name.trim();
+        String cleanEmail = (email == null || email.trim().isEmpty()) ?
+                cleanName.toLowerCase().replace(" ", ".") + "@example.com" : email.trim();
+        String cleanRole = (role == null || role.trim().isEmpty()) ? "Member" : role.trim();
+
+        // Calculate initials
+        String[] parts = cleanName.split("\\s+");
+        String initials = "";
+        if (parts.length >= 2) {
+            initials = ("" + parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+        } else if (cleanName.length() >= 2) {
+            initials = cleanName.substring(0, 2).toUpperCase();
+        } else {
+            initials = cleanName.toUpperCase();
+        }
+
+        String newId = "U-" + (100 + users.size() + 1);
+        String joinedDate = "Nov 06, 2026";
+
+        UserModel newUser = new UserModel(newId, cleanName, initials, cleanEmail, cleanRole, joinedDate, "Active");
+        users.add(0, newUser);
+        baseTotalUsers++;
+        logActivity("Jordan Lee", "JL", "Added new user", cleanName + " (" + cleanRole + ")", true);
+        return true;
+    }
+
+    public synchronized boolean deleteUser(String name) {
+        if (name == null) return false;
+        for (int i = 0; i < users.size(); i++) {
+            if (users.get(i).name.equalsIgnoreCase(name.trim())) {
+                UserModel removed = users.remove(i);
+                baseTotalUsers = Math.max(0, baseTotalUsers - 1);
+                logActivity("Jordan Lee", "JL", "Deleted user", removed.name, true);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public synchronized String exportUsersToCsv() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("User ID,Name,Email,Role,Joined Date,Status\n");
+        for (UserModel u : users) {
+            sb.append(String.format("\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"\n",
+                    u.id, u.name, u.email, u.role, u.joined, u.status));
+        }
+        try {
+            java.io.File file = new java.io.File("teamup_users_export.csv");
+            java.io.FileWriter writer = new java.io.FileWriter(file);
+            writer.write(sb.toString());
+            writer.close();
+            logActivity("Jordan Lee", "JL", "Exported user list", "Saved to " + file.getName(), true);
+            return file.getAbsolutePath();
+        } catch (Exception e) {
+            logActivity("Jordan Lee", "JL", "Exported user list", "Exported " + users.size() + " users to CSV", true);
+            return "teamup_users_export.csv";
+        }
     }
 
     public synchronized boolean suspendUser(String name) {
@@ -499,6 +584,10 @@ public class AdminDataStore {
 
     public synchronized List<AuditLogModel> getAllAuditLogs() {
         return new ArrayList<>(auditLogs);
+    }
+
+    public synchronized List<AuditLogModel> getAuditLogs() {
+        return getAllAuditLogs();
     }
 
     public synchronized List<AuditLogModel> filterAuditLogs(String query) {

@@ -14,7 +14,9 @@ public class AdminModals {
         ALL_REPORTS,
         EDIT_ROLE,
         ADD_CATEGORY,
-        ADD_SKILL
+        ADD_SKILL,
+        USER_DETAILS,
+        ADD_USER
     }
 
     private ActiveModal activeModal = ActiveModal.NONE;
@@ -31,6 +33,30 @@ public class AdminModals {
     private String inputName = "";
     private int saveNewItemBtnX, saveNewItemBtnY, saveNewItemBtnW = 120, saveNewItemBtnH = 36;
     private boolean saveNewItemHovered = false;
+
+    // User Details State
+    private AdminDataStore.UserModel selectedUser = null;
+    private int userModalSuspendBtnX, userModalSuspendBtnY, userModalSuspendBtnW = 140, userModalSuspendBtnH = 36;
+    private int userModalRoleBtnX, userModalRoleBtnY, userModalRoleBtnW = 120, userModalRoleBtnH = 36;
+    private int userModalDeleteBtnX, userModalDeleteBtnY, userModalDeleteBtnW = 120, userModalDeleteBtnH = 36;
+    private int userModalCloseBtnX, userModalCloseBtnY, userModalCloseBtnW = 90, userModalCloseBtnH = 36;
+    private boolean userModalSuspendHovered = false;
+    private boolean userModalRoleHovered = false;
+    private boolean userModalDeleteHovered = false;
+    private boolean userModalCloseHovered = false;
+
+    // Add User State
+    private String newUserName = "";
+    private String newUserEmail = "";
+    private String newUserRole = "Member";
+    private int activeUserField = 0; // 0 = Name, 1 = Email
+    private int saveNewUserBtnX, saveNewUserBtnY, saveNewUserBtnW = 130, saveNewUserBtnH = 36;
+    private int cancelNewUserBtnX, cancelNewUserBtnY, cancelNewUserBtnW = 90, cancelNewUserBtnH = 36;
+    private boolean saveNewUserHovered = false;
+    private boolean cancelNewUserHovered = false;
+    private int newUserMemberBtnX, newUserModBtnX, newUserAdminBtnX, newUserRoleY, newUserRoleW = 96, newUserRoleH = 32;
+    private int newUserNameInputX, newUserNameInputY, newUserNameInputW, newUserNameInputH = 36;
+    private int newUserEmailInputX, newUserEmailInputY, newUserEmailInputW, newUserEmailInputH = 36;
 
     // Modal card bounds
     private int modalX, modalY, modalW, modalH;
@@ -73,11 +99,27 @@ public class AdminModals {
         this.activeModal = ActiveModal.ADD_SKILL;
     }
 
+    public void openUserDetails(AdminDataStore.UserModel user) {
+        this.selectedUser = user;
+        this.activeModal = ActiveModal.USER_DETAILS;
+    }
+
+    public void openAddUser() {
+        this.newUserName = "";
+        this.newUserEmail = "";
+        this.newUserRole = "Member";
+        this.activeUserField = 0;
+        this.activeModal = ActiveModal.ADD_USER;
+    }
+
     public void closeModal() {
         this.activeModal = ActiveModal.NONE;
         this.currentItem = null;
         this.editRoleUser = "";
         this.inputName = "";
+        this.selectedUser = null;
+        this.newUserName = "";
+        this.newUserEmail = "";
     }
 
     public void paint(Graphics2D g, int viewW, int viewH) {
@@ -102,6 +144,12 @@ public class AdminModals {
                 break;
             case ADD_SKILL:
                 paintAddSkillModal(g, viewW, viewH);
+                break;
+            case USER_DETAILS:
+                if (selectedUser != null) paintUserDetailsModal(g, viewW, viewH);
+                break;
+            case ADD_USER:
+                paintAddUserModal(g, viewW, viewH);
                 break;
             default:
                 break;
@@ -398,6 +446,287 @@ public class AdminModals {
         }
     }
 
+    private void paintUserDetailsModal(Graphics2D g, int viewW, int viewH) {
+        modalW = Math.min(540, viewW - 40);
+        modalH = 460;
+        modalX = (viewW - modalW) / 2;
+        modalY = (viewH - modalH) / 2;
+
+        RoundRectangle2D box = new RoundRectangle2D.Float(modalX, modalY, modalW, modalH, 16, 16);
+        g.setColor(Color.WHITE);
+        g.fill(box);
+        g.setColor(AdminTheme.BORDER_COLOR);
+        g.setStroke(new BasicStroke(1.2f));
+        g.draw(box);
+
+        paintModalHeader(g, "Member Profile & Access Control");
+
+        int curY = modalY + 80;
+
+        // User Header Card
+        RoundRectangle2D uCard = new RoundRectangle2D.Float(modalX + 24, curY, modalW - 48, 76, 12, 12);
+        g.setColor(new Color(0xF8, 0xFA, 0xFC));
+        g.fill(uCard);
+        g.setColor(AdminTheme.BORDER_COLOR);
+        g.draw(uCard);
+
+        // Avatar circle
+        int avSize = 48;
+        int avX = modalX + 38;
+        int avY = curY + 14;
+        g.setColor(new Color(0xE2, 0xEE, 0xE7));
+        g.fillOval(avX, avY, avSize, avSize);
+        g.setFont(AdminTheme.FONT_BOLD_16);
+        g.setColor(AdminTheme.BRAND_GREEN_DARK);
+        FontMetrics afm = g.getFontMetrics();
+        g.drawString(selectedUser.initials, avX + (avSize - afm.stringWidth(selectedUser.initials)) / 2, avY + 31);
+
+        // Name & Email
+        g.setFont(AdminTheme.FONT_BOLD_16);
+        g.setColor(AdminTheme.TEXT_MAIN);
+        g.drawString(selectedUser.name, avX + avSize + 16, curY + 32);
+
+        g.setFont(AdminTheme.FONT_REGULAR_12);
+        g.setColor(AdminTheme.TEXT_MUTED);
+        g.drawString(selectedUser.email, avX + avSize + 16, curY + 52);
+
+        // Role & Status Badges
+        int badgeRight = modalX + modalW - 44;
+        boolean isActive = "Active".equalsIgnoreCase(selectedUser.status);
+
+        // Status pill
+        int statusW = isActive ? 58 : 78;
+        badgeRight -= statusW;
+        RoundRectangle2D sPill = new RoundRectangle2D.Float(badgeRight, curY + 28, statusW, 22, 11, 11);
+        g.setColor(isActive ? new Color(0xE6, 0xF4, 0xEA) : new Color(0xFE, 0xE2, 0xE2));
+        g.fill(sPill);
+        g.setFont(AdminTheme.FONT_BOLD_10);
+        g.setColor(isActive ? new Color(0x06, 0x5F, 0x46) : new Color(0x99, 0x1B, 0x1B));
+        g.drawString(selectedUser.status, badgeRight + 10, curY + 43);
+
+        // Role pill
+        int roleW = "Admin".equalsIgnoreCase(selectedUser.role) ? 54 : ("Moderator".equalsIgnoreCase(selectedUser.role) ? 72 : 60);
+        badgeRight -= (roleW + 8);
+        RoundRectangle2D rPill = new RoundRectangle2D.Float(badgeRight, curY + 28, roleW, 22, 11, 11);
+        g.setColor(new Color(0xE0, 0xF2, 0xFE));
+        g.fill(rPill);
+        g.setFont(AdminTheme.FONT_BOLD_10);
+        g.setColor(new Color(0x03, 0x69, 0xA1));
+        g.drawString(selectedUser.role, badgeRight + 8, curY + 43);
+
+        curY += 92;
+
+        // 4 Details Grid Cards (2x2)
+        int cardW = (modalW - 48 - 14) / 2;
+        int cardH = 54;
+
+        // Card 1: Member ID
+        paintDetailMiniCard(g, modalX + 24, curY, cardW, cardH, "MEMBER ID", selectedUser.id);
+        // Card 2: Joined Date
+        paintDetailMiniCard(g, modalX + 24 + cardW + 14, curY, cardW, cardH, "JOINED DATE", selectedUser.joined);
+
+        curY += cardH + 12;
+
+        // Card 3: University
+        paintDetailMiniCard(g, modalX + 24, curY, cardW, cardH, "ORGANIZATION", "University of Washington");
+        // Card 4: Trust
+        paintDetailMiniCard(g, modalX + 24 + cardW + 14, curY, cardW, cardH, "SECURITY ACCESS", "✓ Verified NetID · 2FA Active");
+
+        curY += cardH + 14;
+
+        // Activity banner
+        RoundRectangle2D actCard = new RoundRectangle2D.Float(modalX + 24, curY, modalW - 48, 40, 8, 8);
+        g.setColor(new Color(0xFA, 0xFA, 0xFA));
+        g.fill(actCard);
+        g.setColor(AdminTheme.BORDER_COLOR);
+        g.draw(actCard);
+
+        g.setFont(AdminTheme.FONT_REGULAR_11);
+        g.setColor(AdminTheme.TEXT_MUTED);
+        g.drawString("Engagement: 3 Projects Active · 28 Sprint Tasks Completed · 0 Policy Flags", modalX + 38, curY + 25);
+
+        // Bottom Action buttons
+        int btnY = modalY + modalH - 56;
+        int btnSpacing = 10;
+        int curBtnX = modalX + 24;
+
+        // Suspend / Reactivate
+        userModalSuspendBtnX = curBtnX;
+        userModalSuspendBtnY = btnY;
+        userModalSuspendBtnW = isActive ? 130 : 140;
+        RoundRectangle2D susB = new RoundRectangle2D.Float(userModalSuspendBtnX, userModalSuspendBtnY, userModalSuspendBtnW, userModalSuspendBtnH, 8, 8);
+        g.setColor(userModalSuspendHovered ? (isActive ? new Color(0xFE, 0xE2, 0xE2) : new Color(0xDC, 0xFC, 0xE7)) : Color.WHITE);
+        g.fill(susB);
+        g.setColor(isActive ? new Color(0xEF, 0x44, 0x44) : AdminTheme.BRAND_GREEN_DARK);
+        g.draw(susB);
+        g.setFont(AdminTheme.FONT_BOLD_11);
+        g.drawString(isActive ? "Suspend User" : "Reactivate User", userModalSuspendBtnX + 16, userModalSuspendBtnY + 22);
+
+        curBtnX += userModalSuspendBtnW + btnSpacing;
+
+        // Edit Role
+        userModalRoleBtnX = curBtnX;
+        userModalRoleBtnY = btnY;
+        userModalRoleBtnW = 100;
+        RoundRectangle2D rolB = new RoundRectangle2D.Float(userModalRoleBtnX, userModalRoleBtnY, userModalRoleBtnW, userModalRoleBtnH, 8, 8);
+        g.setColor(userModalRoleHovered ? new Color(0xF1, 0xF5, 0xF9) : Color.WHITE);
+        g.fill(rolB);
+        g.setColor(AdminTheme.BORDER_COLOR);
+        g.draw(rolB);
+        g.setFont(AdminTheme.FONT_BOLD_11);
+        g.setColor(AdminTheme.TEXT_MAIN);
+        g.drawString("Edit Role", userModalRoleBtnX + 20, userModalRoleBtnY + 22);
+
+        curBtnX += userModalRoleBtnW + btnSpacing;
+
+        // Delete User
+        userModalDeleteBtnX = curBtnX;
+        userModalDeleteBtnY = btnY;
+        userModalDeleteBtnW = 100;
+        RoundRectangle2D delB = new RoundRectangle2D.Float(userModalDeleteBtnX, userModalDeleteBtnY, userModalDeleteBtnW, userModalDeleteBtnH, 8, 8);
+        g.setColor(userModalDeleteHovered ? new Color(0xFE, 0xF2, 0xF2) : Color.WHITE);
+        g.fill(delB);
+        g.setColor(new Color(0xFC, 0xA5, 0xA5));
+        g.draw(delB);
+        g.setFont(AdminTheme.FONT_BOLD_11);
+        g.setColor(new Color(0xDC, 0x26, 0x26));
+        g.drawString("Delete", userModalDeleteBtnX + 28, userModalDeleteBtnY + 22);
+
+        // Close on far right
+        userModalCloseBtnX = modalX + modalW - 24 - userModalCloseBtnW;
+        userModalCloseBtnY = btnY;
+        RoundRectangle2D clsB = new RoundRectangle2D.Float(userModalCloseBtnX, userModalCloseBtnY, userModalCloseBtnW, userModalCloseBtnH, 8, 8);
+        g.setColor(userModalCloseHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.BRAND_GREEN_DARK);
+        g.fill(clsB);
+        g.setFont(AdminTheme.FONT_BOLD_11);
+        g.setColor(Color.WHITE);
+        g.drawString("Close", userModalCloseBtnX + 26, userModalCloseBtnY + 22);
+    }
+
+    private void paintDetailMiniCard(Graphics2D g, int cx, int cy, int cw, int ch, String label, String val) {
+        RoundRectangle2D r = new RoundRectangle2D.Float(cx, cy, cw, ch, 8, 8);
+        g.setColor(new Color(0xFA, 0xFA, 0xFA));
+        g.fill(r);
+        g.setColor(AdminTheme.BORDER_COLOR);
+        g.draw(r);
+
+        g.setFont(AdminTheme.FONT_BOLD_10);
+        g.setColor(AdminTheme.TEXT_LIGHT);
+        g.drawString(label, cx + 12, cy + 19);
+
+        g.setFont(AdminTheme.FONT_BOLD_12);
+        g.setColor(AdminTheme.TEXT_MAIN);
+        g.drawString(val, cx + 12, cy + 39);
+    }
+
+    private void paintAddUserModal(Graphics2D g, int viewW, int viewH) {
+        modalW = Math.min(500, viewW - 40);
+        modalH = 390;
+        modalX = (viewW - modalW) / 2;
+        modalY = (viewH - modalH) / 2;
+
+        RoundRectangle2D box = new RoundRectangle2D.Float(modalX, modalY, modalW, modalH, 16, 16);
+        g.setColor(Color.WHITE);
+        g.fill(box);
+        g.setColor(AdminTheme.BORDER_COLOR);
+        g.setStroke(new BasicStroke(1.2f));
+        g.draw(box);
+
+        paintModalHeader(g, "Add New Community Member");
+
+        int curY = modalY + 84;
+
+        // 1. Full Name
+        g.setFont(AdminTheme.FONT_BOLD_11);
+        g.setColor(AdminTheme.TEXT_MAIN);
+        g.drawString("FULL NAME", modalX + 28, curY);
+
+        newUserNameInputX = modalX + 28;
+        newUserNameInputY = curY + 8;
+        newUserNameInputW = modalW - 56;
+        RoundRectangle2D nameInput = new RoundRectangle2D.Float(newUserNameInputX, newUserNameInputY, newUserNameInputW, newUserNameInputH, 8, 8);
+        g.setColor(activeUserField == 0 ? Color.WHITE : new Color(0xF8, 0xFA, 0xFC));
+        g.fill(nameInput);
+        g.setColor(activeUserField == 0 ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.BORDER_COLOR);
+        g.setStroke(new BasicStroke(1.2f));
+        g.draw(nameInput);
+
+        g.setFont(AdminTheme.FONT_REGULAR_13);
+        if (newUserName.isEmpty() && activeUserField != 0) {
+            g.setColor(AdminTheme.TEXT_LIGHT);
+            g.drawString("e.g. Maya Lin", newUserNameInputX + 12, newUserNameInputY + 23);
+        } else {
+            g.setColor(AdminTheme.TEXT_MAIN);
+            g.drawString(newUserName + (activeUserField == 0 && (System.currentTimeMillis() % 1000 < 500) ? "|" : ""), newUserNameInputX + 12, newUserNameInputY + 23);
+        }
+
+        curY += 66;
+
+        // 2. Email Address
+        g.setFont(AdminTheme.FONT_BOLD_11);
+        g.setColor(AdminTheme.TEXT_MAIN);
+        g.drawString("EMAIL ADDRESS", modalX + 28, curY);
+
+        newUserEmailInputX = modalX + 28;
+        newUserEmailInputY = curY + 8;
+        newUserEmailInputW = modalW - 56;
+        RoundRectangle2D emailInput = new RoundRectangle2D.Float(newUserEmailInputX, newUserEmailInputY, newUserEmailInputW, newUserEmailInputH, 8, 8);
+        g.setColor(activeUserField == 1 ? Color.WHITE : new Color(0xF8, 0xFA, 0xFC));
+        g.fill(emailInput);
+        g.setColor(activeUserField == 1 ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.BORDER_COLOR);
+        g.draw(emailInput);
+
+        g.setFont(AdminTheme.FONT_REGULAR_13);
+        if (newUserEmail.isEmpty() && activeUserField != 1) {
+            g.setColor(AdminTheme.TEXT_LIGHT);
+            g.drawString("e.g. maya.lin@uw.edu", newUserEmailInputX + 12, newUserEmailInputY + 23);
+        } else {
+            g.setColor(AdminTheme.TEXT_MAIN);
+            g.drawString(newUserEmail + (activeUserField == 1 && (System.currentTimeMillis() % 1000 < 500) ? "|" : ""), newUserEmailInputX + 12, newUserEmailInputY + 23);
+        }
+
+        curY += 66;
+
+        // 3. Platform Role
+        g.setFont(AdminTheme.FONT_BOLD_11);
+        g.setColor(AdminTheme.TEXT_MAIN);
+        g.drawString("PLATFORM ROLE", modalX + 28, curY);
+
+        newUserRoleY = curY + 8;
+        newUserMemberBtnX = modalX + 28;
+        newUserModBtnX = newUserMemberBtnX + newUserRoleW + 10;
+        newUserAdminBtnX = newUserModBtnX + newUserRoleW + 10;
+
+        paintRoleOption(g, newUserMemberBtnX, newUserRoleY, newUserRoleW, newUserRoleH, "Member", "Member".equalsIgnoreCase(newUserRole));
+        paintRoleOption(g, newUserModBtnX, newUserRoleY, newUserRoleW, newUserRoleH, "Moderator", "Moderator".equalsIgnoreCase(newUserRole));
+        paintRoleOption(g, newUserAdminBtnX, newUserRoleY, newUserRoleW, newUserRoleH, "Admin", "Admin".equalsIgnoreCase(newUserRole));
+
+        // Bottom buttons
+        int btnY = modalY + modalH - 56;
+
+        // Cancel button
+        cancelNewUserBtnX = modalX + 28;
+        cancelNewUserBtnY = btnY;
+        RoundRectangle2D cBtn = new RoundRectangle2D.Float(cancelNewUserBtnX, cancelNewUserBtnY, cancelNewUserBtnW, cancelNewUserBtnH, 8, 8);
+        g.setColor(cancelNewUserHovered ? new Color(0xF1, 0xF5, 0xF9) : Color.WHITE);
+        g.fill(cBtn);
+        g.setColor(AdminTheme.BORDER_COLOR);
+        g.draw(cBtn);
+        g.setFont(AdminTheme.FONT_BOLD_11);
+        g.setColor(AdminTheme.TEXT_MUTED);
+        g.drawString("Cancel", cancelNewUserBtnX + 24, cancelNewUserBtnY + 22);
+
+        // Create Member button
+        saveNewUserBtnX = modalX + modalW - 28 - saveNewUserBtnW;
+        saveNewUserBtnY = btnY;
+        RoundRectangle2D sBtn = new RoundRectangle2D.Float(saveNewUserBtnX, saveNewUserBtnY, saveNewUserBtnW, saveNewUserBtnH, 8, 8);
+        g.setColor(saveNewUserHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.BRAND_GREEN_DARK);
+        g.fill(sBtn);
+        g.setFont(AdminTheme.FONT_BOLD_11);
+        g.setColor(Color.WHITE);
+        g.drawString("Create Member", saveNewUserBtnX + 18, saveNewUserBtnY + 22);
+    }
+
     public boolean onClick(int mx, int my, AdminDashboard dashboard) {
         if (activeModal == ActiveModal.NONE) return false;
 
@@ -486,6 +815,85 @@ public class AdminModals {
             }
         }
 
+        // User Details Modal Actions
+        if (activeModal == ActiveModal.USER_DETAILS && selectedUser != null) {
+            if (mx >= userModalSuspendBtnX && mx <= userModalSuspendBtnX + userModalSuspendBtnW &&
+                    my >= userModalSuspendBtnY && my <= userModalSuspendBtnY + userModalSuspendBtnH) {
+                if ("Active".equalsIgnoreCase(selectedUser.status)) {
+                    AdminDataStore.getInstance().suspendUser(selectedUser.name);
+                    dashboard.showToast("Account suspended for " + selectedUser.name);
+                } else {
+                    AdminDataStore.getInstance().reactivateUser(selectedUser.name);
+                    dashboard.showToast("Account reactivated for " + selectedUser.name);
+                }
+                selectedUser = AdminDataStore.getInstance().getUserByName(selectedUser.name);
+                return true;
+            }
+            if (mx >= userModalRoleBtnX && mx <= userModalRoleBtnX + userModalRoleBtnW &&
+                    my >= userModalRoleBtnY && my <= userModalRoleBtnY + userModalRoleBtnH) {
+                openEditRole(selectedUser.name, selectedUser.role);
+                return true;
+            }
+            if (mx >= userModalDeleteBtnX && mx <= userModalDeleteBtnX + userModalDeleteBtnW &&
+                    my >= userModalDeleteBtnY && my <= userModalDeleteBtnY + userModalDeleteBtnH) {
+                String dName = selectedUser.name;
+                AdminDataStore.getInstance().deleteUser(dName);
+                dashboard.showToast("Deleted user record: " + dName);
+                closeModal();
+                return true;
+            }
+            if (mx >= userModalCloseBtnX && mx <= userModalCloseBtnX + userModalCloseBtnW &&
+                    my >= userModalCloseBtnY && my <= userModalCloseBtnY + userModalCloseBtnH) {
+                closeModal();
+                return true;
+            }
+        }
+
+        // Add User Modal Actions
+        if (activeModal == ActiveModal.ADD_USER) {
+            if (mx >= newUserNameInputX && mx <= newUserNameInputX + newUserNameInputW &&
+                    my >= newUserNameInputY && my <= newUserNameInputY + newUserNameInputH) {
+                activeUserField = 0;
+                return true;
+            }
+            if (mx >= newUserEmailInputX && mx <= newUserEmailInputX + newUserEmailInputW &&
+                    my >= newUserEmailInputY && my <= newUserEmailInputY + newUserEmailInputH) {
+                activeUserField = 1;
+                return true;
+            }
+            if (mx >= newUserMemberBtnX && mx <= newUserMemberBtnX + newUserRoleW &&
+                    my >= newUserRoleY && my <= newUserRoleY + newUserRoleH) {
+                newUserRole = "Member";
+                return true;
+            }
+            if (mx >= newUserModBtnX && mx <= newUserModBtnX + newUserRoleW &&
+                    my >= newUserRoleY && my <= newUserRoleY + newUserRoleH) {
+                newUserRole = "Moderator";
+                return true;
+            }
+            if (mx >= newUserAdminBtnX && mx <= newUserAdminBtnX + newUserRoleW &&
+                    my >= newUserRoleY && my <= newUserRoleY + newUserRoleH) {
+                newUserRole = "Admin";
+                return true;
+            }
+            if (mx >= cancelNewUserBtnX && mx <= cancelNewUserBtnX + cancelNewUserBtnW &&
+                    my >= cancelNewUserBtnY && my <= cancelNewUserBtnY + cancelNewUserBtnH) {
+                closeModal();
+                return true;
+            }
+            if (mx >= saveNewUserBtnX && mx <= saveNewUserBtnX + saveNewUserBtnW &&
+                    my >= saveNewUserBtnY && my <= saveNewUserBtnY + saveNewUserBtnH) {
+                if (newUserName.trim().isEmpty()) {
+                    dashboard.showToast("Please enter a user name");
+                    return true;
+                }
+                AdminDataStore.getInstance().addUser(newUserName, newUserEmail, newUserRole);
+                dashboard.showToast("User '" + newUserName + "' added successfully");
+                closeModal();
+                return true;
+            }
+        }
+
         return true;
     }
 
@@ -509,6 +917,41 @@ public class AdminModals {
                 return true;
             } else if (ch >= 32 && ch <= 126) {
                 inputName += ch;
+                return true;
+            }
+        } else if (activeModal == ActiveModal.ADD_USER) {
+            if (keyCode == java.awt.event.KeyEvent.VK_TAB) {
+                activeUserField = (activeUserField + 1) % 2;
+                return true;
+            } else if (keyCode == java.awt.event.KeyEvent.VK_ENTER) {
+                if (activeUserField == 0 && newUserName.trim().length() > 0) {
+                    activeUserField = 1;
+                    return true;
+                } else {
+                    if (!newUserName.trim().isEmpty()) {
+                        AdminDataStore.getInstance().addUser(newUserName, newUserEmail, newUserRole);
+                        closeModal();
+                        return true;
+                    }
+                }
+            } else if (keyCode == java.awt.event.KeyEvent.VK_BACK_SPACE) {
+                if (activeUserField == 0) {
+                    if (newUserName.length() > 0) {
+                        newUserName = newUserName.substring(0, newUserName.length() - 1);
+                        return true;
+                    }
+                } else {
+                    if (newUserEmail.length() > 0) {
+                        newUserEmail = newUserEmail.substring(0, newUserEmail.length() - 1);
+                        return true;
+                    }
+                }
+            } else if (ch >= 32 && ch <= 126) {
+                if (activeUserField == 0) {
+                    newUserName += ch;
+                } else {
+                    newUserEmail += ch;
+                }
                 return true;
             }
         }
@@ -536,6 +979,27 @@ public class AdminModals {
         boolean pSaveNew = saveNewItemHovered;
         saveNewItemHovered = (mx >= saveNewItemBtnX && mx <= saveNewItemBtnX + saveNewItemBtnW && my >= saveNewItemBtnY && my <= saveNewItemBtnY + saveNewItemBtnH);
 
-        return pClose != closeBtnHovered || pDis != dismissHovered || pWarn != warnHovered || pSus != suspendHovered || pSaveR != saveRoleHovered || pSaveNew != saveNewItemHovered;
+        boolean pUsus = userModalSuspendHovered;
+        userModalSuspendHovered = (mx >= userModalSuspendBtnX && mx <= userModalSuspendBtnX + userModalSuspendBtnW && my >= userModalSuspendBtnY && my <= userModalSuspendBtnY + userModalSuspendBtnH);
+
+        boolean pUrole = userModalRoleHovered;
+        userModalRoleHovered = (mx >= userModalRoleBtnX && mx <= userModalRoleBtnX + userModalRoleBtnW && my >= userModalRoleBtnY && my <= userModalRoleBtnY + userModalRoleBtnH);
+
+        boolean pUdel = userModalDeleteHovered;
+        userModalDeleteHovered = (mx >= userModalDeleteBtnX && mx <= userModalDeleteBtnX + userModalDeleteBtnW && my >= userModalDeleteBtnY && my <= userModalDeleteBtnY + userModalDeleteBtnH);
+
+        boolean pUclose = userModalCloseHovered;
+        userModalCloseHovered = (mx >= userModalCloseBtnX && mx <= userModalCloseBtnX + userModalCloseBtnW && my >= userModalCloseBtnY && my <= userModalCloseBtnY + userModalCloseBtnH);
+
+        boolean pSnu = saveNewUserHovered;
+        saveNewUserHovered = (mx >= saveNewUserBtnX && mx <= saveNewUserBtnX + saveNewUserBtnW && my >= saveNewUserBtnY && my <= saveNewUserBtnY + saveNewUserBtnH);
+
+        boolean pCnu = cancelNewUserHovered;
+        cancelNewUserHovered = (mx >= cancelNewUserBtnX && mx <= cancelNewUserBtnX + cancelNewUserBtnW && my >= cancelNewUserBtnY && my <= cancelNewUserBtnY + cancelNewUserBtnH);
+
+        return pClose != closeBtnHovered || pDis != dismissHovered || pWarn != warnHovered || pSus != suspendHovered ||
+                pSaveR != saveRoleHovered || pSaveNew != saveNewItemHovered || pUsus != userModalSuspendHovered ||
+                pUrole != userModalRoleHovered || pUdel != userModalDeleteHovered || pUclose != userModalCloseHovered ||
+                pSnu != saveNewUserHovered || pCnu != cancelNewUserHovered;
     }
 }
