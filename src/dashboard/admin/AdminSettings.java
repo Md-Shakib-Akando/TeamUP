@@ -85,7 +85,7 @@ public class AdminSettings {
         g.drawString(domainInput, cx + 12, cy + 65);
 
         cy += 98;
-        g.setColor(new Color(0xF1, 0xF5, 0xF9));
+        g.setColor(new Color(0xF5, 0xF3, 0xEF));
         g.drawLine(cx, cy, cx + innerW, cy);
         cy += 18;
 
@@ -101,7 +101,7 @@ public class AdminSettings {
         paintStepper(g, cx, cy + 42, maxTeamSize);
 
         cy += 98;
-        g.setColor(new Color(0xF1, 0xF5, 0xF9));
+        g.setColor(new Color(0xF5, 0xF3, 0xEF));
         g.drawLine(cx, cy, cx + innerW, cy);
         cy += 18;
 
@@ -134,7 +134,7 @@ public class AdminSettings {
         saveBtnX = cx;
         saveBtnY = curY + cardH - 56;
         RoundRectangle2D sBtn = new RoundRectangle2D.Float(saveBtnX, saveBtnY, saveBtnW, saveBtnH, 8, 8);
-        g.setColor(saveHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.BRAND_GREEN_DARK);
+        g.setColor(saveHovered ? AdminTheme.BRAND_PRIMARY_HOVER : AdminTheme.BRAND_PRIMARY);
         g.fill(sBtn);
 
         g.setFont(AdminTheme.FONT_BOLD_13);

@@ -97,10 +97,10 @@ public class AdminCategories {
         int pillW = 74;
         int pillH = 18;
         RoundRectangle2D pill = new RoundRectangle2D.Float(pillX, pillY, pillW, pillH, 8, 8);
-        g.setColor(new Color(0xE2, 0xE8, 0xF0));
+        g.setColor(AdminTheme.BRAND_TINT);
         g.fill(pill);
         g.setFont(AdminTheme.FONT_SEMIBOLD_11);
-        g.setColor(AdminTheme.TEXT_MUTED);
+        g.setColor(AdminTheme.BRAND_PRIMARY);
         g.drawString("Sample data", pillX + 6, pillY + 13);
 
         // Subtitle
@@ -157,7 +157,7 @@ public class AdminCategories {
 
         // Table Header
         int headH = 38;
-        g.setColor(new Color(0xF8, 0xFA, 0xFC));
+        g.setColor(AdminTheme.BG_CANVAS);
         g.fill(new RoundRectangle2D.Float(x, curY, w, headH, 12, 12));
         g.fillRect(x, curY + headH - 8, w, 8);
         g.setColor(AdminTheme.BORDER_COLOR);
@@ -299,7 +299,7 @@ public class AdminCategories {
 
         // Table Header
         int headH = 38;
-        g.setColor(new Color(0xF8, 0xFA, 0xFC));
+        g.setColor(AdminTheme.BG_CANVAS);
         g.fill(new RoundRectangle2D.Float(x, curY, w, headH, 12, 12));
         g.fillRect(x, curY + headH - 8, w, 8);
         g.setColor(AdminTheme.BORDER_COLOR);
@@ -432,9 +432,9 @@ public class AdminCategories {
     private void paintBottomBanner(Graphics2D g, int x, int y, int w) {
         int banH = 56;
         RoundRectangle2D banner = new RoundRectangle2D.Float(x, y, w, banH, 10, 10);
-        g.setColor(new Color(0xF0, 0xFD, 0xF4));
+        g.setColor(AdminTheme.BRAND_TINT);
         g.fill(banner);
-        g.setColor(new Color(0xBB, 0xF7, 0xD0));
+        g.setColor(new Color(0xFD, 0xD7, 0xE4));
         g.setStroke(new BasicStroke(1.2f));
         g.draw(banner);
 
@@ -442,7 +442,7 @@ public class AdminCategories {
         int cy = y + 18;
 
         // Checkmark badge
-        g.setColor(new Color(0x16, 0xA3, 0x4A));
+        g.setColor(AdminTheme.BRAND_PRIMARY);
         g.setStroke(new BasicStroke(1.4f));
         g.drawOval(cx, cy, 18, 18);
         g.drawLine(cx + 4, cy + 9, cx + 7, cy + 13);
@@ -450,12 +450,12 @@ public class AdminCategories {
 
         // Bold Title
         g.setFont(AdminTheme.FONT_BOLD_12);
-        g.setColor(new Color(0x14, 0x53, 0x2D));
+        g.setColor(AdminTheme.TEXT_DARK);
         g.drawString("Disabling does not delete existing data", cx + 28, y + 24);
 
         // Body Description
         g.setFont(AdminTheme.FONT_REGULAR_12);
-        g.setColor(new Color(0x15, 0x80, 0x3D));
+        g.setColor(AdminTheme.TEXT_MUTED);
         g.drawString("Disabled categories and skills remain on existing profiles and projects, but can't be selected for new ones.", cx + 28, y + 42);
     }
 

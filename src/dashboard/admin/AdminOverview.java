@@ -145,10 +145,10 @@ public class AdminOverview {
         int pillW = 76;
         int pillH = 20;
         RoundRectangle2D pill = new RoundRectangle2D.Float(pillX, pillY, pillW, pillH, 10, 10);
-        g.setColor(new Color(0xF1, 0xF5, 0xF9));
+        g.setColor(AdminTheme.BRAND_TINT);
         g.fill(pill);
         g.setFont(AdminTheme.FONT_REG_11);
-        g.setColor(AdminTheme.TEXT_MUTED);
+        g.setColor(AdminTheme.BRAND_PRIMARY);
         g.drawString("Sample data", pillX + 8, pillY + 14);
 
         // Subtitle
@@ -163,7 +163,7 @@ public class AdminOverview {
         datePickerY = y + 8;
 
         RoundRectangle2D dateBox = new RoundRectangle2D.Float(datePickerX, datePickerY, datePickerW, datePickerH, 10, 10);
-        g.setColor(datePickerHovered ? new Color(0xF8, 0xFA, 0xFC) : Color.WHITE);
+        g.setColor(datePickerHovered ? new Color(0xF5, 0xF3, 0xEF) : Color.WHITE);
         g.fill(dateBox);
         g.setColor(AdminTheme.BORDER_COLOR);
         g.setStroke(new BasicStroke(1.2f));
@@ -426,7 +426,7 @@ public class AdminOverview {
         viewAllReportsY = y + 14;
 
         RoundRectangle2D btn = new RoundRectangle2D.Float(viewAllReportsX, viewAllReportsY, viewAllReportsW, viewAllReportsH, 8, 8);
-        g.setColor(viewAllReportsHovered ? new Color(0xF8, 0xFA, 0xFC) : Color.WHITE);
+        g.setColor(viewAllReportsHovered ? new Color(0xF5, 0xF3, 0xEF) : Color.WHITE);
         g.fill(btn);
         g.setColor(AdminTheme.BORDER_COLOR);
         g.setStroke(new BasicStroke(1.2f));
@@ -447,7 +447,7 @@ public class AdminOverview {
 
         // Table Header
         int tableTopY = y + 62;
-        g.setColor(new Color(0xF8, 0xFA, 0xFC));
+        g.setColor(AdminTheme.BG_CANVAS);
         g.fillRect(x + 1, tableTopY, w - 2, 34);
         g.setColor(AdminTheme.BORDER_COLOR);
         g.drawLine(x, tableTopY + 34, x + w, tableTopY + 34);
