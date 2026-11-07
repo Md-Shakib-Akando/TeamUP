@@ -298,7 +298,7 @@ public class AdminModals {
         g.drawString("CATEGORY NAME", modalX + 28, curY);
 
         RoundRectangle2D input = new RoundRectangle2D.Float(modalX + 28, curY + 10, modalW - 56, 36, 8, 8);
-        g.setColor(new Color(0xF8, 0xFA, 0xFC));
+        g.setColor(AdminTheme.BG_CANVAS);
         g.fill(input);
         g.setColor(AdminTheme.BORDER_COLOR);
         g.draw(input);
@@ -339,7 +339,7 @@ public class AdminModals {
         g.drawString("SKILL NAME", modalX + 28, curY);
 
         RoundRectangle2D input = new RoundRectangle2D.Float(modalX + 28, curY + 10, modalW - 56, 36, 8, 8);
-        g.setColor(new Color(0xF8, 0xFA, 0xFC));
+        g.setColor(AdminTheme.BG_CANVAS);
         g.fill(input);
         g.setColor(AdminTheme.BORDER_COLOR);
         g.draw(input);
@@ -386,7 +386,7 @@ public class AdminModals {
 
         for (String r : sampleReports) {
             RoundRectangle2D row = new RoundRectangle2D.Float(modalX + 24, curY, modalW - 48, 42, 8, 8);
-            g.setColor(new Color(0xF8, 0xFA, 0xFC));
+            g.setColor(AdminTheme.BG_CANVAS);
             g.fill(row);
             g.setColor(AdminTheme.BORDER_COLOR);
             g.draw(row);

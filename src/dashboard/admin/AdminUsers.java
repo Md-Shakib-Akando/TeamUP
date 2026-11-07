@@ -101,10 +101,10 @@ public class AdminUsers {
         int pillX = x + titleW + 12;
         int pillY = y + 8;
         RoundRectangle2D pill = new RoundRectangle2D.Float(pillX, pillY, 76, 20, 10, 10);
-        g.setColor(new Color(0xF1, 0xF5, 0xF9));
+        g.setColor(AdminTheme.BRAND_TINT);
         g.fill(pill);
         g.setFont(AdminTheme.FONT_REG_11);
-        g.setColor(AdminTheme.TEXT_MUTED);
+        g.setColor(AdminTheme.BRAND_PRIMARY);
         g.drawString("Sample data", pillX + 8, pillY + 14);
 
         // Subtitle
@@ -116,7 +116,7 @@ public class AdminUsers {
         exportBtnX = x + w - exportBtnW;
         exportBtnY = y + 8;
         RoundRectangle2D expBox = new RoundRectangle2D.Float(exportBtnX, exportBtnY, exportBtnW, exportBtnH, 8, 8);
-        g.setColor(exportHovered ? new Color(0xF8, 0xFA, 0xFC) : Color.WHITE);
+        g.setColor(exportHovered ? new Color(0xF5, 0xF3, 0xEF) : Color.WHITE);
         g.fill(expBox);
         g.setColor(AdminTheme.BORDER_COLOR);
         g.setStroke(new BasicStroke(1.2f));
@@ -223,7 +223,7 @@ public class AdminUsers {
 
         // Header
         int thY = y;
-        g.setColor(new Color(0xF8, 0xFA, 0xFC));
+        g.setColor(AdminTheme.BG_CANVAS);
         g.fillRect(x + 1, thY + 1, w - 2, 38);
         g.setColor(AdminTheme.BORDER_COLOR);
         g.drawLine(x, thY + 38, x + w, thY + 38);
@@ -268,7 +268,7 @@ public class AdminUsers {
             // Avatar circle
             int avSize = 28;
             int avY = curRowY + (rowH - avSize) / 2;
-            g.setColor(new Color(0xE2, 0xEE, 0xE7));
+            g.setColor(AdminTheme.BRAND_TINT);
             g.fillOval(colUser, avY, avSize, avSize);
             g.setFont(AdminTheme.FONT_BOLD_10);
             g.setColor(AdminTheme.BRAND_GREEN_DARK);
@@ -287,10 +287,10 @@ public class AdminUsers {
             // Role
             if ("Admin".equalsIgnoreCase(u.role)) {
                 RoundRectangle2D rolePill = new RoundRectangle2D.Float(colRole, curRowY + 18, 54, 20, 10, 10);
-                g.setColor(new Color(0xE6, 0xF4, 0xEA));
+                g.setColor(AdminTheme.BRAND_TINT);
                 g.fill(rolePill);
                 g.setFont(AdminTheme.FONT_BOLD_10);
-                g.setColor(new Color(0x06, 0x5F, 0x46));
+                g.setColor(AdminTheme.BRAND_PRIMARY);
                 g.drawString("Admin", colRole + 8, curRowY + 32);
             } else if ("Moderator".equalsIgnoreCase(u.role)) {
                 RoundRectangle2D rolePill = new RoundRectangle2D.Float(colRole, curRowY + 18, 70, 20, 10, 10);
@@ -414,24 +414,24 @@ public class AdminUsers {
     private void paintNoticeBanner(Graphics2D g, int x, int y, int w) {
         int banH = 56;
         RoundRectangle2D banner = new RoundRectangle2D.Float(x, y, w, banH, 10, 10);
-        g.setColor(new Color(0xF0, 0xFD, 0xF4));
+        g.setColor(AdminTheme.BRAND_TINT);
         g.fill(banner);
-        g.setColor(new Color(0xBB, 0xF7, 0xD0));
+        g.setColor(new Color(0xFD, 0xD7, 0xE4));
         g.setStroke(new BasicStroke(1.2f));
         g.draw(banner);
 
         // Checkmark circle
-        g.setColor(new Color(0x16, 0xA3, 0x4A));
+        g.setColor(AdminTheme.BRAND_PRIMARY);
         g.drawOval(x + 18, y + 18, 18, 18);
         g.drawLine(x + 22, y + 27, x + 25, y + 31);
         g.drawLine(x + 25, y + 31, x + 31, y + 23);
 
         g.setFont(AdminTheme.FONT_BOLD_12);
-        g.setColor(new Color(0x14, 0x53, 0x2D));
+        g.setColor(AdminTheme.TEXT_DARK);
         g.drawString("Role changes affect platform access", x + 46, y + 24);
 
         g.setFont(AdminTheme.FONT_REG_11);
-        g.setColor(new Color(0x16, 0x65, 0x34));
+        g.setColor(AdminTheme.TEXT_MUTED);
         g.drawString("Review a member's responsibilities before editing their role. Administrative actions are recorded in Activity Logs.", x + 46, y + 42);
     }
 
