@@ -25,6 +25,7 @@ public class DashboardOverview {
     private int viewAllBtnX, viewAllBtnY, viewAllBtnW, viewAllBtnH;
     private int allTasksBtnX, allTasksBtnY, allTasksBtnW, allTasksBtnH;
     private int viewMessagesBtnX, viewMessagesBtnY, viewMessagesBtnW, viewMessagesBtnH;
+    private int unreadMsgBtnX, unreadMsgBtnY, unreadMsgBtnW, unreadMsgBtnH;
 
     private int totalContentHeight = 1100;
 
@@ -548,7 +549,12 @@ public class DashboardOverview {
         curY += 4;
         g.setFont(DashboardTheme.FONT_REG_12);
         g.setColor(DashboardTheme.TEXT_MUTED);
-        g.drawString("3 unread conversations", x + 20, curY);
+        String unreadText = "3 unread conversations";
+        g.drawString(unreadText, x + 20, curY);
+        unreadMsgBtnX = x + 20;
+        unreadMsgBtnY = curY - 14;
+        unreadMsgBtnW = g.getFontMetrics().stringWidth(unreadText);
+        unreadMsgBtnH = 20;
 
         g.setFont(DashboardTheme.FONT_BOLD_12);
         g.setColor(DashboardTheme.BRAND_PURPLE);
@@ -659,10 +665,14 @@ public class DashboardOverview {
             return true;
         }
 
-        // "View Messages ->"
-        if (mx >= viewMessagesBtnX && mx <= viewMessagesBtnX + viewMessagesBtnW &&
-                my >= viewMessagesBtnY && my <= viewMessagesBtnY + viewMessagesBtnH) {
-            dashboard.openModal(StudentDashboard.ActiveModal.MESSAGES);
+        // "View Messages ->" and "3 unread conversations" -> Navigate to Messages Page
+        boolean clickedMessages = (mx >= viewMessagesBtnX && mx <= viewMessagesBtnX + viewMessagesBtnW &&
+                my >= viewMessagesBtnY && my <= viewMessagesBtnY + viewMessagesBtnH) ||
+                (mx >= unreadMsgBtnX && mx <= unreadMsgBtnX + unreadMsgBtnW &&
+                my >= unreadMsgBtnY && my <= unreadMsgBtnY + unreadMsgBtnH);
+        if (clickedMessages) {
+            dashboard.setActiveNav(StudentDashboard.NavItem.MESSAGES);
+            dashboard.showToast("Opening Messages...");
             return true;
         }
 
