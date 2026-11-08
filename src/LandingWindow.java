@@ -213,11 +213,23 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
                 // Paint Sticky Glass Nav on top
                 navBar.paint(g2, 0, width, viewportY, height);
 
-                // Motion Spec #10: Thin pink progress bar at the very top
+                // Motion Spec #10: Gradient progress bar with glowing leading particle at the very top
                 int maxSc = Math.max(1, totalDocHeight - height);
                 float scrollProgress = Math.min(1.0f, Math.max(0f, scrollY / (float) maxSc));
-                g2.setColor(Theme.BRAND_PINK);
-                g2.fillRect(0, 0, Math.round(width * scrollProgress), 3);
+                int progW = Math.round(width * scrollProgress);
+                if (progW > 0) {
+                    LinearGradientPaint progGrad = new LinearGradientPaint(
+                            0, 0, Math.max(10, progW), 0,
+                            new float[]{0f, 1f},
+                            new Color[]{Theme.BRAND_PINK, Theme.ACCENT_CYAN}
+                    );
+                    g2.setPaint(progGrad);
+                    g2.fillRect(0, 0, progW, 3);
+
+                    // Glowing leading particle
+                    g2.setColor(Color.WHITE);
+                    g2.fillOval(Math.max(0, progW - 4), 0, 5, 3);
+                }
 
                 // Paint Custom Scrollbar
                 paintScrollbar(g2, width, height);
@@ -269,14 +281,21 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
     private void paintBackToTop(Graphics2D g, int width, int height) {
         topBtnSize = 44;
         topBtnX = width - topBtnSize - 22;
-        topBtnY = height - topBtnSize - 22;
+        int targetY = height - topBtnSize - 22;
+        int drawY = topBtnHovered ? targetY - 4 : targetY;
+        topBtnY = targetY;
 
         Graphics2D g2 = (Graphics2D) g.create();
         Draw.setQualityHints(g2);
 
-        // Soft drop shadow
-        g2.setColor(Theme.isDark ? new Color(0, 0, 0, 90) : new Color(0, 0, 0, 35));
-        g2.fillRoundRect(topBtnX + 1, topBtnY + 3, topBtnSize, topBtnSize, topBtnSize, topBtnSize);
+        // Soft drop shadow with dynamic hover glow
+        if (topBtnHovered) {
+            g2.setColor(new Color(Theme.BRAND_PINK.getRed(), Theme.BRAND_PINK.getGreen(), Theme.BRAND_PINK.getBlue(), 80));
+            g2.fillRoundRect(topBtnX - 2, drawY + 1, topBtnSize + 4, topBtnSize + 6, topBtnSize, topBtnSize);
+        } else {
+            g2.setColor(Theme.isDark ? new Color(0, 0, 0, 90) : new Color(0, 0, 0, 35));
+            g2.fillRoundRect(topBtnX + 1, drawY + 3, topBtnSize, topBtnSize, topBtnSize, topBtnSize);
+        }
 
         // Circular background
         if (topBtnHovered) {
@@ -284,17 +303,17 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
         } else {
             g2.setColor(Theme.cardBg());
         }
-        g2.fillRoundRect(topBtnX, topBtnY, topBtnSize, topBtnSize, topBtnSize, topBtnSize);
+        g2.fillRoundRect(topBtnX, drawY, topBtnSize, topBtnSize, topBtnSize, topBtnSize);
 
         // Ring border
         g2.setColor(topBtnHovered ? Theme.BRAND_PINK_HOVER : Theme.cardBorder());
         g2.setStroke(new BasicStroke(1.5f));
-        g2.drawRoundRect(topBtnX, topBtnY, topBtnSize, topBtnSize, topBtnSize, topBtnSize);
+        g2.drawRoundRect(topBtnX, drawY, topBtnSize, topBtnSize, topBtnSize, topBtnSize);
 
         // Up arrow icon
         g2.setColor(topBtnHovered ? Color.WHITE : Theme.textPrimary());
         int cx = topBtnX + topBtnSize / 2;
-        int cy = topBtnY + topBtnSize / 2;
+        int cy = drawY + topBtnSize / 2;
         g2.setStroke(new BasicStroke(2.2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
         g2.drawLine(cx, cy + 5, cx, cy - 6);
         g2.drawLine(cx - 5, cy - 1, cx, cy - 6);

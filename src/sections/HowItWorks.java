@@ -123,6 +123,16 @@ public class HowItWorks implements Section {
             g2.setStroke(new BasicStroke(2.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 0, new float[]{6, 6}, 0));
             g2.drawLine(padX + 30, lineY, width - padX - 30, lineY);
 
+            // Animated glowing energy pulse/comet traveling across the timeline
+            if (Theme.motionEnabled) {
+                float lineWidth = (width - padX * 2 - 60);
+                float pulseX = padX + 30 + ((Anim.globalTime * 140f) % lineWidth);
+                g2.setColor(new Color(Theme.BRAND_PINK.getRed(), Theme.BRAND_PINK.getGreen(), Theme.BRAND_PINK.getBlue(), 180));
+                g2.fillOval((int) pulseX - 5, lineY - 5, 10, 10);
+                g2.setColor(new Color(255, 255, 255, 240));
+                g2.fillOval((int) pulseX - 2, lineY - 2, 4, 4);
+            }
+
             for (int i = 0; i < steps.size(); i++) {
                 StepItem s = steps.get(i);
                 s.x = padX + i * (stepW + gap);

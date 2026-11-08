@@ -229,58 +229,162 @@ public class Features implements Section {
             Draw.drawSparkleIcon(g, c.x + pad, actualY + pad, 36, Theme.BRAND_PINK);
 
             // Animated match ring
-            int ringSize = 48;
+            int ringSize = 54;
             int ringX = c.x + c.w - ringSize - pad;
             int ringY = actualY + pad;
-            float fillPct = Anim.pulse(0.6f, 0.96f, 2.0f);
+            float fillPct = Anim.pulse(0.65f, 0.98f, 2.2f);
             g.setColor(new Color(Theme.BRAND_PINK.getRed(), Theme.BRAND_PINK.getGreen(), Theme.BRAND_PINK.getBlue(), 35));
             g.setStroke(new BasicStroke(4.0f));
             g.draw(new Ellipse2D.Float(ringX, ringY, ringSize, ringSize));
             g.setColor(Theme.BRAND_PINK);
             g.draw(new Arc2D.Float(ringX, ringY, ringSize, ringSize, 90, -360 * fillPct, Arc2D.OPEN));
 
+            // Percentage label inside ring
+            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+            FontMetrics mfm = g.getFontMetrics();
+            String pctStr = Math.round(fillPct * 100) + "%";
+            g.setColor(Theme.BRAND_PINK);
+            g.drawString(pctStr, ringX + (ringSize - mfm.stringWidth(pctStr)) / 2, ringY + (ringSize - mfm.getHeight()) / 2 + mfm.getAscent());
+
+            // Floating skill chips snapping toward the ring
+            float chipOrbit = (time * 1.5f);
+            float chip1X = ringX - 70f + (float) Math.cos(chipOrbit) * 12f;
+            float chip1Y = ringY + 6f + (float) Math.sin(chipOrbit) * 8f;
+            g.setColor(Theme.isDark ? new Color(255, 255, 255, 18) : Color.WHITE);
+            g.fill(new RoundRectangle2D.Float(chip1X, chip1Y, 52, 22, 12, 12));
+            g.setColor(Theme.BRAND_PINK);
+            g.setStroke(new BasicStroke(1.0f));
+            g.draw(new RoundRectangle2D.Float(chip1X, chip1Y, 52, 22, 12, 12));
+            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 10));
+            g.drawString("Java", chip1X + 13, chip1Y + 15);
+
         } else if (c.type == 1) {
             // Search card: filter pills toggle with elastic pop
             Draw.drawSearchIcon(g, c.x + pad, actualY + pad, 34, Theme.ACCENT_VIOLET);
 
+            // Mini interactive filter chips with animated active toggle
+            int chipAreaX = c.x + c.w - pad - 120;
+            int chipAreaY = actualY + pad + 4;
+            boolean activePhase = ((int) (time * 0.8f) % 2) == 0;
+
+            // Pill 1: UI/UX (Active/Pulsing)
+            g.setColor(activePhase ? Theme.ACCENT_VIOLET : (Theme.isDark ? new Color(255, 255, 255, 20) : new Color(0, 0, 0, 10)));
+            g.fill(new RoundRectangle2D.Float(chipAreaX, chipAreaY, 54, 22, 12, 12));
+            g.setColor(activePhase ? Color.WHITE : Theme.textSecondary());
+            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 10));
+            g.drawString(activePhase ? "✓ UI/UX" : "UI/UX", chipAreaX + 8, chipAreaY + 15);
+
+            // Pill 2: React
+            g.setColor(!activePhase ? Theme.ACCENT_VIOLET : (Theme.isDark ? new Color(255, 255, 255, 20) : new Color(0, 0, 0, 10)));
+            g.fill(new RoundRectangle2D.Float(chipAreaX + 60, chipAreaY, 56, 22, 12, 12));
+            g.setColor(!activePhase ? Color.WHITE : Theme.textSecondary());
+            g.drawString(!activePhase ? "✓ React" : "React", chipAreaX + 68, chipAreaY + 15);
+
         } else if (c.type == 2) {
             // Violet card: Task cards drift across a mini board
             Draw.drawTaskIcon(g, c.x + pad, actualY + pad, 34, Theme.ACCENT_VIOLET);
-            float taskDrift = (float) Math.sin(time * 2.0) * 8f;
-            g.setColor(new Color(Theme.ACCENT_VIOLET.getRed(), Theme.ACCENT_VIOLET.getGreen(), Theme.ACCENT_VIOLET.getBlue(), 40));
-            g.fill(new RoundRectangle2D.Float(c.x + c.w - 80 + taskDrift, actualY + pad + 6, 56, 24, 8, 8));
+
+            // Mini Kanban board representation
+            int boardX = c.x + c.w - pad - 110;
+            int boardY = actualY + pad + 2;
+            int boardW = 106;
+            int boardH = 34;
+
+            g.setColor(Theme.isDark ? new Color(255, 255, 255, 12) : new Color(0, 0, 0, 8));
+            g.fill(new RoundRectangle2D.Float(boardX, boardY, boardW, boardH, 8, 8));
+
+            // Dividing line between columns
+            g.setColor(Theme.cardBorder());
+            g.drawLine(boardX + 53, boardY + 4, boardX + 53, boardY + boardH - 4);
+
+            // Sliding mini task card from To-Do to Done
+            float taskCycle = (time * 0.9f) % 2.5f; // 0 to 2.5s
+            float taskX = boardX + 6f + Math.min(1.0f, taskCycle / 1.5f) * 52f;
+            boolean isDone = taskCycle >= 1.5f;
+
+            g.setColor(isDone ? Theme.SUCCESS_GREEN : Theme.ACCENT_VIOLET);
+            g.fill(new RoundRectangle2D.Float(taskX, boardY + 7, 42, 20, 6, 6));
+            g.setColor(Color.WHITE);
+            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 9));
+            g.drawString(isDone ? "Done ✓" : "Task", taskX + (isDone ? 6 : 9), boardY + 21);
 
         } else if (c.type == 3) {
-            // Mint card: typing bubbles and a bell that shakes
+            // Mint card: typing bubbles and an animated notification bell
             Draw.drawChatIcon(g, c.x + pad, actualY + pad, 34, Theme.ACCENT_MINT);
-            // Bell shake
-            float shake = (float) Math.sin(time * 8.0) * 3f;
-            g.setColor(Theme.ACCENT_MINT);
-            g.fillOval(Math.round(c.x + c.w - pad - 20 + shake), actualY + pad + 10, 10, 10);
 
-        } else if (c.type == 4) {
-            // Sunny card: stars fill one by one
-            Draw.drawStarIcon(g, c.x + pad, actualY + pad, 34, new Color(0xFF, 0xC1, 0x07));
-            int starsActive = (int) ((time * 1.5) % 5) + 1;
-            for (int s = 0; s < 5; s++) {
-                Color sc = (s < starsActive) ? new Color(0xFF, 0xC1, 0x07) : new Color(0, 0, 0, 30);
-                Draw.drawStarIcon(g, c.x + c.w - 110 + s * 18, actualY + pad + 10, 14, sc);
+            // Realistic iMessage-style typing bubble with 3 staggered bouncing dots
+            int bubX = c.x + c.w - pad - 68;
+            int bubY = actualY + pad + 6;
+            int bubW = 54;
+            int bubH = 24;
+
+            g.setColor(Theme.isDark ? new Color(255, 255, 255, 22) : Color.WHITE);
+            g.fill(new RoundRectangle2D.Float(bubX, bubY, bubW, bubH, 12, 12));
+            g.setColor(Theme.ACCENT_MINT);
+            g.setStroke(new BasicStroke(1.0f));
+            g.draw(new RoundRectangle2D.Float(bubX, bubY, bubW, bubH, 12, 12));
+
+            // 3 Bouncing dots
+            for (int d = 0; d < 3; d++) {
+                float bounce = (float) Math.sin(time * 7f - d * 1.2f);
+                float dotY = bubY + 12f - Math.max(0f, bounce * 4f);
+                g.setColor(Theme.ACCENT_MINT);
+                g.fill(new Ellipse2D.Float(bubX + 13 + d * 10, dotY - 2, 5, 5));
             }
 
+            // Notification indicator pulse
+            float ringPulse = Anim.loop(1.8f, 0f);
+            int bellX = c.x + pad + 38;
+            int bellY = actualY + pad + 6;
+            g.setColor(new Color(Theme.BRAND_PINK.getRed(), Theme.BRAND_PINK.getGreen(), Theme.BRAND_PINK.getBlue(), (int) (200 * (1f - ringPulse))));
+            g.fillOval(bellX, bellY, 8, 8);
+
+        } else if (c.type == 4) {
+            // Sunny card: stars fill one by one with glowing sparkle
+            Draw.drawStarIcon(g, c.x + pad, actualY + pad, 34, new Color(0xFF, 0xC1, 0x07));
+            int starsActive = (int) ((time * 1.8f) % 5) + 1;
+            int starStartX = c.x + c.w - pad - 96;
+            int starY = actualY + pad + 8;
+
+            for (int s = 0; s < 5; s++) {
+                boolean filled = (s < starsActive);
+                Color sc = filled ? new Color(0xFF, 0xC1, 0x07) : (Theme.isDark ? new Color(255, 255, 255, 30) : new Color(0, 0, 0, 30));
+                Draw.drawStarIcon(g, starStartX + s * 18, starY, 15, sc);
+            }
+
+            // Twinkling sparkle star at the end
+            float sparklePulse = (float) Math.sin(time * 5f) * 0.5f + 0.5f;
+            g.setColor(new Color(0xFF, 0xD1, 0x66, Math.round(180 * sparklePulse)));
+            g.fillOval(starStartX + 5 * 18 + 4, starY + 4, 6, 6);
+
         } else if (c.type == 5) {
-            // Small dark card: admin bars animate up
+            // Small dark card: admin equalizer multi-colored bars animate up
             Draw.drawUsersIcon(g, c.x + pad, actualY + pad, 34, Color.WHITE);
-            // Animated rising bars
-            int barBaseX = c.x + c.w - pad - 60;
-            for (int b = 0; b < 3; b++) {
-                float barH = 12f + (float) Math.sin(time * 3f + b) * 10f;
-                g.setColor(Color.WHITE);
-                g.fill(new RoundRectangle2D.Float(barBaseX + b * 16, actualY + pad + 30 - barH, 10, barH, 4, 4));
+
+            int barBaseX = c.x + c.w - pad - 72;
+            Color[] barColors = {Theme.ACCENT_CYAN, Theme.BRAND_PINK, Theme.ACCENT_VIOLET, Theme.SUCCESS_GREEN};
+
+            for (int b = 0; b < 4; b++) {
+                float barH = 10f + (float) (Math.sin(time * 3.5f + b * 1.2f) * 0.5 + 0.5) * 18f;
+                g.setColor(barColors[b]);
+                g.fill(new RoundRectangle2D.Float(barBaseX + b * 16, actualY + pad + 32 - barH, 10, barH, 4, 4));
             }
 
         } else {
-            // Sky card: lock closes
+            // Sky card: lock closes with secure verified check
             Draw.drawShieldIcon(g, c.x + pad, actualY + pad, 34, Theme.ACCENT_SKY);
+
+            // Pulsing security lock shackle
+            int lockX = c.x + c.w - pad - 42;
+            int lockY = actualY + pad + 6;
+            float pulseLock = Anim.pulse(0.7f, 1.0f, 3f);
+
+            g.setColor(new Color(Theme.SUCCESS_GREEN.getRed(), Theme.SUCCESS_GREEN.getGreen(), Theme.SUCCESS_GREEN.getBlue(), Math.round(180 * pulseLock)));
+            g.fill(new RoundRectangle2D.Float(lockX, lockY + 10, 26, 18, 6, 6));
+            g.setColor(Color.WHITE);
+            g.setStroke(new BasicStroke(2.2f));
+            g.drawArc(lockX + 5, lockY, 16, 16, 0, 180);
+            g.drawString("✓", lockX + 9, lockY + 23);
         }
 
         // Title

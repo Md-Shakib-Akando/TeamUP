@@ -60,10 +60,69 @@ public class Draw {
             g.drawLine(0, y, width, y);
         }
 
-        // Soft pastel background ambient gradient
+        // Dynamic floating ambient gradient orbs with harmonic motion
+        float t = Anim.globalTime;
         if (!Theme.isDark) {
-            drawRadialBlob(g, width * 0.85f, 200, 360, new Color(0xFF, 0xE4, 0xED), 0.4f);
-            drawRadialBlob(g, width * 0.15f, 550, 400, new Color(0xEB, 0xFB, 0xF5), 0.35f);
+            float b1X = width * 0.82f + (float) Math.sin(t * 0.45) * 55f;
+            float b1Y = 220f + (float) Math.cos(t * 0.35) * 45f;
+            float b1R = 380f + (float) Math.sin(t * 0.7) * 25f;
+            drawRadialBlob(g, b1X, b1Y, b1R, new Color(0xFF, 0xE4, 0xED), 0.45f);
+
+            float b2X = width * 0.16f + (float) Math.cos(t * 0.4) * 45f;
+            float b2Y = 560f + (float) Math.sin(t * 0.5) * 40f;
+            float b2R = 400f + (float) Math.cos(t * 0.65) * 30f;
+            drawRadialBlob(g, b2X, b2Y, b2R, new Color(0xEB, 0xFB, 0xF5), 0.38f);
+
+            float b3X = width * 0.52f + (float) Math.sin(t * 0.3) * 60f;
+            float b3Y = 950f + (float) Math.cos(t * 0.4) * 40f;
+            drawRadialBlob(g, b3X, b3Y, 360f, new Color(0xF3, 0xF0, 0xFF), 0.35f);
+        } else {
+            // Dark mode dynamic neon atmospheric glow orbs
+            float b1X = width * 0.82f + (float) Math.sin(t * 0.4) * 50f;
+            float b1Y = 240f + (float) Math.cos(t * 0.3) * 40f;
+            drawRadialBlob(g, b1X, b1Y, 400f, new Color(0x7C, 0x5C, 0xFF), 0.14f);
+
+            float b2X = width * 0.15f + (float) Math.cos(t * 0.35) * 45f;
+            float b2Y = 580f + (float) Math.sin(t * 0.45) * 35f;
+            drawRadialBlob(g, b2X, b2Y, 380f, new Color(0xEA, 0x4C, 0x89), 0.12f);
+        }
+
+        // Atmospheric drifting ambient micro-particles
+        if (Theme.motionEnabled) {
+            drawAmbientParticles(g, width, height);
+        }
+    }
+
+    /**
+     * Atmospheric drifting particles / sparkles that float smoothly upward.
+     */
+    public static void drawAmbientParticles(Graphics2D g, int width, int height) {
+        if (!Theme.motionEnabled || width <= 0 || height <= 0) return;
+        float t = Anim.globalTime;
+        int particleCount = 26;
+
+        for (int i = 0; i < particleCount; i++) {
+            float seedX = (float) (Math.sin(i * 127.1f) * 0.5f + 0.5f);
+            float speed = 25f + ((i * 31) % 25);
+            float loopDist = height + 200f;
+            float progress = ((t * speed + i * 45f) % loopDist) / loopDist;
+            float py = height + 50f - progress * loopDist;
+            float px = (seedX * width) + (float) Math.sin(t * 0.7f + i * 1.5f) * 30f;
+
+            // Fading alpha envelope
+            float alpha = (float) Math.sin(progress * Math.PI) * 0.45f;
+            if (alpha <= 0.01f) continue;
+
+            int pSize = (i % 3 == 0) ? 4 : (i % 2 == 0 ? 3 : 2);
+            Color pColor = (i % 3 == 0) ? Theme.BRAND_PINK : ((i % 3 == 1) ? Theme.ACCENT_CYAN : Theme.ACCENT_VIOLET);
+
+            g.setColor(new Color(pColor.getRed(), pColor.getGreen(), pColor.getBlue(), Math.round(255 * alpha)));
+            g.fill(new Ellipse2D.Float(px, py, pSize, pSize));
+
+            if (pSize >= 4) {
+                g.setColor(new Color(pColor.getRed(), pColor.getGreen(), pColor.getBlue(), Math.round(65 * alpha)));
+                g.fill(new Ellipse2D.Float(px - 2, py - 2, pSize + 4, pSize + 4));
+            }
         }
     }
 
@@ -368,6 +427,28 @@ public class Draw {
         if (isPressed) c = darker(Theme.BRAND_PINK, 0.9f);
         g.setColor(c);
         g.fill(shape);
+
+        // Animated light shine / shimmer sweep (periodic every 3.5s)
+        if (Theme.motionEnabled) {
+            float cycle = (Anim.globalTime % 3.5f) / 1.0f;
+            if (cycle <= 1.0f) {
+                Graphics2D gClip = (Graphics2D) g.create();
+                gClip.setClip(shape);
+                float shineX = actualX - 60f + cycle * (w + 120f);
+                LinearGradientPaint shineGrad = new LinearGradientPaint(
+                        shineX - 25, actualY, shineX + 25, actualY + h,
+                        new float[]{0f, 0.5f, 1f},
+                        new Color[]{
+                                new Color(255, 255, 255, 0),
+                                new Color(255, 255, 255, 110),
+                                new Color(255, 255, 255, 0)
+                        }
+                );
+                gClip.setPaint(shineGrad);
+                gClip.fill(shape);
+                gClip.dispose();
+            }
+        }
 
         // Label
         g.setFont(Theme.fontButton());

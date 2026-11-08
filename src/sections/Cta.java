@@ -82,22 +82,29 @@ public class Cta implements Section {
         g2.setColor(Theme.INK_DARK);
         g2.fill(panelShape);
 
-        // Ambient radial glow in top right and bottom left
+        // Ambient radial glow in top right and bottom left (dynamic floating nebula)
         Graphics2D gClip = (Graphics2D) g2.create();
         gClip.setClip(panelShape);
 
-        Point2D p1 = new Point2D.Float(panelX + panelW * 0.85f, panelY + 40);
+        float ctaTime = Anim.globalTime;
+        float p1X = panelX + panelW * 0.85f + (float) Math.sin(ctaTime * 0.5f) * 35f;
+        float p1Y = panelY + 40f + (float) Math.cos(ctaTime * 0.4f) * 25f;
+        Point2D p1 = new Point2D.Float(p1X, p1Y);
+        float r1 = 240f + (float) Math.sin(ctaTime * 0.8f) * 20f;
         RadialGradientPaint rgp1 = new RadialGradientPaint(
-                p1, 240f, new float[]{0f, 1f},
-                new Color[]{new Color(0x7C, 0x5C, 0xFF, 55), new Color(0x7C, 0x5C, 0xFF, 0)}
+                p1, r1, new float[]{0f, 1f},
+                new Color[]{new Color(0x7C, 0x5C, 0xFF, 65), new Color(0x7C, 0x5C, 0xFF, 0)}
         );
         gClip.setPaint(rgp1);
         gClip.fill(panelShape);
 
-        Point2D p2 = new Point2D.Float(panelX + panelW * 0.15f, panelY + panelH - 40);
+        float p2X = panelX + panelW * 0.15f + (float) Math.cos(ctaTime * 0.45f) * 35f;
+        float p2Y = panelY + panelH - 40f + (float) Math.sin(ctaTime * 0.55f) * 25f;
+        Point2D p2 = new Point2D.Float(p2X, p2Y);
+        float r2 = 220f + (float) Math.cos(ctaTime * 0.7f) * 20f;
         RadialGradientPaint rgp2 = new RadialGradientPaint(
-                p2, 220f, new float[]{0f, 1f},
-                new Color[]{new Color(0xEA, 0x4C, 0x89, 50), new Color(0xEA, 0x4C, 0x89, 0)}
+                p2, r2, new float[]{0f, 1f},
+                new Color[]{new Color(0xEA, 0x4C, 0x89, 60), new Color(0xEA, 0x4C, 0x89, 0)}
         );
         gClip.setPaint(rgp2);
         gClip.fill(panelShape);

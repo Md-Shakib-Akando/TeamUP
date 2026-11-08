@@ -413,7 +413,8 @@ public class Hero implements Section {
             int cardX = padX + c * (colW + gap);
 
             float parallaxOffset = (c == 1) ? factorCol1 : ((c == 2) ? factorCol2 : factorCol0);
-            int cardY = Math.round(colY[c] + parallaxOffset);
+            float floatBob = (!shot.hovered && Theme.motionEnabled) ? (float) Math.sin(Anim.globalTime * 1.8f + i * 1.3f) * 6.0f : 0f;
+            int cardY = Math.round(colY[c] + parallaxOffset + floatBob);
 
             shot.x = cardX;
             shot.y = cardY;
