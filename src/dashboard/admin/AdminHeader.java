@@ -89,7 +89,7 @@ public class AdminHeader {
         searchH = 34;
 
         RoundRectangle2D searchBox = new RoundRectangle2D.Float(searchX, searchY, searchW, searchH, 10, 10);
-        g.setColor(new Color(0xF8, 0xFA, 0xFC));
+        g.setColor(AdminTheme.BG_CANVAS);
         g.fill(searchBox);
         g.setColor(searchFocused ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.BORDER_COLOR);
         g.setStroke(new BasicStroke(searchFocused ? 1.5f : 1f));

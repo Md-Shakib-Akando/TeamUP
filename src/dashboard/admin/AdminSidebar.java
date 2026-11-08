@@ -11,9 +11,8 @@ public class AdminSidebar {
         OVERVIEW("Overview"),
         USERS("Users"),
         PROJECTS("Projects"),
-        REPORTS("Reports & Reviews"),
+        REPORTS("Reports"),
         SKILLS("Categories & Skills"),
-        ACTIVITY("Activity Logs"),
         SETTINGS("Settings");
 
         public final String label;
@@ -57,7 +56,7 @@ public class AdminSidebar {
                 g.setColor(AdminTheme.BRAND_GREEN_TINT);
                 g.fill(itemShape);
             } else if (isHov) {
-                g.setColor(new Color(0xF1, 0xF5, 0xF9));
+                g.setColor(new Color(0xF5, 0xF3, 0xEF));
                 g.fill(itemShape);
             }
 
@@ -78,7 +77,7 @@ public class AdminSidebar {
         returnBtnW = w - padX * 2;
         returnBtnH = 34;
         RoundRectangle2D retShape = new RoundRectangle2D.Float(returnBtnX, returnBtnY, returnBtnW, returnBtnH, 10, 10);
-        g.setColor(returnBtnHovered ? new Color(0xF1, 0xF5, 0xF9) : Color.WHITE);
+        g.setColor(returnBtnHovered ? new Color(0xF5, 0xF3, 0xEF) : Color.WHITE);
         g.fill(retShape);
         g.setColor(AdminTheme.BORDER_COLOR);
         g.setStroke(new BasicStroke(1f));
@@ -172,11 +171,6 @@ public class AdminSidebar {
             case SKILLS:
                 g.drawOval(x + 2, y + 2, size - 4, size - 4);
                 g.drawOval(x + 5, y + 5, size - 10, size - 10);
-                break;
-            case ACTIVITY:
-                g.drawOval(x + 1, y + 1, size - 2, size - 2);
-                g.drawLine(x + 8, y + 4, x + 8, y + 8);
-                g.drawLine(x + 8, y + 8, x + 12, y + 8);
                 break;
             case SETTINGS:
                 g.drawOval(x + 3, y + 3, size - 6, size - 6);

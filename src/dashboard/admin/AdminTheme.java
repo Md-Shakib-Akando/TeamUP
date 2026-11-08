@@ -57,8 +57,8 @@ public class AdminTheme {
     // =========================================================================
     public static final Color TEXT_DARK  = new Color(0x0F, 0x17, 0x2A);
     public static final Color TEXT_MAIN  = TEXT_DARK;
-    public static final Color TEXT_MUTED = new Color(0x47, 0x55, 0x69);
-    public static final Color TEXT_LIGHT = new Color(0x94, 0xA3, 0xB8);
+    public static final Color TEXT_MUTED = new Color(0x56, 0x55, 0x66); // Theme.LIGHT_TEXT_SECONDARY (#565566)
+    public static final Color TEXT_LIGHT = new Color(0x9E, 0x9E, 0xAE); // Theme.LIGHT_TEXT_MUTED (#9E9EAE)
 
     // =========================================================================
     // Typography

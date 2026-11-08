@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Admin Dashboard - Reports & Reviews Moderation Center.
+ * Admin Dashboard - Reports Moderation Center.
  * 60/40 Split View: Left interactive reports table + Right rich inspection panel with working actions.
  * Pixel-accurate hitboxes for row selection, working live search & filters, and instant reactive moderation.
  * Matches Figma reference Image 4 with exact precision.
@@ -93,28 +93,28 @@ public class AdminReports {
         g.setFont(AdminTheme.FONT_HEADING);
         FontMetrics hfm = g.getFontMetrics();
         g.setColor(AdminTheme.TEXT_DARK);
-        g.drawString("Reports & Reviews", x, y + 24);
+        g.drawString("Reports", x, y + 24);
 
-        int titleW = hfm.stringWidth("Reports & Reviews");
+        int titleW = hfm.stringWidth("Reports");
 
         int pillX = x + titleW + 12;
         int pillY = y + 8;
         RoundRectangle2D pill = new RoundRectangle2D.Float(pillX, pillY, 76, 20, 10, 10);
-        g.setColor(new Color(0xF1, 0xF5, 0xF9));
+        g.setColor(AdminTheme.BRAND_TINT);
         g.fill(pill);
         g.setFont(AdminTheme.FONT_REG_11);
-        g.setColor(AdminTheme.TEXT_MUTED);
+        g.setColor(AdminTheme.BRAND_PRIMARY);
         g.drawString("Sample data", pillX + 8, pillY + 14);
 
         g.setFont(AdminTheme.FONT_REG_13);
         g.setColor(AdminTheme.TEXT_MUTED);
-        g.drawString("Review reported content fairly and keep collaboration constructive.", x, y + 48);
+        g.drawString("Investigate user reports, flagged content, and resolve moderation actions.", x, y + 48);
 
         // Right side: "Moderation guidelines" Button
         guidelinesBtnX = x + w - guidelinesBtnW;
         guidelinesBtnY = y + 8;
         RoundRectangle2D gBox = new RoundRectangle2D.Float(guidelinesBtnX, guidelinesBtnY, guidelinesBtnW, guidelinesBtnH, 8, 8);
-        g.setColor(guidelinesHovered ? new Color(0xF8, 0xFA, 0xFC) : Color.WHITE);
+        g.setColor(guidelinesHovered ? new Color(0xF5, 0xF3, 0xEF) : Color.WHITE);
         g.fill(gBox);
         g.setColor(AdminTheme.BORDER_COLOR);
         g.setStroke(new BasicStroke(1.2f));
@@ -215,7 +215,7 @@ public class AdminReports {
 
         // Header
         int thY = y;
-        g.setColor(new Color(0xF8, 0xFA, 0xFC));
+        g.setColor(AdminTheme.BG_CANVAS);
         g.fillRect(x + 1, thY + 1, w - 2, 38);
         g.setColor(AdminTheme.BORDER_COLOR);
         g.drawLine(x, thY + 38, x + w, thY + 38);
@@ -251,7 +251,7 @@ public class AdminReports {
             rowHitboxes.add(hb);
 
             if (isSel) {
-                g.setColor(new Color(0xF0, 0xFD, 0xF4));
+                g.setColor(AdminTheme.BRAND_TINT);
                 g.fillRect(x + 1, curRowY, w - 2, rowH);
             }
 
@@ -335,23 +335,23 @@ public class AdminReports {
     private void paintSelectedBanner(Graphics2D g, int x, int y, int w) {
         int h = 54;
         RoundRectangle2D b = new RoundRectangle2D.Float(x, y, w, h, 10, 10);
-        g.setColor(new Color(0xF0, 0xFD, 0xF4));
+        g.setColor(AdminTheme.BRAND_TINT);
         g.fill(b);
-        g.setColor(new Color(0xBB, 0xF7, 0xD0));
+        g.setColor(new Color(0xFD, 0xD7, 0xE4));
         g.setStroke(new BasicStroke(1.2f));
         g.draw(b);
 
-        g.setColor(AdminTheme.BRAND_GREEN_MID);
+        g.setColor(AdminTheme.BRAND_PRIMARY);
         g.drawOval(x + 16, y + 16, 18, 18);
         g.drawLine(x + 20, y + 25, x + 23, y + 29);
         g.drawLine(x + 23, y + 29, x + 29, y + 21);
 
         g.setFont(AdminTheme.FONT_BOLD_12);
-        g.setColor(new Color(0x14, 0x53, 0x2D));
+        g.setColor(AdminTheme.TEXT_DARK);
         g.drawString(selectedReportId + " selected", x + 44, y + 24);
 
         g.setFont(AdminTheme.FONT_REG_11);
-        g.setColor(new Color(0x16, 0x65, 0x34));
+        g.setColor(AdminTheme.TEXT_MUTED);
         g.drawString("Review the report and surrounding context before taking action.", x + 44, y + 42);
     }
 
@@ -399,10 +399,10 @@ public class AdminReports {
         // Reporter Profile
         curY += 36;
         int avSize = 32;
-        g.setColor(new Color(0xCC, 0xFB, 0xF1));
+        g.setColor(AdminTheme.BRAND_TINT);
         g.fillOval(x + padX, curY, avSize, avSize);
         g.setFont(AdminTheme.FONT_BOLD_11);
-        g.setColor(new Color(0x0F, 0x76, 0x6E));
+        g.setColor(AdminTheme.BRAND_PRIMARY);
         g.drawString(cur.reporterInitials, x + padX + 8, curY + 20);
 
         g.setFont(AdminTheme.FONT_BOLD_12);
@@ -428,7 +428,7 @@ public class AdminReports {
         curY += 56;
         int boxH = 88;
         RoundRectangle2D qBox = new RoundRectangle2D.Float(x + padX, curY, w - padX * 2, boxH, 8, 8);
-        g.setColor(new Color(0xF8, 0xFA, 0xFC));
+        g.setColor(AdminTheme.BG_CANVAS);
         g.fill(qBox);
         g.setColor(AdminTheme.BORDER_COLOR);
         g.draw(qBox);
@@ -469,7 +469,7 @@ public class AdminReports {
 
         g.setFont(AdminTheme.FONT_REG_11);
         g.setColor(noteInput.isEmpty() ? AdminTheme.TEXT_LIGHT : AdminTheme.TEXT_DARK);
-        g.drawString(noteInput.isEmpty() ? "Add an internal note for the review team..." : noteInput, x + padX + 10, noteBoxY + 21);
+        g.drawString(noteInput.isEmpty() ? "Add an internal note for the moderation team..." : noteInput, x + padX + 10, noteBoxY + 21);
 
         // Row 1 Action Buttons: Dismiss | Warn User
         int b1Y = noteBoxY + noteBoxH + 16;
