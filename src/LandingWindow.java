@@ -14,8 +14,12 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
     private final Modal modal;
     private final StudentDashboard dashboard;
     private final AdminDashboard adminDashboard;
-    public boolean showDashboard = true;
+    public boolean showDashboard = false;
     public boolean showAdminDashboard = false;
+
+    // Floating Back to Top Button
+    private int topBtnX, topBtnY, topBtnSize = 42;
+    private boolean topBtnHovered = false;
 
     // Scrolling state
     private float scrollY = 0f;
@@ -218,6 +222,11 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
                 // Paint Custom Scrollbar
                 paintScrollbar(g2, width, height);
 
+                // Floating Back-to-Top Button when scrolled down
+                if (scrollY > 350) {
+                    paintBackToTop(g2, width, height);
+                }
+
                 // Paint Modal Dialog if active
                 modal.paint(g2, width, height);
             }
@@ -255,6 +264,43 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
         }
         g.setColor(thumbColor);
         g.fill(new RoundRectangle2D.Float(barX, thumbY, barW, thumbH, barW, barW));
+    }
+
+    private void paintBackToTop(Graphics2D g, int width, int height) {
+        topBtnSize = 44;
+        topBtnX = width - topBtnSize - 22;
+        topBtnY = height - topBtnSize - 22;
+
+        Graphics2D g2 = (Graphics2D) g.create();
+        Draw.setQualityHints(g2);
+
+        // Soft drop shadow
+        g2.setColor(Theme.isDark ? new Color(0, 0, 0, 90) : new Color(0, 0, 0, 35));
+        g2.fillRoundRect(topBtnX + 1, topBtnY + 3, topBtnSize, topBtnSize, topBtnSize, topBtnSize);
+
+        // Circular background
+        if (topBtnHovered) {
+            g2.setColor(Theme.BRAND_PINK);
+        } else {
+            g2.setColor(Theme.cardBg());
+        }
+        g2.fillRoundRect(topBtnX, topBtnY, topBtnSize, topBtnSize, topBtnSize, topBtnSize);
+
+        // Ring border
+        g2.setColor(topBtnHovered ? Theme.BRAND_PINK_HOVER : Theme.cardBorder());
+        g2.setStroke(new BasicStroke(1.5f));
+        g2.drawRoundRect(topBtnX, topBtnY, topBtnSize, topBtnSize, topBtnSize, topBtnSize);
+
+        // Up arrow icon
+        g2.setColor(topBtnHovered ? Color.WHITE : Theme.textPrimary());
+        int cx = topBtnX + topBtnSize / 2;
+        int cy = topBtnY + topBtnSize / 2;
+        g2.setStroke(new BasicStroke(2.2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g2.drawLine(cx, cy + 5, cx, cy - 6);
+        g2.drawLine(cx - 5, cy - 1, cx, cy - 6);
+        g2.drawLine(cx + 5, cy - 1, cx, cy - 6);
+
+        g2.dispose();
     }
 
     // ==================== NAV BAR LISTENER ====================
@@ -356,13 +402,19 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
             return;
         }
 
-        // 3. Sticky Nav click check
+        // 3. Floating Back-to-Top Button check
+        if (scrollY > 350 && mx >= topBtnX && mx <= topBtnX + topBtnSize && my >= topBtnY && my <= topBtnY + topBtnSize) {
+            targetScrollY = 0f;
+            return;
+        }
+
+        // 4. Sticky Nav click check (header or expanded mobile drawer)
         int navH = navBar.getHeight(width);
-        if (my <= navH) {
+        if (my <= navH || navBar.isMobileMenuOpen()) {
             if (navBar.onClick(mx, my)) return;
         }
 
-        // 3. Document sections click
+        // 5. Document sections click
         int viewportY = Math.round(scrollY);
         int curY = navH;
         for (Section s : sections) {
@@ -489,10 +541,18 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
         }
 
         int navH = navBar.getHeight(width);
-        if (my <= navH) {
-            anyHover = navBar.onMouseMove(mx, my);
+        if (my <= navH || navBar.isMobileMenuOpen()) {
+            if (navBar.onMouseMove(mx, my)) anyHover = true;
         } else {
             navBar.onMouseMove(-100, -100);
+        }
+
+        // Floating Back-to-Top Button hover check
+        if (scrollY > 350 && mx >= topBtnX && mx <= topBtnX + topBtnSize && my >= topBtnY && my <= topBtnY + topBtnSize) {
+            topBtnHovered = true;
+            anyHover = true;
+        } else {
+            topBtnHovered = false;
         }
 
         int viewportY = Math.round(scrollY);
@@ -546,26 +606,42 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
             if (modal.onKey(e)) return;
         }
 
-        // F2 or D key toggles Dashboard view directly
-        if (code == KeyEvent.VK_F2) {
+        // Global view toggles & shortcuts
+        if (code == KeyEvent.VK_F2 || (code == KeyEvent.VK_D && !modal.visible && !showDashboard && !showAdminDashboard)) {
             showDashboard = !showDashboard;
+            showAdminDashboard = false;
             return;
+        }
+
+        if (code == KeyEvent.VK_A && !modal.visible && !showDashboard && !showAdminDashboard) {
+            showAdminDashboard = true;
+            showDashboard = false;
+            return;
+        }
+
+        if (code == KeyEvent.VK_T && !modal.visible) {
+            Theme.toggleTheme();
+            return;
+        }
+
+        if (code == KeyEvent.VK_ESCAPE) {
+            if (navBar.isMobileMenuOpen()) {
+                navBar.closeMobileMenu();
+                return;
+            }
+            if (showDashboard || showAdminDashboard) {
+                showDashboard = false;
+                showAdminDashboard = false;
+                return;
+            }
         }
 
         if (showAdminDashboard) {
             if (adminDashboard.onKey(e.getKeyChar(), code)) return;
-            if (code == KeyEvent.VK_ESCAPE) {
-                showAdminDashboard = false;
-                return;
-            }
             return;
         }
         if (showDashboard) {
             if (dashboard.onKey(e)) return;
-            if (code == KeyEvent.VK_ESCAPE) {
-                showDashboard = false;
-                return;
-            }
             return;
         }
 

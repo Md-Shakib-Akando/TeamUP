@@ -62,4 +62,31 @@ public class AdminTheme {
     public static final Font FONT_REGULAR_11 = FONT_REG_11;
     public static final Font FONT_REG_10  = new Font(Font.SANS_SERIF, Font.PLAIN, 10);
     public static final Font FONT_REGULAR_10 = FONT_REG_10;
+
+    // Vector Icon Drawing Helpers (decoupled from root Draw to resolve IDE package warnings)
+    public static void drawSearchIcon(Graphics2D g, int x, int y, int size, Color color) {
+        Graphics2D g2 = (Graphics2D) g.create();
+        g2.setColor(color);
+        g2.setStroke(new BasicStroke(size * 0.12f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        float r = size * 0.32f;
+        g2.draw(new java.awt.geom.Ellipse2D.Float(x + size * 0.15f, y + size * 0.15f, r * 2, r * 2));
+        g2.draw(new java.awt.geom.Line2D.Float(x + size * 0.58f, y + size * 0.58f, x + size * 0.85f, y + size * 0.85f));
+        g2.dispose();
+    }
+
+    public static void drawChevronDown(Graphics2D g, int x, int y, int size, Color color, float angle) {
+        Graphics2D g2 = (Graphics2D) g.create();
+        g2.translate(x + size / 2.0, y + size / 2.0);
+        if (angle != 0f) {
+            g2.rotate(Math.toRadians(angle));
+        }
+        g2.setColor(color);
+        g2.setStroke(new BasicStroke(1.8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        java.awt.geom.Path2D.Float p = new java.awt.geom.Path2D.Float();
+        p.moveTo(-size * 0.3f, -size * 0.15f);
+        p.lineTo(0, size * 0.15f);
+        p.lineTo(size * 0.3f, -size * 0.15f);
+        g2.draw(p);
+        g2.dispose();
+    }
 }

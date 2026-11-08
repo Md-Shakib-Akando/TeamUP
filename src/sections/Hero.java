@@ -301,25 +301,27 @@ public class Hero implements Section {
 
         curY += searchH + 16;
 
-        // Popular pills row (jumping on hover)
+        // Popular pills row (jumping on hover, responsive wrap)
         g2.setFont(Theme.fontSmallBold());
         FontMetrics pfm = g2.getFontMetrics();
-        int popularTotalW = pfm.stringWidth("Popular:") + 14;
         for (JumpingPill p : popularPills) {
             p.w = pfm.stringWidth(p.label) + 24;
             p.h = 26;
-            popularTotalW += p.w + 8;
         }
 
-        int popX = (width - popularTotalW) / 2;
-        if (popX < padX) popX = padX;
+        int popX = padX;
+        int popY = curY;
         g2.setColor(Theme.textMuted());
-        g2.drawString("Popular:", popX, curY + 18);
+        g2.drawString("Popular:", popX, popY + 18);
         popX += pfm.stringWidth("Popular:") + 14;
 
         for (JumpingPill pill : popularPills) {
+            if (popX + pill.w > width - padX) {
+                popX = padX;
+                popY += pill.h + 8;
+            }
             pill.x = popX;
-            pill.y = Math.round(curY + pill.jumpY.getValue());
+            pill.y = Math.round(popY + pill.jumpY.getValue());
             RoundRectangle2D pillShape = new RoundRectangle2D.Float(pill.x, pill.y, pill.w, pill.h, pill.h, pill.h);
 
             g2.setColor(pill.hovered ? Theme.INK_DARK : (Theme.isDark ? new Color(255, 255, 255, 12) : Color.WHITE));
@@ -336,22 +338,41 @@ public class Hero implements Section {
             popX += pill.w + 8;
         }
 
-        curY += 46;
+        curY = popY + 38;
 
         // 5. CTAs: "Get Started, it's free" (pink pill, magnetic) and "See how it works" (ghost)
-        int ctaTotalW = btn1W + 16 + btn2W;
-        btn1X = (width - ctaTotalW) / 2;
-        btn1Y = curY;
-        btn2X = btn1X + btn1W + 16;
-        btn2Y = curY;
+        if (width >= 600) {
+            btn1W = 210;
+            btn2W = 180;
+            int ctaTotalW = btn1W + 16 + btn2W;
+            btn1X = (width - ctaTotalW) / 2;
+            btn1Y = curY;
+            btn2X = btn1X + btn1W + 16;
+            btn2Y = curY;
 
-        Draw.drawPinkPillButton(g2, btn1X, btn1Y, btn1W, btn1H, "Get Started, it's free",
-                btn1Hovered, false, false, magnet1X.getValue(), magnet1Y.getValue());
+            Draw.drawPinkPillButton(g2, btn1X, btn1Y, btn1W, btn1H, "Get Started, it's free",
+                    btn1Hovered, false, false, magnet1X.getValue(), magnet1Y.getValue());
 
-        Draw.drawGhostButton(g2, btn2X, btn2Y, btn2W, btn2H, "See how it works",
-                btn2Hovered, false, false);
+            Draw.drawGhostButton(g2, btn2X, btn2Y, btn2W, btn2H, "See how it works",
+                    btn2Hovered, false, false);
 
-        curY += btn1H + 48;
+            curY += btn1H + 48;
+        } else {
+            btn1W = Math.min(280, width - padX * 2);
+            btn2W = btn1W;
+            btn1X = (width - btn1W) / 2;
+            btn1Y = curY;
+            btn2X = btn1X;
+            btn2Y = btn1Y + btn1H + 12;
+
+            Draw.drawPinkPillButton(g2, btn1X, btn1Y, btn1W, btn1H, "Get Started, it's free",
+                    btn1Hovered, false, false, 0f, 0f);
+
+            Draw.drawGhostButton(g2, btn2X, btn2Y, btn2W, btn2H, "See how it works",
+                    btn2Hovered, false, false);
+
+            curY += btn1H * 2 + 12 + 40;
+        }
 
         // 6. Masonry of Member Shots (Motion Spec #5: Parallax columns drifting at different speeds)
         int gridBottom = paintMasonryGrid(g2, curY, width, padX, viewportY);

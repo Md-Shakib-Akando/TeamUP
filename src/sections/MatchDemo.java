@@ -4,6 +4,11 @@ import java.awt.geom.RoundRectangle2D;
 import java.util.*;
 import java.util.List;
 
+/**
+ * Interactive Real-Time Matching Engine Playground for TeamUp.
+ * Fully responsive chip wrapping, animated candidate re-ordering physics,
+ * and dynamic match score computation.
+ */
 public class MatchDemo implements Section {
 
     public static class Candidate {
@@ -11,7 +16,7 @@ public class MatchDemo implements Section {
         public String role;
         public String initials;
         public Color c1, c2;
-        public Set<String> skills = new HashSet<>();
+        public Set<String> skills = new HashSet<String>();
         public float currentMatch = 0.85f;
         public float targetMatch = 0.85f;
         public float displayY = 0f;
@@ -29,9 +34,9 @@ public class MatchDemo implements Section {
         }
     }
 
-    private final List<Chip> skillChips = new ArrayList<>();
-    private final List<Candidate> candidates = new ArrayList<>();
-    private final Set<String> selectedSkills = new HashSet<>();
+    private final List<Chip> skillChips = new ArrayList<Chip>();
+    private final List<Candidate> candidates = new ArrayList<Candidate>();
+    private final Set<String> selectedSkills = new HashSet<String>();
 
     private final Anim.RevealState reveal = new Anim.RevealState();
 
@@ -113,7 +118,15 @@ public class MatchDemo implements Section {
 
     @Override
     public int getHeight(int width) {
-        return width < 700 ? 760 : 660;
+        int padX = width > 1100 ? 56 : (width > 600 ? 28 : 20);
+        int totalW = width - padX * 2;
+        int chipW = 86;
+        int gap = 8;
+        int chipsPerRow = Math.max(1, totalW / (chipW + gap));
+        int rows = (int) Math.ceil((double) skillChips.size() / chipsPerRow);
+        int extraH = (rows - 1) * 40;
+
+        return width < 700 ? (760 + extraH) : (660 + extraH);
     }
 
     @Override
@@ -127,7 +140,6 @@ public class MatchDemo implements Section {
 
     @Override
     public void paint(Graphics2D g, int y, int width, int viewportY, int viewportH) {
-        int h = getHeight(width);
         int padX = width > 1100 ? 56 : (width > 600 ? 28 : 20);
 
         Graphics2D g2 = (Graphics2D) g.create();
@@ -150,17 +162,25 @@ public class MatchDemo implements Section {
         g2.drawString("Click skill chips below to simulate a live project query and observe algorithmic candidate re-ranking in real time.",
                 padX, titleY + 22);
 
-        // Skill Chips Bar
+        // Fluid Flex Wrap for Skill Chips
         int chipsY = titleY + 48;
         int chipX = padX;
+        int chipW = 86;
+        int chipH = 32;
+        int gap = 8;
+
         for (Chip chip : skillChips) {
-            chip.setBounds(chipX, chipsY, 84, 32);
+            if (chipX + chipW > width - padX) {
+                chipX = padX;
+                chipsY += chipH + gap;
+            }
+            chip.setBounds(chipX, chipsY, chipW, chipH);
             chip.paint(g2);
-            chipX += 92;
+            chipX += chipW + gap;
         }
 
         // Main Demo Container Card
-        int containerY = chipsY + 54;
+        int containerY = chipsY + chipH + 20;
         int containerW = width - padX * 2;
         int containerH = (candidates.size() * 90) + 40;
         Draw.drawGlassCard(g2, padX, containerY, containerW, containerH, 24, 0f, true);
@@ -168,7 +188,7 @@ public class MatchDemo implements Section {
         // Sample Data Badge
         g2.setFont(Theme.fontSmallBold());
         g2.setColor(Theme.textMuted());
-        String badge = "LIVE ALGORITHM PREVIEW  ·  SAMPLE DATA";
+        String badge = "LIVE ALGORITHM PREVIEW  ·  INTERACTIVE REAL-TIME MATRIX";
         g2.drawString(badge, padX + 24, containerY + 28);
 
         // Candidates list with animated positions
@@ -176,13 +196,13 @@ public class MatchDemo implements Section {
         for (int i = 0; i < candidates.size(); i++) {
             Candidate c = candidates.get(i);
             int cardY = listTop + Math.round(c.displayY);
-            paintCandidateRow(g2, padX + 20, cardY, containerW - 40, c, i == 0);
+            paintCandidateRow(g2, padX + 20, cardY, containerW - 40, c, i == 0, width < 660);
         }
 
         g2.dispose();
     }
 
-    private void paintCandidateRow(Graphics2D g, int x, int y, int w, Candidate c, boolean isTopMatch) {
+    private void paintCandidateRow(Graphics2D g, int x, int y, int w, Candidate c, boolean isTopMatch, boolean isCompact) {
         int rowH = 76;
         RoundRectangle2D rowShape = new RoundRectangle2D.Float(x, y, w, rowH, 16, 16);
 
@@ -216,7 +236,7 @@ public class MatchDemo implements Section {
         g.drawString(c.name, tx, ty);
 
         // Top match pill badge
-        if (isTopMatch) {
+        if (isTopMatch && !isCompact) {
             int tagX = tx + nfm.stringWidth(c.name) + 12;
             int tagH = 18;
             int tagW = 76;
@@ -228,25 +248,30 @@ public class MatchDemo implements Section {
         }
 
         // Rating
-        int starX = isTopMatch ? (tx + nfm.stringWidth(c.name) + 96) : (tx + nfm.stringWidth(c.name) + 12);
-        Draw.drawStarIcon(g, starX, ty - 13, 14, new Color(0xFF, 0xC1, 0x07));
-        g.setFont(Theme.fontSmallBold());
-        g.setColor(Theme.textSecondary());
-        g.drawString(String.format(Locale.US, "%.1f", c.rating), starX + 18, ty);
+        int starX = (isTopMatch && !isCompact) ? (tx + nfm.stringWidth(c.name) + 96) : (tx + nfm.stringWidth(c.name) + 12);
+        if (starX < x + w - 160) {
+            Draw.drawStarIcon(g, starX, ty - 13, 14, new Color(0xFF, 0xC1, 0x07));
+            g.setFont(Theme.fontSmallBold());
+            g.setColor(Theme.textSecondary());
+            g.drawString(String.format(Locale.US, "%.1f", c.rating), starX + 18, ty);
+        }
 
         // Role & Matched Skills
         g.setFont(Theme.fontSmall());
         g.setColor(Theme.textSecondary());
-        StringBuilder skStr = new StringBuilder(c.role).append("  ·  Skills: ");
-        for (String s : c.skills) {
-            skStr.append(s).append(" ");
+        StringBuilder skStr = new StringBuilder(c.role);
+        if (!isCompact) {
+            skStr.append("  ·  Skills: ");
+            for (String s : c.skills) {
+                skStr.append(s).append(" ");
+            }
         }
         g.drawString(skStr.toString(), tx, y + 52);
 
-        // Animated Match Bar with Dribbble Glowing Tip
-        int barW = Math.min(160, Math.max(90, w / 4));
+        // Match Bar with Glowing Tip
+        int barW = Math.min(140, Math.max(60, w / (isCompact ? 5 : 4)));
         int barH = 10;
-        int barX = x + w - barW - 90;
+        int barX = x + w - barW - 68;
         int barY = y + (rowH - barH) / 2;
 
         // Track
@@ -265,20 +290,20 @@ public class MatchDemo implements Section {
         g.fill(new RoundRectangle2D.Float(barX, barY, fillW, barH, barH, barH));
         g.setPaint(old);
 
-        // Glowing leading dot at end of bar (Dribbble micro-interaction)
+        // Glowing leading dot at end of bar
         if (fillW > 6) {
             float pulseGlow = Anim.pulse(0.6f, 1.0f, 4f);
             g.setColor(new Color(Theme.ACCENT_CYAN.getRed(), Theme.ACCENT_CYAN.getGreen(), Theme.ACCENT_CYAN.getBlue(), (int) (220 * pulseGlow)));
             g.fillOval(barX + fillW - 5, barY - 1, 12, 12);
         }
 
-        // Percentage label with color tiering
+        // Percentage label
         int pct = Math.round(c.currentMatch * 100);
         g.setFont(Theme.fontBodyBold());
         FontMetrics pfm = g.getFontMetrics();
         g.setColor(pct > 80 ? Theme.ACCENT_CYAN : Theme.textPrimary());
         String pctStr = pct + "%";
-        g.drawString(pctStr, barX + barW + 16, y + (rowH - pfm.getHeight()) / 2 + pfm.getAscent());
+        g.drawString(pctStr, barX + barW + 12, y + (rowH - pfm.getHeight()) / 2 + pfm.getAscent());
     }
 
     @Override

@@ -358,7 +358,7 @@ public class AdminUsers {
         g.setStroke(new BasicStroke(1.2f));
         g.draw(sBox);
 
-        Draw.drawSearchIcon(g, searchX + 12, searchY + 10, 16, AdminTheme.TEXT_LIGHT);
+        AdminTheme.drawSearchIcon(g, searchX + 12, searchY + 10, 16, AdminTheme.TEXT_LIGHT);
         g.setFont(AdminTheme.FONT_REG_12);
 
         if (searchQuery.isEmpty()) {
@@ -420,7 +420,7 @@ public class AdminUsers {
         g.setColor(AdminTheme.TEXT_DARK);
         g.drawString(text, dx + 12, dy + 22);
 
-        Draw.drawChevronDown(g, dx + dw - 18, dy + 14, 8, AdminTheme.TEXT_LIGHT, isOpen ? 180f : 0f);
+        AdminTheme.drawChevronDown(g, dx + dw - 18, dy + 14, 8, AdminTheme.TEXT_LIGHT, isOpen ? 180f : 0f);
     }
 
     private int paintUsersTable(Graphics2D g, int x, int y, int w, AdminDashboard dashboard) {
@@ -622,7 +622,7 @@ public class AdminUsers {
         int iconCircle = 44;
         g.setColor(new Color(0xF1, 0xF5, 0xF9));
         g.fillOval(midX - iconCircle / 2, midY - 24, iconCircle, iconCircle);
-        Draw.drawSearchIcon(g, midX - 9, midY - 15, 18, AdminTheme.TEXT_LIGHT);
+        AdminTheme.drawSearchIcon(g, midX - 9, midY - 15, 18, AdminTheme.TEXT_LIGHT);
 
         g.setFont(AdminTheme.FONT_BOLD_13);
         g.setColor(AdminTheme.TEXT_DARK);

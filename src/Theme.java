@@ -16,8 +16,9 @@ public class Theme {
     public static boolean motionEnabled = true;
 
     // Dribbble Brand Palette
-    public static final Color BRAND_PINK    = new Color(0xEA, 0x4C, 0x89);
-    public static final Color INK_DARK      = new Color(0x0D, 0x0C, 0x22);
+    public static final Color BRAND_PINK       = new Color(0xEA, 0x4C, 0x89);
+    public static final Color BRAND_PINK_HOVER = new Color(0xF0, 0x62, 0x9A);
+    public static final Color INK_DARK         = new Color(0x0D, 0x0C, 0x22);
     public static final Color CANVAS_LIGHT  = new Color(0xF8, 0xF7, 0xF4);
 
     // Pastel Card Tints (PRD Section 5)

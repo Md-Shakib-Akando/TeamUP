@@ -187,7 +187,7 @@ public class AdminProjects {
         g.setStroke(new BasicStroke(1.2f));
         g.draw(sBox);
 
-        Draw.drawSearchIcon(g, searchX + 10, searchY + 9, 16, AdminTheme.TEXT_LIGHT);
+        AdminTheme.drawSearchIcon(g, searchX + 10, searchY + 9, 16, AdminTheme.TEXT_LIGHT);
         g.setFont(AdminTheme.FONT_REG_12);
         g.setColor(searchQuery.isEmpty() ? AdminTheme.TEXT_LIGHT : AdminTheme.TEXT_DARK);
         g.drawString(searchQuery.isEmpty() ? "Search projects or owners..." : searchQuery, searchX + 34, searchY + 22);
@@ -221,7 +221,7 @@ public class AdminProjects {
         g.setColor(AdminTheme.TEXT_DARK);
         g.drawString(text, dx + 12, dy + 21);
 
-        Draw.drawChevronDown(g, dx + dw - 18, dy + 14, 8, AdminTheme.TEXT_LIGHT, 0f);
+        AdminTheme.drawChevronDown(g, dx + dw - 18, dy + 14, 8, AdminTheme.TEXT_LIGHT, 0f);
     }
 
     private void paintProjectsTable(Graphics2D g, int x, int y, int w, AdminDashboard dashboard) {

@@ -67,7 +67,7 @@ public class Audience implements Section {
 
     @Override
     public int getHeight(int width) {
-        return width < 700 ? 680 : 560;
+        return width < 600 ? 720 : (width < 800 ? 640 : 560);
     }
 
     @Override
@@ -184,12 +184,25 @@ public class Audience implements Section {
         int subRolesY = cardY + cardH + 24;
         g2.setFont(Theme.fontSmallBold());
         g2.setColor(Theme.textPrimary());
-        g2.drawString("Platform Roles:", padX, subRolesY + 14);
 
-        g2.setFont(Theme.fontSmall());
-        g2.setColor(Theme.textSecondary());
-        g2.drawString("Team Leader (create projects, recruit, manage milestones)  ·  Team Member (match skills, accept invites, earn ratings)",
-                padX + 110, subRolesY + 14);
+        if (width >= 800) {
+            g2.drawString("Platform Roles:", padX, subRolesY + 14);
+            g2.setFont(Theme.fontSmall());
+            g2.setColor(Theme.textSecondary());
+            g2.drawString("Team Leader (create projects, recruit, manage milestones)  ·  Team Member (match skills, accept invites, earn ratings)",
+                    padX + 110, subRolesY + 14);
+        } else {
+            g2.drawString("Platform Roles:", padX, subRolesY + 12);
+            g2.setFont(Theme.fontSmall());
+            g2.setColor(Theme.textSecondary());
+            FontMetrics smFm = g2.getFontMetrics();
+            List<String> roleLines = Draw.wrapText("Team Leader (create projects, recruit, manage milestones) · Team Member (match skills, accept invites, earn ratings)", smFm, cardW);
+            int ry = subRolesY + 30;
+            for (String rl : roleLines) {
+                g2.drawString(rl, padX, ry);
+                ry += Math.round(smFm.getHeight() * 1.3f);
+            }
+        }
 
         g2.dispose();
     }
