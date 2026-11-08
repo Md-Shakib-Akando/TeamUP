@@ -96,10 +96,10 @@ public class AdminSidebar {
         int avX = x + padX;
         int avY = bottomY + 14;
         int avSize = 36;
-        g.setColor(new Color(0xE2, 0xEE, 0xE7));
+        g.setColor(AdminTheme.BRAND_TINT);
         g.fillOval(avX, avY, avSize, avSize);
         g.setFont(AdminTheme.FONT_BOLD_12);
-        g.setColor(AdminTheme.BRAND_GREEN_DARK);
+        g.setColor(AdminTheme.BRAND_PRIMARY);
         g.drawString("JL", avX + 10, avY + 23);
 
         g.setFont(AdminTheme.FONT_BOLD_12);
@@ -116,7 +116,7 @@ public class AdminSidebar {
     private void paintLogo(Graphics2D g, int x, int y) {
         int iconSize = 28;
         RoundRectangle2D logoBg = new RoundRectangle2D.Float(x, y, iconSize, iconSize, 8, 8);
-        g.setColor(AdminTheme.BRAND_GREEN_DARK);
+        g.setColor(AdminTheme.BRAND_PRIMARY);
         g.fill(logoBg);
 
         g.setColor(Color.WHITE);
@@ -137,10 +137,10 @@ public class AdminSidebar {
         int badgeW = 46;
         int badgeH = 20;
         RoundRectangle2D pill = new RoundRectangle2D.Float(badgeX, badgeY, badgeW, badgeH, 10, 10);
-        g.setColor(new Color(0xE6, 0xF4, 0xEA));
+        g.setColor(new Color(0xEE, 0xF2, 0xFF));
         g.fill(pill);
         g.setFont(AdminTheme.FONT_BOLD_10);
-        g.setColor(new Color(0x06, 0x5F, 0x46));
+        g.setColor(new Color(0x63, 0x66, 0xF1));
         g.drawString("Admin", badgeX + 7, badgeY + 14);
     }
 

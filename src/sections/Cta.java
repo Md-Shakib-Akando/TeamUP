@@ -1,225 +1,271 @@
 import java.awt.*;
 import java.awt.event.KeyEvent;
-import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Random;
 
-public class Cta implements Section {
+/** Final call-to-action: living aurora panel, early-access form and a confetti burst on success. */
+public class Cta extends LpSection {
 
     private final TextBox emailBox;
     private final Dropdown roleDropdown;
     private final Button joinBtn;
+    private final Elastic joinHov = new Elastic(0f, 260f, 20f);
 
     private String statusMessage = "";
     private boolean isSuccess = false;
-    private float statusFade = 0f;
+    private float statusT = 0f;
 
-    private final Anim.RevealState reveal = new Anim.RevealState();
+    private static class Bit {
+        float x, y, vx, vy, rot, vr, life, size;
+        Color c;
+    }
+    private final List<Bit> confetti = new ArrayList<>();
+    private final Random rnd = new Random();
+    private int panelX, panelY, panelW, panelH;
 
     public Cta() {
-        emailBox = new TextBox("Enter your email address...");
+        emailBox = new TextBox("you@university.edu");
         roleDropdown = new Dropdown(Arrays.asList("Student", "Freelancer", "Developer", "Researcher", "Startup"));
-        joinBtn = new Button("Join Early Access →", true, this::submitLead);
-        joinBtn.isWarm = true;
-        reveal.trigger();
+        joinBtn = new Button("Join early access", true, this::submitLead);
     }
 
+    public boolean hasFocus() { return emailBox.focused; }
+
     private void submitLead() {
-        String email = emailBox.getText();
-        String role = roleDropdown.getSelected();
-
-        LeadStore.ValidationResult res = LeadStore.saveLead(email, role);
-        this.statusMessage = res.message;
-        this.isSuccess = res.success;
-        this.statusFade = 1f;
-
+        LeadStore.ValidationResult res = LeadStore.saveLead(emailBox.getText(), roleDropdown.getSelected());
+        statusMessage = res.message;
+        isSuccess = res.success;
+        statusT = 0f;
         if (res.success) {
             emailBox.setText("");
             emailBox.hasError = false;
+            burst(joinBtn.x + joinBtn.width / 2f, joinBtn.y + joinBtn.height / 2f);
         } else {
             emailBox.hasError = true;
         }
     }
 
-    @Override
-    public String getId() {
-        return "cta";
+    private void burst(float x, float y) {
+        Color[] cols = {Fx.PINK, Fx.VIOLET, Fx.CYAN, Fx.MINT, Fx.AMBER, Color.WHITE};
+        for (int i = 0; i < 90; i++) {
+            Bit b = new Bit();
+            b.x = x; b.y = y;
+            double ang = -Math.PI / 2 + (rnd.nextDouble() - 0.5) * Math.PI * 1.3;
+            float sp = 260 + rnd.nextFloat() * 420;
+            b.vx = (float) Math.cos(ang) * sp;
+            b.vy = (float) Math.sin(ang) * sp;
+            b.rot = rnd.nextFloat() * 6.28f;
+            b.vr = (rnd.nextFloat() - 0.5f) * 14f;
+            b.life = 1.6f + rnd.nextFloat() * 1.0f;
+            b.size = 5 + rnd.nextFloat() * 6;
+            b.c = cols[rnd.nextInt(cols.length)];
+            confetti.add(b);
+        }
     }
 
-    @Override
-    public int getHeight(int width) {
-        return width < 780 ? 520 : 420;
-    }
+    @Override public String getId() { return "cta"; }
 
     @Override
     public void update(float dt) {
-        reveal.update(dt);
+        super.update(dt);
         emailBox.update(dt);
-        if (statusFade > 0f) {
-            // Keep status visible
+        statusT += dt;
+        joinHov.setTarget(joinBtn.hovered ? 1f : 0f);
+        joinHov.update(dt);
+        for (int i = confetti.size() - 1; i >= 0; i--) {
+            Bit b = confetti.get(i);
+            b.vy += 900 * dt;
+            b.vx *= (1 - 1.2f * dt);
+            b.x += b.vx * dt;
+            b.y += b.vy * dt;
+            b.rot += b.vr * dt;
+            b.life -= dt;
+            if (b.life <= 0) confetti.remove(i);
         }
     }
 
     @Override
-    public void paint(Graphics2D g, int y, int width, int viewportY, int viewportH) {
-        int h = getHeight(width);
-        int padX = width > 1100 ? 56 : (width > 600 ? 28 : 20);
-        boolean isMobile = width < 780;
+    protected int render(Graphics2D g, int y, int width, int viewportY, int viewportH) {
+        int top = y;
+        int cur = y + (width < 700 ? 60 : 90);
+        int[] c = Fx.container(width);
+        boolean mobile = c[1] < 760;
+        int pw = c[1];
+        int px = c[0];
 
-        Graphics2D g2 = (Graphics2D) g.create();
-        int rise = reveal.getYOffset();
-        g2.translate(0, rise);
+        // measure content
+        Font hf = Fx.display(mobile ? 34 : 54);
+        String h1 = "Ready to build your", h2 = "breakthrough team?";
+        int ph = 76 + 30 + 28 + 2 * Math.round(g.getFontMetrics(hf).getHeight() * 1.02f) + 16
+                + Fx.paragraphHeight(g, "Join students, researchers and creators already collaborating on TeamUp. Early access is free.", Fx.body(17), Math.min(560, pw - 60), 1.5f)
+                + 36 + (mobile ? 3 * 52 + 12 : 56) + 26 + 22 + 76;
+        if (!measuring) { panelX = px; panelY = cur; panelW = pw; panelH = ph; }
+        if (measuring) return cur + ph - top + 60;
 
-        int panelX = padX;
-        int panelY = y + 20;
-        int panelW = width - padX * 2;
-        int panelH = h - 40;
-        int radius = 28;
+        Graphics2D p = Fx.fade(g, rv.p(0f, 0.9f), 40);
+        RoundRectangle2D.Float panel = Fx.rr(px, cur, pw, ph, 32);
 
-        RoundRectangle2D panelShape = new RoundRectangle2D.Float(panelX, panelY, panelW, panelH, radius, radius);
+        // outer glow
+        Fx.glowOval(p, px + pw / 2f, cur + ph / 2f, pw * 0.6f, ph * 0.8f, Fx.VIOLET, Fx.dark() ? 0.25f : 0.2f);
+        Fx.softShadow(p, px, cur, pw, ph, 32, 0.6f, 30);
 
-        // Dark band (#0D0C22) for Final CTA contrast
-        g2.setColor(Theme.INK_DARK);
-        g2.fill(panelShape);
+        // panel fill: deep ink in dark mode, vivid gradient in light mode
+        float lt = Theme.themeTransition;
+        p.setColor(Fx.mix(new Color(0x0C, 0x0A, 0x22), new Color(0x4C, 0x1D, 0x95), lt));
+        p.fill(panel);
+        Graphics2D in = (Graphics2D) p.create();
+        in.clip(panel);
+        float t = Fx.time();
+        Fx.glow(in, px + pw * (0.2f + 0.08f * (float) Math.sin(t * 0.5f)), cur + ph * 0.1f, pw * 0.5f, Fx.PINK, 0.55f);
+        Fx.glow(in, px + pw * (0.85f + 0.06f * (float) Math.cos(t * 0.4f)), cur + ph * 0.3f, pw * 0.45f, Fx.VIOLET, 0.6f);
+        Fx.glow(in, px + pw * (0.55f + 0.1f * (float) Math.sin(t * 0.3f + 1)), cur + ph * 1.05f, pw * 0.5f, Fx.CYAN, 0.35f);
+        // perspective grid floor
+        float horizon = cur + ph * 0.6f;
+        in.setPaint(new GradientPaint(0, horizon, new Color(255, 255, 255, 0), 0, cur + ph, new Color(255, 255, 255, 34)));
+        for (int i = -14; i <= 14; i++) {
+            float bx = px + pw / 2f + i * 34;
+            in.drawLine(Math.round(px + pw / 2f + i * 4), Math.round(horizon), Math.round(bx + i * 60), cur + ph);
+        }
+        float scroll = Theme.motionEnabled ? (t * 0.25f) % 1f : 0f;
+        for (int i = 0; i < 8; i++) {
+            float k = ((i + scroll) / 8f);
+            float ly = horizon + (cur + ph - horizon) * k * k;
+            in.setColor(new Color(255, 255, 255, Math.round(26 * k * k)));
+            in.drawLine(px, Math.round(ly), px + pw, Math.round(ly));
+        }
+        in.dispose();
+        Fx.gradientBorder(p, panel, 1.5f, 0.9f, t * 0.4f);
 
-        // Ambient radial glow in top right and bottom left
-        Graphics2D gClip = (Graphics2D) g2.create();
-        gClip.setClip(panelShape);
+        float cx = px + pw / 2f;
+        int yy = cur + 76;
 
-        Point2D p1 = new Point2D.Float(panelX + panelW * 0.85f, panelY + 40);
-        RadialGradientPaint rgp1 = new RadialGradientPaint(
-                p1, 240f, new float[]{0f, 1f},
-                new Color[]{new Color(0x7C, 0x5C, 0xFF, 55), new Color(0x7C, 0x5C, 0xFF, 0)}
-        );
-        gClip.setPaint(rgp1);
-        gClip.fill(panelShape);
+        // eyebrow (white-on-glass)
+        p.setFont(Fx.label(11.5f));
+        String eb = "EARLY ACCESS IS OPEN";
+        int ebw = p.getFontMetrics().stringWidth(eb) + 44;
+        RoundRectangle2D.Float ebp = Fx.rr(cx - ebw / 2f, yy, ebw, 30, 15);
+        p.setColor(new Color(255, 255, 255, 22));
+        p.fill(ebp);
+        p.setColor(new Color(255, 255, 255, 60));
+        p.draw(ebp);
+        float pulse = (t % 1.6f) / 1.6f;
+        Fx.glow(p, cx - ebw / 2f + 16, yy + 15, 8 + pulse * 8, Fx.MINT, 0.8f * (1 - pulse));
+        p.setColor(Fx.MINT);
+        p.fill(new java.awt.geom.Ellipse2D.Float(cx - ebw / 2f + 13, yy + 12, 6, 6));
+        p.setColor(Color.WHITE);
+        Fx.textMid(p, eb, cx - ebw / 2f + 27, yy + 15);
+        yy += 30 + 28;
 
-        Point2D p2 = new Point2D.Float(panelX + panelW * 0.15f, panelY + panelH - 40);
-        RadialGradientPaint rgp2 = new RadialGradientPaint(
-                p2, 220f, new float[]{0f, 1f},
-                new Color[]{new Color(0xEA, 0x4C, 0x89, 50), new Color(0xEA, 0x4C, 0x89, 0)}
-        );
-        gClip.setPaint(rgp2);
-        gClip.fill(panelShape);
-        gClip.dispose();
+        p.setFont(hf);
+        FontMetrics fm = p.getFontMetrics();
+        int lh = Math.round(fm.getHeight() * 1.02f);
+        p.setColor(Color.WHITE);
+        p.drawString(h1, cx - fm.stringWidth(h1) / 2f, yy + fm.getAscent());
+        yy += lh;
+        Fx.gradientText(p, h2, cx - fm.stringWidth(h2) / 2f, yy + fm.getAscent(),
+                new Color[]{new Color(0xFF, 0xB3, 0xD1), Color.WHITE, new Color(0xA5, 0xF3, 0xFC)}, Fx.wave(0.5f, 0) * 0.3f);
+        yy += lh + 16;
+        int sw = Math.min(560, pw - 60);
+        yy = Fx.paragraph(p, "Join students, researchers and creators already collaborating on TeamUp. Early access is free.",
+                Fx.body(17), new Color(255, 255, 255, 190), Math.round(cx - sw / 2f), yy, sw, 1.5f, true);
+        yy += 36;
 
-        // Subtle gradient highlight border
-        g2.setColor(new Color(Theme.BRAND_PINK.getRed(), Theme.BRAND_PINK.getGreen(), Theme.BRAND_PINK.getBlue(), 80));
-        g2.setStroke(new BasicStroke(1.5f));
-        g2.draw(panelShape);
-
-        // Content centered
-        int contentY = panelY + 36;
-
-        // Eyebrow badge
-        int badgeW = 160;
-        int badgeX = panelX + (panelW - badgeW) / 2;
-        Draw.drawSectionBadge(g2, "GET EARLY ACCESS", badgeX, contentY, Theme.BRAND_PINK);
-
-        // Headline
-        contentY += 46;
-        g2.setFont(Theme.fontTitle());
-        FontMetrics tfm = g2.getFontMetrics();
-        g2.setColor(Color.WHITE);
-        String heading = "Ready to build your next breakthrough team?";
-        int headX = panelX + (panelW - tfm.stringWidth(heading)) / 2;
-        if (headX < panelX + 24) headX = panelX + 24;
-        g2.drawString(heading, headX, contentY + tfm.getAscent());
-
-        // Subtitle
-        int subY = contentY + tfm.getHeight() + 10;
-        g2.setFont(Theme.fontBody());
-        FontMetrics sfm = g2.getFontMetrics();
-        g2.setColor(new Color(0xD1, 0xD5, 0xDB));
-        String sub = "Join students, researchers, and creators already collaborating on TeamUp.";
-        int subX = panelX + (panelW - sfm.stringWidth(sub)) / 2;
-        if (subX < panelX + 24) subX = panelX + 24;
-        g2.drawString(sub, subX, subY + sfm.getAscent());
-
-        // Form layout
-        int formY = subY + sfm.getHeight() + 32;
-
-        if (!isMobile) {
-            int formW = 710;
-            int formX = panelX + (panelW - formW) / 2;
-            int itemH = 46;
-
-            emailBox.setBounds(formX, formY, 320, itemH);
-            roleDropdown.setBounds(formX + 332, formY, 170, itemH);
-            joinBtn.setBounds(formX + 514, formY, 196, itemH);
-
-            emailBox.paint(g2);
-            joinBtn.paint(g2);
-            // Dropdown painted last so popup menu renders on top!
-            roleDropdown.paint(g2);
-
-            // Inline Status Feedback
-            if (!statusMessage.isEmpty()) {
-                paintStatus(g2, panelX + (panelW - 600) / 2, formY + itemH + 16, 600);
-            }
-
-            // Trust badges row
-            int trustY = formY + itemH + 34;
-            g2.setFont(Theme.fontSmall());
-            g2.setColor(new Color(0x94, 0xA3, 0xB8));
-            String trust = "🔒 PBKDF2 Encrypted   ·   ⚡ Instant Setup   ·   🎓 100% Free for Students";
-            FontMetrics trFm = g2.getFontMetrics();
-            g2.drawString(trust, panelX + (panelW - trFm.stringWidth(trust)) / 2, trustY);
-
+        // form
+        if (!mobile) {
+            int fw = Math.min(720, pw - 60);
+            int fx = Math.round(cx - fw / 2f);
+            int ih = 56;
+            int bw = 210, dw = 168;
+            int ew = fw - bw - dw - 20;
+            emailBox.setBounds(fx, yy, ew, ih);
+            roleDropdown.setBounds(fx + ew + 10, yy, dw, ih);
+            joinBtn.setBounds(fx + ew + dw + 20, yy, bw, ih);
+            yy += ih;
         } else {
-            int itemH = 44;
-            int fieldW = Math.min(360, panelW - 48);
-            int fieldX = panelX + (panelW - fieldW) / 2;
+            int fw = Math.min(380, pw - 40);
+            int fx = Math.round(cx - fw / 2f);
+            emailBox.setBounds(fx, yy, fw, 52);
+            roleDropdown.setBounds(fx, yy + 64, fw, 52);
+            joinBtn.setBounds(fx, yy + 128, fw, 52);
+            yy += 52 * 3 + 24;
+        }
+        emailBox.paint(p);
+        Fx.primaryButton(p, joinBtn.x, joinBtn.y, joinBtn.width, joinBtn.height, joinBtn.text, joinHov.getValue(), joinBtn.pressed ? 1f : 0f, true);
 
-            emailBox.setBounds(fieldX, formY, fieldW, itemH);
-            roleDropdown.setBounds(fieldX, formY + itemH + 12, fieldW, itemH);
-            joinBtn.setBounds(fieldX, formY + (itemH + 12) * 2, fieldW, itemH);
-
-            emailBox.paint(g2);
-            joinBtn.paint(g2);
-            roleDropdown.paint(g2);
-
-            if (!statusMessage.isEmpty()) {
-                paintStatus(g2, fieldX, formY + (itemH + 12) * 3 + 12, fieldW);
+        yy += 26;
+        if (!statusMessage.isEmpty()) {
+            float sp = Fx.easeOutQuart(statusT / 0.4f);
+            Graphics2D st = Fx.fade(p, sp, 8);
+            st.setFont(Fx.bold(14));
+            Color col = isSuccess ? Fx.MINT : new Color(0xFF, 0x8A, 0x8A);
+            int tw = st.getFontMetrics().stringWidth(statusMessage);
+            float sx = cx - (tw + 26) / 2f;
+            if (isSuccess) Fx.checkCircle(st, sx, yy - 2, 18, Fx.MINT, 1f);
+            else {
+                st.setColor(col);
+                st.fill(new java.awt.geom.Ellipse2D.Float(sx + 4, yy + 3, 9, 9));
+            }
+            st.setColor(col);
+            Fx.textMid(st, statusMessage, sx + 26, yy + 7);
+            st.dispose();
+        } else {
+            // trust row
+            String[] items = {"Encrypted with PBKDF2", "Set up in seconds", "Free for students"};
+            String[] icons = {"lock", "bolt", "check"};
+            p.setFont(Fx.body(13.5f));
+            FontMetrics tfm = p.getFontMetrics();
+            int total = 0;
+            for (String s : items) total += tfm.stringWidth(s) + 22 + 28;
+            total -= 28;
+            float tx = cx - total / 2f;
+            for (int i = 0; i < items.length; i++) {
+                Fx.icon(p, icons[i], tx, yy - 1, 15, new Color(255, 255, 255, 170));
+                p.setColor(new Color(255, 255, 255, 170));
+                Fx.textMid(p, items[i], tx + 22, yy + 7);
+                tx += tfm.stringWidth(items[i]) + 22 + 28;
             }
         }
 
-        g2.dispose();
-    }
+        // dropdown last so its menu overlays everything
+        roleDropdown.paint(p);
+        p.dispose();
 
-    private void paintStatus(Graphics2D g, int x, int y, int w) {
-        g.setFont(Theme.fontBodyBold());
-        FontMetrics fm = g.getFontMetrics();
+        // confetti on top of everything in this section
+        for (Bit b : confetti) {
+            Graphics2D cg = (Graphics2D) g.create();
+            Fx.fadeBy(cg, Fx.clamp(b.life / 0.6f));
+            cg.translate(b.x, b.y);
+            cg.rotate(b.rot);
+            cg.setColor(b.c);
+            cg.fill(new Rectangle2D.Float(-b.size / 2f, -b.size / 4f, b.size, b.size / 2f));
+            cg.dispose();
+        }
 
-        Color col = isSuccess ? Theme.SUCCESS_GREEN : Theme.ERROR_RED;
-        g.setColor(col);
-
-        int textX = x + (w - fm.stringWidth(statusMessage)) / 2;
-        if (textX < x) textX = x;
-        g.drawString((isSuccess ? "✓  " : "⚠  ") + statusMessage, textX, y + fm.getAscent());
+        return cur + ph - top + 60;
     }
 
     @Override
     public boolean onClick(int mx, int my) {
         if (roleDropdown.onClick(mx, my)) return true;
         if (emailBox.onMouseDown(mx, my)) return true;
-        if (joinBtn.onMouseUp(mx, my)) return true;
-        return false;
+        return Fx.inside(mx, my, joinBtn.x, joinBtn.y, joinBtn.width, joinBtn.height);
     }
 
     @Override
     public boolean onMouseMove(int mx, int my) {
-        boolean c1 = emailBox.contains(mx, my);
-        boolean c2 = roleDropdown.onMouseMove(mx, my);
-        boolean c3 = joinBtn.onMouseMove(mx, my);
-        return c1 || c2 || c3;
+        boolean d = roleDropdown.contains(mx, my);
+        roleDropdown.onMouseMove(mx, my);
+        joinBtn.onMouseMove(mx, my);
+        return d || joinBtn.hovered;
     }
 
     @Override
     public boolean onMouseDown(int mx, int my) {
-        if (roleDropdown.contains(mx, my)) {
-            return true;
-        }
+        if (roleDropdown.contains(mx, my)) return true;
         boolean b1 = emailBox.onMouseDown(mx, my);
         boolean b2 = joinBtn.onMouseDown(mx, my);
         return b1 || b2;
@@ -233,7 +279,7 @@ public class Cta implements Section {
     @Override
     public boolean onKey(KeyEvent e) {
         if (emailBox.focused) {
-            if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+            if (e.getID() == KeyEvent.KEY_PRESSED && e.getKeyCode() == KeyEvent.VK_ENTER) {
                 submitLead();
                 return true;
             }

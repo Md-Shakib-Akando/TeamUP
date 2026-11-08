@@ -356,26 +356,7 @@ public class Draw {
         int actualX = Math.round(x + magnetX);
         int actualY = Math.round(y + magnetY);
         int radius = h;
-        RoundRectangle2D shape = new RoundRectangle2D.Float(actualX, actualY, w, h, radius, radius);
-
-        // Soft pink drop shadow
-        int shadowOffset = isHovered ? 8 : 4;
-        g.setColor(new Color(Theme.BRAND_PINK.getRed(), Theme.BRAND_PINK.getGreen(), Theme.BRAND_PINK.getBlue(), isHovered ? 85 : 45));
-        g.fill(new RoundRectangle2D.Float(actualX, actualY + shadowOffset, w, h, radius, radius));
-
-        // Hot pink fill
-        Color c = isHovered ? brighter(Theme.BRAND_PINK, 1.1f) : Theme.BRAND_PINK;
-        if (isPressed) c = darker(Theme.BRAND_PINK, 0.9f);
-        g.setColor(c);
-        g.fill(shape);
-
-        // Label
-        g.setFont(Theme.fontButton());
-        FontMetrics fm = g.getFontMetrics();
-        int textX = actualX + (w - fm.stringWidth(text)) / 2;
-        int textY = actualY + (h - fm.getHeight()) / 2 + fm.getAscent();
-        g.setColor(Color.WHITE);
-        g.drawString(text, textX, textY);
+        Fx.primaryButton(g, actualX, actualY, w, h, text, isHovered ? 1f : 0f, isPressed ? 1f : 0f, false);
 
         if (focused) {
             drawFocusRing(g, actualX - 3, actualY - 3, w + 6, h + 6, radius + 4);
@@ -396,24 +377,7 @@ public class Draw {
     public static void drawGhostButton(Graphics2D g, int x, int y, int w, int h, String text,
                                        boolean isHovered, boolean isPressed, boolean focused) {
         int radius = h;
-        RoundRectangle2D shape = new RoundRectangle2D.Float(x, y, w, h, radius, radius);
-
-        Color fill = isHovered ? new Color(0, 0, 0, 10) : new Color(0, 0, 0, 0);
-        g.setColor(fill);
-        g.fill(shape);
-
-        Color border = isHovered ? Theme.INK_DARK : Theme.cardBorder();
-        g.setColor(border);
-        g.setStroke(new BasicStroke(isHovered ? 1.5f : 1.2f));
-        g.draw(shape);
-
-        g.setFont(Theme.fontButton());
-        FontMetrics fm = g.getFontMetrics();
-        int textX = x + (w - fm.stringWidth(text)) / 2;
-        int textY = y + (h - fm.getHeight()) / 2 + fm.getAscent();
-
-        g.setColor(Theme.textPrimary());
-        g.drawString(text, textX, textY);
+        Fx.ghostButton(g, x, y, w, h, text, isHovered ? 1f : 0f, false);
 
         if (focused) {
             drawFocusRing(g, x - 3, y - 3, w + 6, h + 6, radius + 4);
@@ -489,7 +453,9 @@ public class Draw {
         setQualityHints(g2);
 
         RoundRectangle2D badge = new RoundRectangle2D.Float(x, y, size, size, size * 0.35f, size * 0.35f);
-        g2.setColor(Theme.BRAND_PINK);
+        g2.setPaint(new GradientPaint(x, y, Theme.BRAND_PINK, x + size, y + size, new Color(0x8B, 0x5C, 0xF6)));
+        g2.fill(badge);
+        g2.setPaint(new GradientPaint(x, y, new Color(255, 255, 255, 70), x, y + size * 0.6f, new Color(255, 255, 255, 0)));
         g2.fill(badge);
 
         g2.setColor(Color.WHITE);
