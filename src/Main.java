@@ -6,7 +6,10 @@ public class Main {
     public static void main(String[] args) {
         // Configure high-DPI and anti-aliasing hints
         System.setProperty("awt.useSystemAAFontSettings", "on");
-        System.setProperty("sun.java2d.opengl", "true");
+        // Windows: keep the default Direct3D pipeline (measured faster than OpenGL here).
+        if (!System.getProperty("os.name", "").toLowerCase().contains("win")) {
+            System.setProperty("sun.java2d.opengl", "true");
+        }
 
         LandingWindow window = new LandingWindow();
         if (args.length > 0) {

@@ -41,7 +41,7 @@ public class AdminHeader {
     }
 
     public void paint(Graphics2D g, int x, int y, int w, int h) {
-        g.setColor(Color.WHITE);
+        g.setColor(AdminTheme.SIDEBAR_BG);
         g.fillRect(x, y, w, h);
         g.setColor(AdminTheme.BORDER_COLOR);
         g.drawLine(x, y + h - 1, x + w, y + h - 1);
@@ -73,7 +73,7 @@ public class AdminHeader {
         g.setColor(AdminTheme.BRAND_TINT);
         g.fillOval(userX, userY + 1, avSize, avSize);
         g.setFont(AdminTheme.FONT_BOLD_11);
-        g.setColor(AdminTheme.BRAND_GREEN_DARK);
+        g.setColor(AdminTheme.BRAND_PRIMARY);
         g.drawString("JL", userX + 9, userY + 21);
         Draw.drawChevronDown(g, userX + avSize + 4, userY + 14, 8, AdminTheme.TEXT_LIGHT, 0f);
 

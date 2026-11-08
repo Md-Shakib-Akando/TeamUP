@@ -96,10 +96,10 @@ public class AdminOverview {
         int pendingReports = AdminDataStore.getInstance().getPendingReportsCount();
         int collabRequests = AdminDataStore.getInstance().collaborationRequests;
 
-        paintKpiCard(g, x + padX, curY, kpiW, kpiH, "Total Users", String.format("%,d", totalUsers), "↑ 8.2% vs. previous month", AdminTheme.BRAND_GREEN_MID, 0);
-        paintKpiCard(g, x + padX + (kpiW + kpiGap), curY, kpiW, kpiH, "Active Projects", String.valueOf(activeProjects), "↑ 12.6% vs. previous month", AdminTheme.BRAND_GREEN_MID, 1);
-        paintKpiCard(g, x + padX + (kpiW + kpiGap) * 2, curY, kpiW, kpiH, "Pending Reports", String.valueOf(pendingReports), "5 high priority · Review queue", new Color(0xC2, 0x41, 0x0C), 2);
-        paintKpiCard(g, x + padX + (kpiW + kpiGap) * 3, curY, kpiW, kpiH, "Collaboration Requests", String.format("%,d", collabRequests), "↑ 18.4% this month", AdminTheme.BRAND_GREEN_MID, 3);
+        paintKpiCard(g, x + padX, curY, kpiW, kpiH, "Total Users", String.format("%,d", totalUsers), "↑ 8.2% vs. previous month", AdminTheme.BRAND_PRIMARY, 0);
+        paintKpiCard(g, x + padX + (kpiW + kpiGap), curY, kpiW, kpiH, "Active Projects", String.valueOf(activeProjects), "↑ 12.6% vs. previous month", AdminTheme.BRAND_SECONDARY, 1);
+        paintKpiCard(g, x + padX + (kpiW + kpiGap) * 2, curY, kpiW, kpiH, "Pending Reports", String.valueOf(pendingReports), "5 high priority · Review queue", AdminTheme.BRAND_AMBER, 2);
+        paintKpiCard(g, x + padX + (kpiW + kpiGap) * 3, curY, kpiW, kpiH, "Collaboration Requests", String.format("%,d", collabRequests), "↑ 18.4% this month", AdminTheme.BRAND_ACCENT, 3);
 
         curY += kpiH + 24;
 
@@ -209,23 +209,25 @@ public class AdminOverview {
     }
 
     private void paintKpiIcon(Graphics2D g, int ix, int iy, int type) {
-        g.setColor(AdminTheme.BRAND_GREEN_MID);
         g.setStroke(new BasicStroke(1.5f));
 
         if (type == 0) {
+            g.setColor(AdminTheme.BRAND_PRIMARY); // Pink
             // Users icon
             g.drawOval(ix + 3, iy, 7, 7);
             g.drawArc(ix, iy + 9, 13, 8, 0, 180);
         } else if (type == 1) {
+            g.setColor(AdminTheme.BRAND_SECONDARY); // Violet
             // Folder icon
             g.drawRoundRect(ix, iy + 2, 16, 12, 3, 3);
             g.drawLine(ix, iy + 5, ix + 6, iy + 5);
         } else if (type == 2) {
             // Flag icon
-            g.setColor(new Color(0xC2, 0x41, 0x0C));
+            g.setColor(AdminTheme.BRAND_AMBER); // Amber
             g.drawLine(ix + 2, iy, ix + 2, iy + 16);
             g.drawRect(ix + 2, iy + 1, 10, 8);
         } else {
+            g.setColor(AdminTheme.BRAND_ACCENT); // Cyan
             // Handshake / heart icon
             g.drawOval(ix + 2, iy + 2, 6, 6);
             g.drawOval(ix + 8, iy + 2, 6, 6);
@@ -575,26 +577,25 @@ public class AdminOverview {
     }
 
     private void paintActivityIcon(Graphics2D g, int ix, int iy, int type) {
-        g.setColor(AdminTheme.BRAND_GREEN_MID);
         g.setStroke(new BasicStroke(1.5f));
 
         if (type == 0) {
-            // Pulse wave
+            g.setColor(AdminTheme.BRAND_PRIMARY); // Pink pulse wave
             g.drawLine(ix, iy + 6, ix + 4, iy + 6);
             g.drawLine(ix + 4, iy + 6, ix + 7, iy);
             g.drawLine(ix + 7, iy, ix + 9, iy + 12);
             g.drawLine(ix + 9, iy + 12, ix + 12, iy + 6);
             g.drawLine(ix + 12, iy + 6, ix + 15, iy + 6);
         } else if (type == 1) {
-            // Shield
+            g.setColor(AdminTheme.BRAND_SECONDARY); // Violet shield
             g.drawRect(ix + 1, iy + 1, 12, 12);
             g.drawLine(ix + 7, iy + 1, ix + 7, iy + 13);
         } else if (type == 2) {
-            // Join
+            g.setColor(AdminTheme.BRAND_ACCENT); // Cyan join
             g.drawOval(ix + 2, iy + 1, 6, 6);
             g.drawArc(ix, iy + 7, 10, 6, 0, 180);
         } else {
-            // Checkmark
+            g.setColor(AdminTheme.BRAND_MINT); // Mint checkmark
             g.drawLine(ix + 2, iy + 7, ix + 6, iy + 11);
             g.drawLine(ix + 6, iy + 11, ix + 13, iy + 3);
         }

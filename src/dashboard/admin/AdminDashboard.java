@@ -245,11 +245,6 @@ public class AdminDashboard {
         int sideW = 230;
         int headH = 68;
 
-        // Header active popover consumes click first even if extending below headH
-        if (header.isAnyPopoverOpen()) {
-            if (header.onClick(mx, my, this)) return true;
-        }
-
         // Sidebar click
         if (mx < sideW) {
             return sidebar.onClick(mx, my, this);
