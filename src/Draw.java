@@ -126,7 +126,7 @@ public class Draw {
         }
     }
 
-    private static void drawRadialBlob(Graphics2D g, float cx, float cy, float radius, Color color, float alpha) {
+    public static void drawRadialBlob(Graphics2D g, float cx, float cy, float radius, Color color, float alpha) {
         Point2D center = new Point2D.Float(cx, cy);
         float[] dist = {0.0f, 1.0f};
         Color c0 = new Color(color.getRed(), color.getGreen(), color.getBlue(), (int) (255 * alpha));

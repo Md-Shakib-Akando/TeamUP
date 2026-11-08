@@ -1,12 +1,34 @@
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.awt.geom.RoundRectangle2D;
+import java.awt.image.BufferedImage;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import javax.imageio.ImageIO;
 
 public class Hero implements Section {
 
     private final NavBar.NavListener listener;
+
+    // 3D Team Collaboration Illustration (from user uploaded mockup)
+    private static BufferedImage heroImage = null;
+    static {
+        try {
+            File f = new File("assets/hero_team.png");
+            if (!f.exists()) f = new File("bin/assets/hero_team.png");
+            if (!f.exists()) f = new File("c:/UNIVERSITYPROJECT/SANJIDA/TeamUP/assets/hero_team.png");
+            if (f.exists()) {
+                heroImage = ImageIO.read(f);
+            }
+        } catch (Exception e) {
+            System.err.println("Could not load hero image: " + e.getMessage());
+        }
+    }
+
+    private int heroImgX, heroImgY, heroImgW, heroImgH;
+    private boolean heroImgHovered = false;
+    private final Elastic heroImgLift = new Elastic(0f, 160f, 12f);
 
     // Search bar state
     private final TextBox heroSearchBox;
@@ -23,7 +45,7 @@ public class Hero implements Section {
     private final List<JumpingPill> popularPills = new ArrayList<>();
 
     // CTA buttons (Motion Spec #8: Magnetic button)
-    private int btn1X, btn1Y, btn1W = 210, btn1H = 48;
+    private int btn1X, btn1Y, btn1W = 180, btn1H = 48;
     private int btn2X, btn2Y, btn2W = 180, btn2H = 48;
     private boolean btn1Hovered = false;
     private boolean btn2Hovered = false;
@@ -130,11 +152,11 @@ public class Hero implements Section {
     @Override
     public int getHeight(int width) {
         if (width < 780) {
-            return 1580;
-        } else if (width < 1100) {
-            return 1680;
+            return 1740;
+        } else if (width < 1040) {
+            return 1800;
         } else {
-            return 1350;
+            return 1460;
         }
     }
 
@@ -146,6 +168,10 @@ public class Hero implements Section {
         if (Anim.pageLoadTime > 0.4f) {
             squiggleProgress = Anim.approach(squiggleProgress, 1.0f, dt, 3.5f);
         }
+
+        // Hero illustration hover lift
+        heroImgLift.setTarget(heroImgHovered ? 8f : 0f);
+        heroImgLift.update(dt);
 
         // Popular pills hover jumping physics
         for (JumpingPill pill : popularPills) {
@@ -191,197 +217,400 @@ public class Hero implements Section {
 
     @Override
     public void paint(Graphics2D g, int y, int width, int viewportY, int viewportH) {
-        int h = getHeight(width);
-        boolean isMobile = width < 780;
         int padX = width > 1100 ? 56 : (width > 600 ? 28 : 20);
+        boolean isWidescreen = width >= 1040;
+        boolean isMobile = width < 780;
 
         Graphics2D g2 = (Graphics2D) g.create();
         Draw.setQualityHints(g2);
 
-        int curY = y + 40;
-
-        // 1. Eyebrow pill: "Skill-based team formation" with pulsing pink dot
-        int badgeH = 34;
-        int badgeW = 230;
-        int badgeX = (width - badgeW) / 2;
-        RoundRectangle2D badgeShape = new RoundRectangle2D.Float(badgeX, curY, badgeW, badgeH, badgeH, badgeH);
-
-        g2.setColor(Theme.isDark ? new Color(255, 255, 255, 12) : Color.WHITE);
-        g2.fill(badgeShape);
-        g2.setColor(Theme.cardBorder());
-        g2.setStroke(new BasicStroke(1.2f));
-        g2.draw(badgeShape);
-
-        Draw.drawRadarBeacon(g2, badgeX + 18, curY + badgeH / 2, Theme.BRAND_PINK);
-
-        g2.setFont(Theme.fontSmallBold());
-        FontMetrics bfm = g2.getFontMetrics();
-        g2.setColor(Theme.textPrimary());
-        g2.drawString("Skill-based team formation", badgeX + 34, curY + (badgeH - bfm.getHeight()) / 2 + bfm.getAscent());
-
-        curY += badgeH + 24;
-
-        // 2. Headline (Motion Spec #2: Staggered words rising 40px and fading in)
-        g2.setFont(isMobile ? Theme.fontHeroMobile() : Theme.fontHero());
-        FontMetrics hfm = g2.getFontMetrics();
-        String h1 = "Find the right ";
-        String h2 = "teammates.";
-        String h3 = "Build what matters.";
-
-        int totalH1W = hfm.stringWidth(h1) + hfm.stringWidth(h2);
-        int line1X = (width - totalH1W) / 2;
-        int line2X = (width - hfm.stringWidth(h3)) / 2;
-
+        int curY = y + 36;
         float intro = Anim.pageLoadTime;
 
-        // Line 1: "Find the right teammates."
-        float wordDelay1 = Math.max(0f, Math.min(1f, (intro - 0.1f) / 0.5f));
-        float wordDelay2 = Math.max(0f, Math.min(1f, (intro - 0.22f) / 0.5f));
+        if (isWidescreen) {
+            // ==================== 2-COLUMN WIDESCREEN HERO ====================
+            int totalContentW = width - padX * 2;
+            int gap = 36;
+            int leftW = Math.round(totalContentW * 0.52f);
+            int rightW = totalContentW - leftW - gap;
 
-        int wordY1 = curY + hfm.getAscent() + Math.round(40 * (1f - Anim.easeOutCubic(wordDelay1)));
-        int wordY2 = curY + hfm.getAscent() + Math.round(40 * (1f - Anim.easeOutCubic(wordDelay2)));
+            int leftX = padX;
+            int rightX = padX + leftW + gap;
+            int leftY = curY;
 
-        g2.setColor(Theme.textPrimary());
-        g2.drawString(h1, line1X, wordY1);
-
-        int teamX = line1X + hfm.stringWidth(h1);
-        g2.setColor(Theme.BRAND_PINK);
-        g2.drawString(h2, teamX, wordY2);
-
-        // Motion Spec #3: Self-drawing pink squiggle under "teammates"
-        Draw.drawPinkSquiggle(g2, teamX, wordY2 + 10, hfm.stringWidth(h2), squiggleProgress);
-
-        // Line 2: "Build what matters."
-        float wordDelay3 = Math.max(0f, Math.min(1f, (intro - 0.35f) / 0.5f));
-        int wordY3 = curY + hfm.getHeight() + 10 + hfm.getAscent() + Math.round(40 * (1f - Anim.easeOutCubic(wordDelay3)));
-        g2.setColor(Theme.textPrimary());
-        g2.drawString(h3, line2X, wordY3);
-
-        curY += hfm.getHeight() * 2 + 20;
-
-        // 3. Subtext
-        g2.setFont(Theme.fontSubtitle());
-        FontMetrics sfm = g2.getFontMetrics();
-        g2.setColor(Theme.textSecondary());
-        String sub = "TeamUp matches students, developers, freelancers and researchers by skill, so you spend less time searching and more time building.";
-        int subMaxW = Math.min(680, width - padX * 2);
-        List<String> subLines = Draw.wrapText(sub, sfm, subMaxW);
-        for (String sl : subLines) {
-            int sx = (width - sfm.stringWidth(sl)) / 2;
-            g2.drawString(sl, sx, curY + sfm.getAscent());
-            curY += Math.round(sfm.getHeight() * 1.35f);
-        }
-
-        curY += 16;
-
-        // 4. Hero Search Bar: big white pill + pink Search button + popular pills
-        int searchW = Math.min(620, width - padX * 2);
-        int searchH = 54;
-        int searchX = (width - searchW) / 2;
-        int searchY = curY;
-
-        RoundRectangle2D searchPill = new RoundRectangle2D.Float(searchX, searchY, searchW, searchH, searchH, searchH);
-        g2.setColor(Color.WHITE);
-        g2.fill(searchPill);
-        g2.setColor(new Color(0, 0, 0, 20));
-        g2.fill(new RoundRectangle2D.Float(searchX, searchY + 4, searchW, searchH, searchH, searchH));
-        g2.setColor(Theme.cardBorder());
-        g2.setStroke(new BasicStroke(1.2f));
-        g2.draw(searchPill);
-
-        int sBtnW = 110;
-        int sBtnH = 42;
-        int sBtnX = searchX + searchW - sBtnW - 6;
-        int sBtnY = searchY + 6;
-
-        heroSearchBox.setBounds(searchX + 16, searchY + 5, searchW - sBtnW - 28, searchH - 10);
-        heroSearchBox.paint(g2);
-
-        Draw.drawPinkPillButton(g2, sBtnX, sBtnY, sBtnW, sBtnH, "Search", false, false, false, 0f, 0f);
-
-        curY += searchH + 16;
-
-        // Popular pills row (jumping on hover, responsive wrap)
-        g2.setFont(Theme.fontSmallBold());
-        FontMetrics pfm = g2.getFontMetrics();
-        for (JumpingPill p : popularPills) {
-            p.w = pfm.stringWidth(p.label) + 24;
-            p.h = 26;
-        }
-
-        int popX = padX;
-        int popY = curY;
-        g2.setColor(Theme.textMuted());
-        g2.drawString("Popular:", popX, popY + 18);
-        popX += pfm.stringWidth("Popular:") + 14;
-
-        for (JumpingPill pill : popularPills) {
-            if (popX + pill.w > width - padX) {
-                popX = padX;
-                popY += pill.h + 8;
-            }
-            pill.x = popX;
-            pill.y = Math.round(popY + pill.jumpY.getValue());
-            RoundRectangle2D pillShape = new RoundRectangle2D.Float(pill.x, pill.y, pill.w, pill.h, pill.h, pill.h);
-
-            g2.setColor(pill.hovered ? Theme.INK_DARK : (Theme.isDark ? new Color(255, 255, 255, 12) : Color.WHITE));
-            g2.fill(pillShape);
+            // 1. Eyebrow badge
+            int badgeH = 32;
+            int badgeW = 230;
+            RoundRectangle2D badgeShape = new RoundRectangle2D.Float(leftX, leftY, badgeW, badgeH, badgeH, badgeH);
+            g2.setColor(Theme.isDark ? new Color(255, 255, 255, 12) : Color.WHITE);
+            g2.fill(badgeShape);
             g2.setColor(Theme.cardBorder());
-            g2.setStroke(new BasicStroke(1.0f));
-            g2.draw(pillShape);
+            g2.setStroke(new BasicStroke(1.2f));
+            g2.draw(badgeShape);
+            Draw.drawRadarBeacon(g2, leftX + 16, leftY + badgeH / 2, Theme.BRAND_PINK);
+            g2.setFont(Theme.fontSmallBold());
+            FontMetrics bfm = g2.getFontMetrics();
+            g2.setColor(Theme.textPrimary());
+            g2.drawString("Skill-based team formation", leftX + 32, leftY + (badgeH - bfm.getHeight()) / 2 + bfm.getAscent());
 
-            g2.setColor(pill.hovered ? Color.WHITE : Theme.textPrimary());
-            int ptx = pill.x + (pill.w - pfm.stringWidth(pill.label)) / 2;
-            int pty = pill.y + (pill.h - pfm.getHeight()) / 2 + pfm.getAscent();
-            g2.drawString(pill.label, ptx, pty);
+            leftY += badgeH + 20;
 
-            popX += pill.w + 8;
-        }
+            // 2. Headline: "Build Your Dream Team. Bring Ideas to Life."
+            Font heroWidescreenFont = new Font(Font.SANS_SERIF, Font.BOLD, Math.round(42 * Theme.fontScale));
+            g2.setFont(heroWidescreenFont);
+            FontMetrics hfm = g2.getFontMetrics();
+            String h1 = "Build Your Dream ";
+            String h2 = "Team.";
+            String h3 = "Bring Ideas to Life.";
 
-        curY = popY + 38;
+            float wordDelay1 = Math.max(0f, Math.min(1f, (intro - 0.1f) / 0.5f));
+            float wordDelay2 = Math.max(0f, Math.min(1f, (intro - 0.22f) / 0.5f));
+            float wordDelay3 = Math.max(0f, Math.min(1f, (intro - 0.35f) / 0.5f));
 
-        // 5. CTAs: "Get Started, it's free" (pink pill, magnetic) and "See how it works" (ghost)
-        if (width >= 600) {
-            btn1W = 210;
-            btn2W = 180;
-            int ctaTotalW = btn1W + 16 + btn2W;
-            btn1X = (width - ctaTotalW) / 2;
-            btn1Y = curY;
-            btn2X = btn1X + btn1W + 16;
-            btn2Y = curY;
+            int wordY1 = leftY + hfm.getAscent() + Math.round(35 * (1f - Anim.easeOutCubic(wordDelay1)));
+            int wordY2 = leftY + hfm.getAscent() + Math.round(35 * (1f - Anim.easeOutCubic(wordDelay2)));
+            int wordY3 = leftY + hfm.getHeight() + 10 + hfm.getAscent() + Math.round(35 * (1f - Anim.easeOutCubic(wordDelay3)));
 
-            Draw.drawPinkPillButton(g2, btn1X, btn1Y, btn1W, btn1H, "Get Started, it's free",
+            g2.setColor(Theme.textPrimary());
+            g2.drawString(h1, leftX, wordY1);
+
+            int teamX = leftX + hfm.stringWidth(h1);
+            g2.setColor(Theme.BRAND_PINK);
+            g2.drawString(h2, teamX, wordY2);
+
+            // Self-drawing squiggle under "Team."
+            Draw.drawPinkSquiggle(g2, teamX, wordY2 + 8, hfm.stringWidth(h2), squiggleProgress);
+
+            g2.setColor(Theme.textPrimary());
+            g2.drawString(h3, leftX, wordY3);
+
+            leftY = wordY3 + 24;
+
+            // 3. Subtitle
+            g2.setFont(Theme.fontSubtitle());
+            FontMetrics sfm = g2.getFontMetrics();
+            g2.setColor(Theme.textSecondary());
+            String sub = "Find skilled collaborators, join exciting projects, and turn your ideas into reality. Connect with developers, designers, and creators worldwide.";
+            List<String> subLines = Draw.wrapText(sub, sfm, leftW - 10);
+            for (String sl : subLines) {
+                g2.drawString(sl, leftX, leftY + sfm.getAscent());
+                leftY += Math.round(sfm.getHeight() * 1.35f);
+            }
+
+            leftY += 18;
+
+            // 4. CTA Buttons: "Find Teammates" & "Explore Projects"
+            btn1W = 185;
+            btn2W = 175;
+            btn1X = leftX;
+            btn1Y = leftY;
+            btn2X = leftX + btn1W + 16;
+            btn2Y = leftY;
+
+            Draw.drawPinkPillButton(g2, btn1X, btn1Y, btn1W, btn1H, "Find Teammates",
                     btn1Hovered, false, false, magnet1X.getValue(), magnet1Y.getValue());
 
-            Draw.drawGhostButton(g2, btn2X, btn2Y, btn2W, btn2H, "See how it works",
+            Draw.drawGhostButton(g2, btn2X, btn2Y, btn2W, btn2H, "Explore Projects",
                     btn2Hovered, false, false);
 
-            curY += btn1H + 48;
+            leftY += btn1H + 28;
+
+            // 5. Search Bar & Popular Pills
+            int searchW = Math.min(leftW, 520);
+            int searchH = 50;
+            int searchX = leftX;
+            int searchY = leftY;
+
+            RoundRectangle2D searchPill = new RoundRectangle2D.Float(searchX, searchY, searchW, searchH, searchH, searchH);
+            g2.setColor(Color.WHITE);
+            g2.fill(searchPill);
+            g2.setColor(new Color(0, 0, 0, 18));
+            g2.fill(new RoundRectangle2D.Float(searchX, searchY + 3, searchW, searchH, searchH, searchH));
+            g2.setColor(Theme.cardBorder());
+            g2.setStroke(new BasicStroke(1.2f));
+            g2.draw(searchPill);
+
+            int sBtnW = 96;
+            int sBtnH = 38;
+            int sBtnX = searchX + searchW - sBtnW - 6;
+            int sBtnY = searchY + 6;
+
+            heroSearchBox.setBounds(searchX + 16, searchY + 5, searchW - sBtnW - 26, searchH - 10);
+            heroSearchBox.paint(g2);
+            Draw.drawPinkPillButton(g2, sBtnX, sBtnY, sBtnW, sBtnH, "Search", false, false, false, 0f, 0f);
+
+            leftY += searchH + 14;
+
+            // Popular pills
+            g2.setFont(Theme.fontSmallBold());
+            FontMetrics pfm = g2.getFontMetrics();
+            for (JumpingPill p : popularPills) {
+                p.w = pfm.stringWidth(p.label) + 22;
+                p.h = 26;
+            }
+
+            int popX = leftX;
+            int popY = leftY;
+            g2.setColor(Theme.textMuted());
+            g2.drawString("Popular:", popX, popY + 17);
+            popX += pfm.stringWidth("Popular:") + 12;
+
+            for (JumpingPill pill : popularPills) {
+                if (popX + pill.w > leftX + leftW) {
+                    popX = leftX;
+                    popY += pill.h + 8;
+                }
+                pill.x = popX;
+                pill.y = Math.round(popY + pill.jumpY.getValue());
+                RoundRectangle2D pillShape = new RoundRectangle2D.Float(pill.x, pill.y, pill.w, pill.h, pill.h, pill.h);
+
+                g2.setColor(pill.hovered ? Theme.INK_DARK : (Theme.isDark ? new Color(255, 255, 255, 12) : Color.WHITE));
+                g2.fill(pillShape);
+                g2.setColor(Theme.cardBorder());
+                g2.setStroke(new BasicStroke(1.0f));
+                g2.draw(pillShape);
+
+                g2.setColor(pill.hovered ? Color.WHITE : Theme.textPrimary());
+                int ptx = pill.x + (pill.w - pfm.stringWidth(pill.label)) / 2;
+                int pty = pill.y + (pill.h - pfm.getHeight()) / 2 + pfm.getAscent();
+                g2.drawString(pill.label, ptx, pty);
+
+                popX += pill.w + 8;
+            }
+
+            int leftBottom = popY + 34;
+
+            // ==================== RIGHT COLUMN: 3D TEAM ILLUSTRATION ====================
+            heroImgW = Math.min(540, rightW);
+            heroImgH = Math.round(heroImgW * 235f / 316f);
+            heroImgX = rightX + (rightW - heroImgW) / 2;
+
+            float floatBob = (!heroImgHovered && Theme.motionEnabled) ? (float) Math.sin(Anim.globalTime * 2.0f) * 6.0f : 0f;
+            heroImgY = Math.round(curY + 30 + floatBob - heroImgLift.getValue());
+
+            paintHeroIllustration(g2, heroImgX, heroImgY, heroImgW, heroImgH);
+
+            curY = Math.max(leftBottom, heroImgY + heroImgH) + 36;
+
         } else {
-            btn1W = Math.min(280, width - padX * 2);
-            btn2W = btn1W;
-            btn1X = (width - btn1W) / 2;
-            btn1Y = curY;
-            btn2X = btn1X;
-            btn2Y = btn1Y + btn1H + 12;
+            // ==================== TABLET & MOBILE CENTERED HERO ====================
+            // 1. Eyebrow badge
+            int badgeH = 34;
+            int badgeW = 230;
+            int badgeX = (width - badgeW) / 2;
+            RoundRectangle2D badgeShape = new RoundRectangle2D.Float(badgeX, curY, badgeW, badgeH, badgeH, badgeH);
+            g2.setColor(Theme.isDark ? new Color(255, 255, 255, 12) : Color.WHITE);
+            g2.fill(badgeShape);
+            g2.setColor(Theme.cardBorder());
+            g2.setStroke(new BasicStroke(1.2f));
+            g2.draw(badgeShape);
+            Draw.drawRadarBeacon(g2, badgeX + 18, curY + badgeH / 2, Theme.BRAND_PINK);
+            g2.setFont(Theme.fontSmallBold());
+            FontMetrics bfm = g2.getFontMetrics();
+            g2.setColor(Theme.textPrimary());
+            g2.drawString("Skill-based team formation", badgeX + 34, curY + (badgeH - bfm.getHeight()) / 2 + bfm.getAscent());
 
-            Draw.drawPinkPillButton(g2, btn1X, btn1Y, btn1W, btn1H, "Get Started, it's free",
-                    btn1Hovered, false, false, 0f, 0f);
+            curY += badgeH + 22;
 
-            Draw.drawGhostButton(g2, btn2X, btn2Y, btn2W, btn2H, "See how it works",
-                    btn2Hovered, false, false);
+            // 2. Headline
+            g2.setFont(isMobile ? Theme.fontHeroMobile() : Theme.fontHero());
+            FontMetrics hfm = g2.getFontMetrics();
+            String h1 = "Build Your Dream ";
+            String h2 = "Team.";
+            String h3 = "Bring Ideas to Life.";
 
-            curY += btn1H * 2 + 12 + 40;
+            int totalH1W = hfm.stringWidth(h1) + hfm.stringWidth(h2);
+            int line1X = (width - totalH1W) / 2;
+            int line2X = (width - hfm.stringWidth(h3)) / 2;
+
+            float wordDelay1 = Math.max(0f, Math.min(1f, (intro - 0.1f) / 0.5f));
+            float wordDelay2 = Math.max(0f, Math.min(1f, (intro - 0.22f) / 0.5f));
+            float wordDelay3 = Math.max(0f, Math.min(1f, (intro - 0.35f) / 0.5f));
+
+            int wordY1 = curY + hfm.getAscent() + Math.round(35 * (1f - Anim.easeOutCubic(wordDelay1)));
+            int wordY2 = curY + hfm.getAscent() + Math.round(35 * (1f - Anim.easeOutCubic(wordDelay2)));
+            int wordY3 = curY + hfm.getHeight() + 8 + hfm.getAscent() + Math.round(35 * (1f - Anim.easeOutCubic(wordDelay3)));
+
+            g2.setColor(Theme.textPrimary());
+            g2.drawString(h1, line1X, wordY1);
+
+            int teamX = line1X + hfm.stringWidth(h1);
+            g2.setColor(Theme.BRAND_PINK);
+            g2.drawString(h2, teamX, wordY2);
+            Draw.drawPinkSquiggle(g2, teamX, wordY2 + 8, hfm.stringWidth(h2), squiggleProgress);
+
+            g2.setColor(Theme.textPrimary());
+            g2.drawString(h3, line2X, wordY3);
+
+            curY += hfm.getHeight() * 2 + 18;
+
+            // 3. Subtext
+            g2.setFont(Theme.fontSubtitle());
+            FontMetrics sfm = g2.getFontMetrics();
+            g2.setColor(Theme.textSecondary());
+            String sub = "Find skilled collaborators, join exciting projects, and turn your ideas into reality. Connect with developers, designers, and creators worldwide.";
+            int subMaxW = Math.min(640, width - padX * 2);
+            List<String> subLines = Draw.wrapText(sub, sfm, subMaxW);
+            for (String sl : subLines) {
+                int sx = (width - sfm.stringWidth(sl)) / 2;
+                g2.drawString(sl, sx, curY + sfm.getAscent());
+                curY += Math.round(sfm.getHeight() * 1.35f);
+            }
+
+            curY += 18;
+
+            // 4. CTA Buttons
+            if (width >= 600) {
+                btn1W = 185;
+                btn2W = 175;
+                int ctaTotalW = btn1W + 16 + btn2W;
+                btn1X = (width - ctaTotalW) / 2;
+                btn1Y = curY;
+                btn2X = btn1X + btn1W + 16;
+                btn2Y = curY;
+
+                Draw.drawPinkPillButton(g2, btn1X, btn1Y, btn1W, btn1H, "Find Teammates",
+                        btn1Hovered, false, false, magnet1X.getValue(), magnet1Y.getValue());
+
+                Draw.drawGhostButton(g2, btn2X, btn2Y, btn2W, btn2H, "Explore Projects",
+                        btn2Hovered, false, false);
+
+                curY += btn1H + 28;
+            } else {
+                btn1W = Math.min(280, width - padX * 2);
+                btn2W = btn1W;
+                btn1X = (width - btn1W) / 2;
+                btn1Y = curY;
+                btn2X = btn1X;
+                btn2Y = btn1Y + btn1H + 12;
+
+                Draw.drawPinkPillButton(g2, btn1X, btn1Y, btn1W, btn1H, "Find Teammates",
+                        btn1Hovered, false, false, 0f, 0f);
+
+                Draw.drawGhostButton(g2, btn2X, btn2Y, btn2W, btn2H, "Explore Projects",
+                        btn2Hovered, false, false);
+
+                curY += btn1H * 2 + 12 + 24;
+            }
+
+            // 5. 3D Team Collaboration Illustration (Centered Showcase)
+            int maxW = Math.min(500, width - padX * 2);
+            heroImgW = Math.max(280, maxW);
+            heroImgH = Math.round(heroImgW * 235f / 316f);
+            heroImgX = (width - heroImgW) / 2;
+
+            float floatBob = (!heroImgHovered && Theme.motionEnabled) ? (float) Math.sin(Anim.globalTime * 2.0f) * 5.0f : 0f;
+            heroImgY = Math.round(curY + floatBob - heroImgLift.getValue());
+
+            paintHeroIllustration(g2, heroImgX, heroImgY, heroImgW, heroImgH);
+
+            curY += heroImgH + 28;
+
+            // 6. Search Bar & Popular Pills
+            int searchW = Math.min(560, width - padX * 2);
+            int searchH = 52;
+            int searchX = (width - searchW) / 2;
+            int searchY = curY;
+
+            RoundRectangle2D searchPill = new RoundRectangle2D.Float(searchX, searchY, searchW, searchH, searchH, searchH);
+            g2.setColor(Color.WHITE);
+            g2.fill(searchPill);
+            g2.setColor(new Color(0, 0, 0, 18));
+            g2.fill(new RoundRectangle2D.Float(searchX, searchY + 3, searchW, searchH, searchH, searchH));
+            g2.setColor(Theme.cardBorder());
+            g2.setStroke(new BasicStroke(1.2f));
+            g2.draw(searchPill);
+
+            int sBtnW = 100;
+            int sBtnH = 40;
+            int sBtnX = searchX + searchW - sBtnW - 6;
+            int sBtnY = searchY + 6;
+
+            heroSearchBox.setBounds(searchX + 16, searchY + 5, searchW - sBtnW - 26, searchH - 10);
+            heroSearchBox.paint(g2);
+            Draw.drawPinkPillButton(g2, sBtnX, sBtnY, sBtnW, sBtnH, "Search", false, false, false, 0f, 0f);
+
+            curY += searchH + 14;
+
+            // Popular pills
+            g2.setFont(Theme.fontSmallBold());
+            FontMetrics pfm = g2.getFontMetrics();
+            for (JumpingPill p : popularPills) {
+                p.w = pfm.stringWidth(p.label) + 22;
+                p.h = 26;
+            }
+
+            int popX = padX;
+            int popY = curY;
+            g2.setColor(Theme.textMuted());
+            g2.drawString("Popular:", popX, popY + 17);
+            popX += pfm.stringWidth("Popular:") + 12;
+
+            for (JumpingPill pill : popularPills) {
+                if (popX + pill.w > width - padX) {
+                    popX = padX;
+                    popY += pill.h + 8;
+                }
+                pill.x = popX;
+                pill.y = Math.round(popY + pill.jumpY.getValue());
+                RoundRectangle2D pillShape = new RoundRectangle2D.Float(pill.x, pill.y, pill.w, pill.h, pill.h, pill.h);
+
+                g2.setColor(pill.hovered ? Theme.INK_DARK : (Theme.isDark ? new Color(255, 255, 255, 12) : Color.WHITE));
+                g2.fill(pillShape);
+                g2.setColor(Theme.cardBorder());
+                g2.setStroke(new BasicStroke(1.0f));
+                g2.draw(pillShape);
+
+                g2.setColor(pill.hovered ? Color.WHITE : Theme.textPrimary());
+                int ptx = pill.x + (pill.w - pfm.stringWidth(pill.label)) / 2;
+                int pty = pill.y + (pill.h - pfm.getHeight()) / 2 + pfm.getAscent();
+                g2.drawString(pill.label, ptx, pty);
+
+                popX += pill.w + 8;
+            }
+
+            curY = popY + 38;
         }
 
-        // 6. Masonry of Member Shots (Motion Spec #5: Parallax columns drifting at different speeds)
+        // ==================== MASONRY MEMBER SHOTS ====================
         int gridBottom = paintMasonryGrid(g2, curY, width, padX, viewportY);
+        curY = gridBottom + 44;
 
-        // Place Marquee Strip with generous 48px breathing room below the lowest card
-        curY = gridBottom + 48;
-
-        // 7. Marquee Strip (Motion Spec #9: endless row of skill pills & audiences)
+        // ==================== MARQUEE TICKER STRIP ====================
         paintMarqueeStrip(g2, curY, width);
+
+        g2.dispose();
+    }
+
+    private void paintHeroIllustration(Graphics2D g, int x, int y, int w, int h) {
+        if (heroImage == null) return;
+
+        Graphics2D g2 = (Graphics2D) g.create();
+        Draw.setQualityHints(g2);
+        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+
+        // Ambient radial glow behind the illustration
+        Draw.drawRadialBlob(g2, x + w * 0.5f, y + h * 0.5f, w * 0.55f, Theme.BRAND_PINK, Theme.isDark ? 0.28f : 0.22f);
+
+        // Soft layered drop shadow
+        int shadowOffset = heroImgHovered ? 14 : 7;
+        int shadowAlpha = heroImgHovered ? (Theme.isDark ? 85 : 35) : (Theme.isDark ? 45 : 18);
+        g2.setColor(new Color(0, 0, 0, shadowAlpha));
+        g2.fillRoundRect(x + 2, y + shadowOffset, w - 4, h, 24, 24);
+
+        // Rounded image container
+        RoundRectangle2D cardShape = new RoundRectangle2D.Float(x, y, w, h, 24, 24);
+
+        // Clip and draw image
+        Shape oldClip = g2.getClip();
+        g2.clip(cardShape);
+        g2.drawImage(heroImage, x, y, w, h, null);
+        g2.setClip(oldClip);
+
+        // 1.2px Border
+        g2.setColor(heroImgHovered ? new Color(Theme.BRAND_PINK.getRed(), Theme.BRAND_PINK.getGreen(), Theme.BRAND_PINK.getBlue(), 120) : Theme.cardBorder());
+        g2.setStroke(new BasicStroke(1.2f));
+        g2.draw(cardShape);
 
         g2.dispose();
     }
@@ -398,8 +627,6 @@ public class Hero implements Section {
         int[] colY = new int[cols];
         for (int i = 0; i < cols; i++) colY[i] = startY;
 
-        // Motion Spec #5: Bounded Parallax Masonry offsets
-        // Subtle organic float that never allows cards to collide with adjacent sections
         float factorCol0 = Math.max(-20f, Math.min(20f, viewportY * 0.05f));
         float factorCol1 = Math.max(-20f, Math.min(20f, -viewportY * 0.05f));
         float factorCol2 = Math.max(-20f, Math.min(20f, viewportY * 0.03f));
@@ -482,15 +709,23 @@ public class Hero implements Section {
     public boolean onClick(int mx, int my) {
         if (heroSearchBox.onMouseDown(mx, my)) return true;
 
+        // Click on 3D team illustration scrolls to match engine demo
+        if (heroImage != null && mx >= heroImgX && mx <= heroImgX + heroImgW && my >= heroImgY && my <= heroImgY + heroImgH) {
+            if (listener != null) listener.scrollToSection("demo");
+            return true;
+        }
+
+        // Button 1: "Find Teammates"
         if (mx >= btn1X && mx <= btn1X + btn1W && my >= btn1Y && my <= btn1Y + btn1H) {
             if (listener != null) {
-                listener.openModal("Get Started with TeamUp", "Join now to explore projects, match with peers, and build your next portfolio showcase.", true);
+                listener.openModal("Create your TeamUp Account", "Join thousands of students, developers, and researchers building great projects.", true);
             }
             return true;
         }
 
+        // Button 2: "Explore Projects"
         if (mx >= btn2X && mx <= btn2X + btn2W && my >= btn2Y && my <= btn2Y + btn2H) {
-            if (listener != null) listener.scrollToSection("how-it-works");
+            if (listener != null) listener.scrollToSection("demo");
             return true;
         }
 
@@ -519,9 +754,13 @@ public class Hero implements Section {
 
         boolean p1 = btn1Hovered;
         boolean p2 = btn2Hovered;
+        boolean pImg = heroImgHovered;
+
         btn1Hovered = (mx >= btn1X && mx <= btn1X + btn1W && my >= btn1Y && my <= btn1Y + btn1H);
         btn2Hovered = (mx >= btn2X && mx <= btn2X + btn2W && my >= btn2Y && my <= btn2Y + btn2H);
-        if (btn1Hovered != p1 || btn2Hovered != p2) changed = true;
+        heroImgHovered = (heroImage != null && mx >= heroImgX && mx <= heroImgX + heroImgW && my >= heroImgY && my <= heroImgY + heroImgH);
+
+        if (btn1Hovered != p1 || btn2Hovered != p2 || heroImgHovered != pImg) changed = true;
 
         for (JumpingPill pill : popularPills) {
             boolean was = pill.hovered;
@@ -550,6 +789,13 @@ public class Hero implements Section {
 
     @Override
     public boolean onKey(KeyEvent e) {
-        return heroSearchBox.onKey(e);
+        if (heroSearchBox.focused) {
+            if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+                if (listener != null) listener.scrollToSection("demo");
+                return true;
+            }
+            return heroSearchBox.onKey(e);
+        }
+        return false;
     }
 }
