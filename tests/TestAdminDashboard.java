@@ -89,8 +89,8 @@ public class TestAdminDashboard {
         dashboard.paint(g, 1366, 768);
         System.out.println("  ✓ Projects view & filter tabs functioning.");
 
-        // Test 4: Reports & Reviews View & Actions
-        System.out.println("\n[Test 4] Testing Reports & Reviews 60/40 Split View...");
+        // Test 4: Reports View & Actions
+        System.out.println("\n[Test 4] Testing Reports 60/40 Split View...");
         dashboard.navigateTo(AdminSidebar.AdminNavItem.REPORTS);
         dashboard.update(0.016f);
         dashboard.paint(g, 1366, 768);
@@ -138,18 +138,8 @@ public class TestAdminDashboard {
         }
         System.out.println("  ✓ Global search found " + results.size() + " matches across users/projects.");
 
-        // Test 7: Activity Logs View & Pagination
-        System.out.println("\n[Test 7] Testing Activity Logs & Pagination...");
-        dashboard.navigateTo(AdminSidebar.AdminNavItem.ACTIVITY);
-        dashboard.update(0.016f);
-        dashboard.paint(g, 1366, 768);
-        // Click page 2
-        dashboard.onClick(1200, 680);
-        dashboard.paint(g, 1366, 768);
-        System.out.println("  ✓ Activity logs 9-row audit table & pagination verified.");
-
-        // Test 8: Platform Settings View & Persistence
-        System.out.println("\n[Test 8] Testing Platform Settings View & Persistence...");
+        // Test 7: Platform Settings View & Persistence
+        System.out.println("\n[Test 7] Testing Platform Settings View & Persistence...");
         dashboard.navigateTo(AdminSidebar.AdminNavItem.SETTINGS);
         dashboard.update(0.016f);
         dashboard.paint(g, 1366, 768);

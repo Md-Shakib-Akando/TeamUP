@@ -41,7 +41,7 @@ public class DashboardSidebar {
                 g.setColor(DashboardTheme.PURPLE_TINT_BG);
                 g.fill(itemShape);
             } else if (isHov) {
-                g.setColor(new Color(0xF1, 0xF5, 0xF9));
+                g.setColor(new Color(0xF5, 0xF3, 0xEF));
                 g.fill(itemShape);
             }
 
@@ -58,7 +58,7 @@ public class DashboardSidebar {
                 int bx = itemX + itemW - bw - 10;
                 int by = itemY + (itemH - bh) / 2;
                 RoundRectangle2D bShape = new RoundRectangle2D.Float(bx, by, bw, bh, bh, bh);
-                g.setColor(new Color(0xEE, 0xF2, 0xFF));
+                g.setColor(DashboardTheme.PURPLE_TINT_BG);
                 g.fill(bShape);
                 g.setFont(DashboardTheme.FONT_BOLD_10);
                 g.setColor(DashboardTheme.BRAND_PURPLE);
@@ -93,7 +93,7 @@ public class DashboardSidebar {
         int avX = x + padX;
         int avY = bottomY + 14;
         int avSize = 36;
-        g.setColor(new Color(0xED, 0xE9, 0xFE));
+        g.setColor(DashboardTheme.PURPLE_TINT_BG);
         g.fillOval(avX, avY, avSize, avSize);
         g.setFont(DashboardTheme.FONT_BOLD_12);
         g.setColor(DashboardTheme.BRAND_PURPLE);

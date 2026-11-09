@@ -106,10 +106,10 @@ public class AdminProjects {
         int pillX = x + titleW + 12;
         int pillY = y + 8;
         RoundRectangle2D pill = new RoundRectangle2D.Float(pillX, pillY, 76, 20, 10, 10);
-        g.setColor(new Color(0xF1, 0xF5, 0xF9));
+        g.setColor(AdminTheme.BRAND_TINT);
         g.fill(pill);
         g.setFont(AdminTheme.FONT_REG_11);
-        g.setColor(AdminTheme.TEXT_MUTED);
+        g.setColor(AdminTheme.BRAND_PRIMARY);
         g.drawString("Sample data", pillX + 8, pillY + 14);
 
         // Subtitle
@@ -121,7 +121,7 @@ public class AdminProjects {
         exportBtnX = x + w - exportBtnW;
         exportBtnY = y + 8;
         RoundRectangle2D expBox = new RoundRectangle2D.Float(exportBtnX, exportBtnY, exportBtnW, exportBtnH, 8, 8);
-        g.setColor(exportHovered ? new Color(0xF8, 0xFA, 0xFC) : Color.WHITE);
+        g.setColor(exportHovered ? new Color(0xF5, 0xF3, 0xEF) : Color.WHITE);
         g.fill(expBox);
         g.setColor(AdminTheme.BORDER_COLOR);
         g.setStroke(new BasicStroke(1.2f));
@@ -235,7 +235,7 @@ public class AdminProjects {
 
         // Header
         int thY = y;
-        g.setColor(new Color(0xF8, 0xFA, 0xFC));
+        g.setColor(AdminTheme.BG_CANVAS);
         g.fillRect(x + 1, thY + 1, w - 2, 38);
         g.setColor(AdminTheme.BORDER_COLOR);
         g.drawLine(x, thY + 38, x + w, thY + 38);

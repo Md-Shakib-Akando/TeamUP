@@ -8,7 +8,7 @@ import java.awt.geom.RoundRectangle2D;
  * - AdminOverview (Overview)
  * - AdminUsers (Users)
  * - AdminProjects (Projects)
- * - AdminReports (Reports & Reviews)
+ * - AdminReports (Reports)
  * - AdminCategories (Categories & Skills)
  * - AdminActivity (Activity Logs)
  * - AdminSettings (Platform Settings)
@@ -35,7 +35,6 @@ public class AdminDashboard {
     private final AdminProjects projectsView;
     private final AdminReports reportsView;
     private final AdminCategories categoriesView;
-    private final AdminActivity activityView;
     private final AdminSettings settingsView;
 
     // Viewport & scrolling
@@ -60,7 +59,6 @@ public class AdminDashboard {
         this.projectsView = new AdminProjects();
         this.reportsView = new AdminReports();
         this.categoriesView = new AdminCategories();
-        this.activityView = new AdminActivity();
         this.settingsView = new AdminSettings();
 
         // Initial breadcrumb
@@ -140,8 +138,6 @@ public class AdminDashboard {
                 return reportsView.getComputedHeight(contentW);
             case SKILLS:
                 return categoriesView.getComputedHeight(contentW);
-            case ACTIVITY:
-                return activityView.getComputedHeight(contentW);
             case SETTINGS:
                 return settingsView.getComputedHeight(contentW);
             default:
@@ -166,9 +162,6 @@ public class AdminDashboard {
             case SKILLS:
                 categoriesView.paint(g, x, y, w, h, this);
                 break;
-            case ACTIVITY:
-                activityView.paint(g, x, y, w, h, this);
-                break;
             case SETTINGS:
                 settingsView.paint(g, x, y, w, h, this);
                 break;
@@ -191,7 +184,7 @@ public class AdminDashboard {
         int ty = h - th - 32;
 
         RoundRectangle2D tShape = new RoundRectangle2D.Float(tx, ty, tw, th, 12, 12);
-        g2.setColor(new Color(15, 23, 42, Math.round(230 * alpha)));
+        g2.setColor(new Color(0x0D, 0x0C, 0x22, Math.round(230 * alpha)));
         g2.fill(tShape);
 
         g2.setColor(new Color(255, 255, 255, Math.round(255 * alpha)));
@@ -274,11 +267,6 @@ public class AdminDashboard {
         int sideW = 230;
         int headH = 68;
 
-        // Header active popover consumes click first even if extending below headH
-        if (header.isAnyPopoverOpen()) {
-            if (header.onClick(mx, my, this)) return true;
-        }
-
         // Sidebar click
         if (mx < sideW) {
             return sidebar.onClick(mx, my, this);
@@ -302,8 +290,6 @@ public class AdminDashboard {
                 return reportsView.onClick(mx, cy, this);
             case SKILLS:
                 return categoriesView.onClick(mx, cy, this);
-            case ACTIVITY:
-                return activityView.onClick(mx, cy, this);
             case SETTINGS:
                 return settingsView.onClick(mx, cy, this);
             default:
@@ -338,9 +324,6 @@ public class AdminDashboard {
                 break;
             case SKILLS:
                 c2 = categoriesView.onMouseMove(mx, cy);
-                break;
-            case ACTIVITY:
-                c2 = activityView.onMouseMove(mx, cy);
                 break;
             case SETTINGS:
                 c2 = settingsView.onMouseMove(mx, cy);
@@ -386,9 +369,6 @@ public class AdminDashboard {
                 break;
             case SKILLS:
                 handled = categoriesView.onKey(ch, keyCode, this);
-                break;
-            case ACTIVITY:
-                handled = activityView.onKey(ch, keyCode, this);
                 break;
             case SETTINGS:
                 handled = settingsView.onKey(ch, keyCode, this);

@@ -227,9 +227,9 @@ public class DashboardModals {
         // Header with icon badge
         int iconBadgeSize = 36;
         RoundRectangle2D badgeShape = new RoundRectangle2D.Float(x + padX, y + 18, iconBadgeSize, iconBadgeSize, 10, 10);
-        g.setColor(new Color(0xEE, 0xF2, 0xFF));
+        g.setColor(DashboardTheme.PURPLE_TINT_BG);
         g.fill(badgeShape);
-        g.setColor(new Color(0xC7, 0xD2, 0xFE));
+        g.setColor(new Color(0xFC, 0xD6, 0xE6));
         g.setStroke(new BasicStroke(1f));
         g.draw(badgeShape);
 
@@ -416,12 +416,12 @@ public class DashboardModals {
 
             RoundRectangle2D chipShape = new RoundRectangle2D.Float(chipX, chipY, chipW, chipH, 8, 8);
             if (selected) {
-                g.setColor(new Color(0xEE, 0xF2, 0xFF));
+                g.setColor(DashboardTheme.PURPLE_TINT_BG);
                 g.fill(chipShape);
-                g.setColor(new Color(0x63, 0x66, 0xF1));
+                g.setColor(DashboardTheme.BRAND_PURPLE);
                 g.setStroke(new BasicStroke(1.2f));
                 g.draw(chipShape);
-                g.setColor(new Color(0x43, 0x38, 0xCA));
+                g.setColor(DashboardTheme.BRAND_PURPLE);
                 g.drawString(displayLabel, chipX + 9, chipY + 17);
             } else {
                 g.setColor(new Color(0xF8, 0xFA, 0xFC));
@@ -891,7 +891,7 @@ public class DashboardModals {
         for (String msg : dashboard.getChatHistory()) {
             RoundRectangle2D bubble = new RoundRectangle2D.Float(x + padX, curY, innerW, 40, 8, 8);
             boolean isAlex = msg.startsWith("Alex Morgan");
-            g.setColor(isAlex ? new Color(0xEE, 0xF2, 0xFF) : new Color(0xF8, 0xFA, 0xFC));
+            g.setColor(isAlex ? DashboardTheme.PURPLE_TINT_BG : new Color(0xF8, 0xFA, 0xFC));
             g.fill(bubble);
             g.setColor(new Color(0xE2, 0xE8, 0xF0));
             g.draw(bubble);

@@ -25,6 +25,7 @@ public class DashboardOverview {
     private int viewAllBtnX, viewAllBtnY, viewAllBtnW, viewAllBtnH;
     private int allTasksBtnX, allTasksBtnY, allTasksBtnW, allTasksBtnH;
     private int viewMessagesBtnX, viewMessagesBtnY, viewMessagesBtnW, viewMessagesBtnH;
+    private int unreadMsgBtnX, unreadMsgBtnY, unreadMsgBtnW, unreadMsgBtnH;
 
     private int totalContentHeight = 1100;
 
@@ -66,12 +67,12 @@ public class DashboardOverview {
         int bannerH = 72;
         RoundRectangle2D bannerShape = new RoundRectangle2D.Float(startX + padX, curY, contentW, bannerH, 14, 14);
         GradientPaint bannerGrad = new GradientPaint(
-                startX + padX, curY, new Color(0xF8, 0xFA, 0xFD),
-                startX + padX + contentW, curY, new Color(0xEE, 0xF2, 0xFF)
+                startX + padX, curY, new Color(0xFF, 0xF5, 0xF8),
+                startX + padX + contentW, curY, new Color(0xFD, 0xEE, 0xF4)
         );
         g.setPaint(bannerGrad);
         g.fill(bannerShape);
-        g.setColor(new Color(0xE0, 0xE7, 0xFF));
+        g.setColor(new Color(0xFC, 0xD6, 0xE6));
         g.setStroke(new BasicStroke(1.2f));
         g.draw(bannerShape);
 
@@ -81,7 +82,7 @@ public class DashboardOverview {
         int spSize = 38;
         g.setColor(Color.WHITE);
         g.fillOval(spX, spY, spSize, spSize);
-        g.setColor(new Color(0xE0, 0xE7, 0xFF));
+        g.setColor(new Color(0xFC, 0xD6, 0xE6));
         g.drawOval(spX, spY, spSize, spSize);
         g.setColor(DashboardTheme.BRAND_PURPLE);
         drawSparkle(g, spX + 13, spY + 13, 12);
@@ -109,7 +110,7 @@ public class DashboardOverview {
         g.drawString(pct + "% complete", progX, curY + 26);
 
         RoundRectangle2D progTrack = new RoundRectangle2D.Float(progX, progY, progW, progH, progH, progH);
-        g.setColor(new Color(0xE0, 0xE7, 0xFF));
+        g.setColor(new Color(0xFC, 0xD6, 0xE6));
         g.fill(progTrack);
         RoundRectangle2D progFill = new RoundRectangle2D.Float(progX, progY, Math.round(progW * (pct / 100f)), progH, progH, progH);
         g.setColor(DashboardTheme.BRAND_PURPLE);
@@ -270,7 +271,7 @@ public class DashboardOverview {
         int h = p.hitH;
 
         RoundRectangle2D cardShape = new RoundRectangle2D.Float(x, y, w, h, 12, 12);
-        g.setColor(new Color(0xFA, 0xFB, 0xFD));
+        g.setColor(new Color(0xFA, 0xF9, 0xF6));
         g.fill(cardShape);
         g.setColor(DashboardTheme.BORDER_COLOR);
         g.setStroke(new BasicStroke(1.1f));
@@ -337,9 +338,9 @@ public class DashboardOverview {
             int sw = sfm.stringWidth(sk) + 14;
             int sh = 22;
             RoundRectangle2D sPill = new RoundRectangle2D.Float(sx, sy, sw, sh, 6, 6);
-            g.setColor(new Color(0xEE, 0xF2, 0xF6));
+            g.setColor(new Color(0xF4, 0xF2, 0xEE));
             g.fill(sPill);
-            g.setColor(new Color(0x33, 0x41, 0x55));
+            g.setColor(DashboardTheme.TEXT_MUTED);
             g.drawString(sk, sx + 7, sy + 15);
             sx += sw + 6;
         }
@@ -548,7 +549,12 @@ public class DashboardOverview {
         curY += 4;
         g.setFont(DashboardTheme.FONT_REG_12);
         g.setColor(DashboardTheme.TEXT_MUTED);
-        g.drawString("3 unread conversations", x + 20, curY);
+        String unreadText = "3 unread conversations";
+        g.drawString(unreadText, x + 20, curY);
+        unreadMsgBtnX = x + 20;
+        unreadMsgBtnY = curY - 14;
+        unreadMsgBtnW = g.getFontMetrics().stringWidth(unreadText);
+        unreadMsgBtnH = 20;
 
         g.setFont(DashboardTheme.FONT_BOLD_12);
         g.setColor(DashboardTheme.BRAND_PURPLE);
@@ -659,10 +665,14 @@ public class DashboardOverview {
             return true;
         }
 
-        // "View Messages ->"
-        if (mx >= viewMessagesBtnX && mx <= viewMessagesBtnX + viewMessagesBtnW &&
-                my >= viewMessagesBtnY && my <= viewMessagesBtnY + viewMessagesBtnH) {
-            dashboard.openModal(StudentDashboard.ActiveModal.MESSAGES);
+        // "View Messages ->" and "3 unread conversations" -> Navigate to Messages Page
+        boolean clickedMessages = (mx >= viewMessagesBtnX && mx <= viewMessagesBtnX + viewMessagesBtnW &&
+                my >= viewMessagesBtnY && my <= viewMessagesBtnY + viewMessagesBtnH) ||
+                (mx >= unreadMsgBtnX && mx <= unreadMsgBtnX + unreadMsgBtnW &&
+                my >= unreadMsgBtnY && my <= unreadMsgBtnY + unreadMsgBtnH);
+        if (clickedMessages) {
+            dashboard.setActiveNav(StudentDashboard.NavItem.MESSAGES);
+            dashboard.showToast("Opening Messages...");
             return true;
         }
 

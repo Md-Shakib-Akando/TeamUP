@@ -370,7 +370,7 @@ public class StudentDashboard {
 
         // Initial Overview Teammates
         teammates.add(new TeammateItem(
-                "PS", new Color(0xED, 0xE9, 0xFE), new Color(0x6D, 0x28, 0xD9),
+                "PS", DashboardTheme.PURPLE_TINT_BG, DashboardTheme.BRAND_PURPLE,
                 "Priya Shah", "UX/UI designer · UW", "96% sample",
                 "Senior studying HCDE at UW. Focused on user research, Figma prototypes, and accessible design systems.",
                 "University of Washington"
@@ -389,8 +389,8 @@ public class StudentDashboard {
 
         // Initial Overview Activities
         activities.add(new ActivityItem(
-                "PS", new Color(0xED, 0xE9, 0xFE), new Color(0x6D, 0x28, 0xD9),
-                "Priya Shah", "", "Design", new Color(0xF3, 0xE8, 0xFF), new Color(0x7E, 0x22, 0xCE)
+                "PS", DashboardTheme.PURPLE_TINT_BG, DashboardTheme.BRAND_PURPLE,
+                "Priya Shah", "", "Design", DashboardTheme.PURPLE_TINT_BG, DashboardTheme.BRAND_PURPLE
         ));
         activities.add(new ActivityItem(
                 "DK", new Color(0xDC, 0xFC, 0xE7), new Color(0x15, 0x80, 0x3D),

@@ -14,6 +14,10 @@ public class TextBox {
     public boolean hasError = false;
     public boolean isPassword = false;
     public boolean showPassword = false;
+    /** When true the box draws only text/caret (host draws the container). */
+    public boolean bare = false;
+    /** Darker/opaque field for use on frosted glass. */
+    public boolean onGlass = false;
 
     private int caretPos = 0;
     private float caretTimer = 0f;
@@ -74,37 +78,31 @@ public class TextBox {
         int radius = Math.min(16, height / 2);
         RoundRectangle2D shape = new RoundRectangle2D.Float(x, y, width, height, radius, radius);
 
-        // Frosted Glass Background
-        if (Theme.isDark) {
-            g.setColor(focused ? new Color(255, 255, 255, 28) : new Color(255, 255, 255, 15));
-        } else {
-            g.setColor(focused ? new Color(255, 255, 255, 245) : new Color(255, 255, 255, 180));
-        }
-        g.fill(shape);
+        if (!bare) {
+            // Frosted glass field
+            g.setColor(onGlass ? Fx.glassField(focused) : (focused ? Fx.surfaceHi() : Fx.surface()));
+            g.fill(shape);
 
-        // Border & Focus Glow
-        if (hasError) {
-            g.setColor(Theme.ERROR_RED);
-            g.setStroke(new BasicStroke(1.5f));
-            g.draw(shape);
-        } else if (focused) {
-            g.setColor(new Color(Theme.BRAND_PINK.getRed(), Theme.BRAND_PINK.getGreen(), Theme.BRAND_PINK.getBlue(), 50));
-            g.setStroke(new BasicStroke(3.2f));
-            g.draw(new RoundRectangle2D.Float(x - 1, y - 1, width + 2, height + 2, radius + 2, radius + 2));
-
-            g.setColor(Theme.BRAND_PINK);
-            g.setStroke(new BasicStroke(1.6f));
-            g.draw(shape);
-        } else {
-            g.setColor(Theme.inputBorder());
-            g.setStroke(new BasicStroke(1.2f));
-            g.draw(shape);
+            if (hasError) {
+                g.setColor(Theme.ERROR_RED);
+                g.setStroke(new BasicStroke(1.5f));
+                g.draw(shape);
+            } else if (focused) {
+                g.setColor(Fx.a(Fx.PINK, 45));
+                g.setStroke(new BasicStroke(4f));
+                g.draw(new RoundRectangle2D.Float(x - 1.5f, y - 1.5f, width + 3, height + 3, radius + 3, radius + 3));
+                Fx.gradientBorder(g, shape, 1.5f, 1f, 0f);
+            } else {
+                g.setColor(Fx.border());
+                g.setStroke(new BasicStroke(1f));
+                g.draw(shape);
+            }
         }
 
         // Font and metrics
-        g.setFont(Theme.fontBody());
+        g.setFont(Fx.body(15.5f));
         FontMetrics fm = g.getFontMetrics();
-        int padX = 16;
+        int padX = bare ? 2 : 16;
         int textY = y + (height - fm.getHeight()) / 2 + fm.getAscent();
 
         int eyeAreaW = isPassword ? 36 : 0;
@@ -116,7 +114,7 @@ public class TextBox {
         String rText = getRenderText();
 
         if (text.length() == 0 && !focused) {
-            g.setColor(Theme.textMuted());
+            g.setColor(Fx.text3());
             g.drawString(placeholder, x + padX, textY);
         } else {
             if (hasSelection()) {
@@ -131,7 +129,7 @@ public class TextBox {
                 g.fillRect(sx1, y + 8, sw, height - 16);
             }
 
-            g.setColor(Theme.textPrimary());
+            g.setColor(Fx.text());
             g.drawString(rText, x + padX, textY);
 
             if (focused && caretVisible) {

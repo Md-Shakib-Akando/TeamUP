@@ -9,8 +9,9 @@ import java.awt.Font;
 public class Theme {
 
     // Light-first as mandated by PRD Section 5
-    public static boolean isDark = false;
-    public static float themeTransition = 1f; // 0 = dark, 1 = light
+    // Landing page is dark-first ("Aurora Glass"); the nav toggle switches to light.
+    public static boolean isDark = true;
+    public static float themeTransition = 0f; // 0 = dark, 1 = light
 
     public static float fontScale = 1.0f;
     public static boolean motionEnabled = true;
@@ -126,47 +127,47 @@ public class Theme {
 
     // Typography: bold, huge contrast
     public static Font fontHero() {
-        return new Font(Font.SANS_SERIF, Font.BOLD, Math.round(72 * fontScale));
+        return new Font(Fx.family(), Font.BOLD, Math.round(72 * fontScale));
     }
 
     public static Font fontHeroMobile() {
-        return new Font(Font.SANS_SERIF, Font.BOLD, Math.round(42 * fontScale));
+        return new Font(Fx.family(), Font.BOLD, Math.round(42 * fontScale));
     }
 
     public static Font fontTitle() {
-        return new Font(Font.SANS_SERIF, Font.BOLD, Math.round(44 * fontScale));
+        return new Font(Fx.family(), Font.BOLD, Math.round(44 * fontScale));
     }
 
     public static Font fontSectionHeading() {
-        return new Font(Font.SANS_SERIF, Font.BOLD, Math.round(32 * fontScale));
+        return new Font(Fx.family(), Font.BOLD, Math.round(32 * fontScale));
     }
 
     public static Font fontCardTitle() {
-        return new Font(Font.SANS_SERIF, Font.BOLD, Math.round(20 * fontScale));
+        return new Font(Fx.family(), Font.BOLD, Math.round(20 * fontScale));
     }
 
     public static Font fontSubtitle() {
-        return new Font(Font.SANS_SERIF, Font.PLAIN, Math.round(18 * fontScale));
+        return new Font(Fx.family(), Font.PLAIN, Math.round(18 * fontScale));
     }
 
     public static Font fontBody() {
-        return new Font(Font.SANS_SERIF, Font.PLAIN, Math.round(16 * fontScale));
+        return new Font(Fx.family(), Font.PLAIN, Math.round(16 * fontScale));
     }
 
     public static Font fontBodyBold() {
-        return new Font(Font.SANS_SERIF, Font.BOLD, Math.round(16 * fontScale));
+        return new Font(Fx.family(), Font.BOLD, Math.round(16 * fontScale));
     }
 
     public static Font fontSmall() {
-        return new Font(Font.SANS_SERIF, Font.PLAIN, Math.round(13 * fontScale));
+        return new Font(Fx.family(), Font.PLAIN, Math.round(13 * fontScale));
     }
 
     public static Font fontSmallBold() {
-        return new Font(Font.SANS_SERIF, Font.BOLD, Math.round(13 * fontScale));
+        return new Font(Fx.family(), Font.BOLD, Math.round(13 * fontScale));
     }
 
     public static Font fontButton() {
-        return new Font(Font.SANS_SERIF, Font.BOLD, Math.round(15 * fontScale));
+        return new Font(Fx.family(), Font.BOLD, Math.round(15 * fontScale));
     }
 
     public static void zoomIn() {

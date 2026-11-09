@@ -123,24 +123,24 @@ public class DashboardProjects {
                 "One place to discover university events, meet people and make campus feel connected.",
                 new String[]{"React", "TypeScript", "Node.js"},
                 true, 5, 7, "Open: Frontend developer · QA engineer",
-                "Priya Shah", "PS", new Color(0x8B, 0x5C, 0xF6),
-                0, new Color(0xEE, 0xF2, 0xFF), new Color(0x63, 0x66, 0xF1)
+                "Priya Shah", "PS", new Color(0xEA, 0x4C, 0x89),
+                0, new Color(0xFD, 0xEE, 0xF4), new Color(0xEA, 0x4C, 0x89)
         ));
         allProjects.add(new ProjectCard(
                 2, "GreenRoute", "Sustainability", "Intermediate",
                 "Make low-carbon campus travel easier with shared routes and real-time mobility insights.",
                 new String[]{"React", "Maps API", "Node.js"},
                 true, 4, 6, "Open: Frontend developer · Data analyst",
-                "Maya Patel", "MP", new Color(0x3B, 0x82, 0xF6),
-                1, new Color(0xEC, 0xFD, 0xF5), new Color(0x10, 0xB9, 0x81)
+                "Maya Patel", "MP", new Color(0x10, 0xB9, 0x81),
+                1, new Color(0xEB, 0xFB, 0xF5), new Color(0x10, 0xB9, 0x81)
         ));
         allProjects.add(new ProjectCard(
                 3, "OpenLab", "Research", "Intermediate",
                 "Help students discover research opportunities and collaborate across university labs.",
                 new String[]{"TypeScript", "PostgreSQL", "Figma"},
                 true, 3, 5, "Open: Product designer · Backend developer",
-                "Noah Williams", "NW", new Color(0x63, 0x66, 0xF1),
-                2, new Color(0xF3, 0xE8, 0xFF), new Color(0x8B, 0x5C, 0xF6)
+                "Noah Williams", "NW", new Color(0x7C, 0x5C, 0xFF),
+                2, new Color(0xF3, 0xF0, 0xFF), new Color(0x7C, 0x5C, 0xFF)
         ));
         allProjects.add(new ProjectCard(
                 4, "AccessMap", "Social impact", "Intermediate",
@@ -616,9 +616,9 @@ public class DashboardProjects {
         for (String s : p.skills) {
             int sw = sfm.stringWidth(s) + 14;
             RoundRectangle2D skShape = new RoundRectangle2D.Float(skX, skY, sw, 22, 6, 6);
-            g.setColor(new Color(0xF1, 0xF5, 0xF9));
+            g.setColor(new Color(0xF4, 0xF2, 0xEE));
             g.fill(skShape);
-            g.setColor(new Color(0x47, 0x55, 0x69));
+            g.setColor(DashboardTheme.TEXT_MUTED);
             g.drawString(s, skX + 7, skY + 15);
             skX += sw + 6;
         }
@@ -711,9 +711,9 @@ public class DashboardProjects {
         for (String s : p.skills) {
             int sw = sfm.stringWidth(s) + 12;
             RoundRectangle2D skShape = new RoundRectangle2D.Float(skX, skY, sw, 22, 6, 6);
-            g.setColor(new Color(0xF1, 0xF5, 0xF9));
+            g.setColor(new Color(0xF4, 0xF2, 0xEE));
             g.fill(skShape);
-            g.setColor(new Color(0x47, 0x55, 0x69));
+            g.setColor(DashboardTheme.TEXT_MUTED);
             g.drawString(s, skX + 6, skY + 15);
             skX += sw + 6;
         }

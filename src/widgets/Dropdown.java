@@ -7,6 +7,8 @@ public class Dropdown {
     private final List<String> options;
     private int selectedIndex = 0;
     public boolean open = false;
+    /** Darker/opaque field for use on frosted glass. */
+    public boolean onGlass = false;
     private int hoveredIndex = -1;
 
     public Dropdown(List<String> options) {
@@ -31,32 +33,30 @@ public class Dropdown {
         int radius = Math.min(14, height / 2);
         RoundRectangle2D shape = new RoundRectangle2D.Float(x, y, width, height, radius, radius);
 
-        // Header Background (Glassmorphic)
-        if (Theme.isDark) {
-            g.setColor(open ? new Color(255, 255, 255, 28) : new Color(255, 255, 255, 16));
-        } else {
-            g.setColor(open ? new Color(255, 255, 255, 240) : new Color(255, 255, 255, 180));
-        }
+        // Header (glass field)
+        g.setColor(onGlass ? Fx.glassField(open) : (open ? Fx.surfaceHi() : Fx.surface()));
         g.fill(shape);
-
-        // Header Border
-        g.setColor(open ? Theme.BRAND_PINK : Theme.inputBorder());
-        g.setStroke(new BasicStroke(open ? 1.6f : 1.2f));
-        g.draw(shape);
+        if (open) {
+            Fx.gradientBorder(g, shape, 1.5f, 1f, 0f);
+        } else {
+            g.setColor(Fx.border());
+            g.setStroke(new BasicStroke(1f));
+            g.draw(shape);
+        }
 
         // Selected Text
-        g.setFont(Theme.fontSmallBold());
+        g.setFont(Fx.bold(14.5f));
         FontMetrics fm = g.getFontMetrics();
         int padX = 14;
         int textY = y + (height - fm.getHeight()) / 2 + fm.getAscent();
-        g.setColor(Theme.textPrimary());
+        g.setColor(Fx.text());
         g.drawString(getSelected(), x + padX, textY);
 
         // Chevron Icon
         int iconSize = 12;
         int iconX = x + width - padX - iconSize;
         int iconY = y + (height - iconSize) / 2;
-        Draw.drawChevronDown(g, iconX, iconY, iconSize, Theme.textSecondary(), open ? (float) Math.PI : 0f);
+        Draw.drawChevronDown(g, iconX, iconY, iconSize, Fx.text2(), open ? (float) Math.PI : 0f);
 
         // If open, draw popup list below
         if (open) {
@@ -72,38 +72,29 @@ public class Dropdown {
 
         RoundRectangle2D menuShape = new RoundRectangle2D.Float(x, menuY, width, menuH, radius, radius);
 
-        // Soft drop shadow
-        g.setColor(new Color(0, 0, 0, 45));
-        g.fill(new RoundRectangle2D.Float(x, menuY + 4, width, menuH, radius, radius));
-
-        // Frosted Glass Background
-        if (Theme.isDark) {
-            g.setColor(new Color(22, 30, 52, 248));
-        } else {
-            g.setColor(new Color(255, 255, 255, 248));
-        }
+        // Soft drop shadow + solid glass
+        Fx.softShadow(g, x, menuY, width, menuH, radius / 2f, 0.8f, 18);
+        g.setColor(Fx.dark() ? new Color(0x14, 0x14, 0x2A, 250) : new Color(255, 255, 255, 250));
         g.fill(menuShape);
-
-        // Glass Border
-        g.setColor(new Color(Theme.BRAND_PINK.getRed(), Theme.BRAND_PINK.getGreen(), Theme.BRAND_PINK.getBlue(), 90));
-        g.setStroke(new BasicStroke(1.2f));
+        g.setColor(Fx.borderHi());
+        g.setStroke(new BasicStroke(1f));
         g.draw(menuShape);
 
         // Items
-        g.setFont(Theme.fontSmall());
+        g.setFont(Fx.body(14));
         FontMetrics fm = g.getFontMetrics();
         int padX = 14;
 
         for (int i = 0; i < options.size(); i++) {
             int itemTop = menuY + 4 + i * itemH;
             if (i == hoveredIndex) {
-                g.setColor(Theme.isDark ? new Color(255, 255, 255, 25) : new Color(Theme.BRAND_PINK.getRed(), Theme.BRAND_PINK.getGreen(), Theme.BRAND_PINK.getBlue(), 25));
-                g.fill(new RoundRectangle2D.Float(x + 4, itemTop, width - 8, itemH, 6, 6));
+                g.setColor(Fx.subtle());
+                g.fill(new RoundRectangle2D.Float(x + 4, itemTop, width - 8, itemH, 10, 10));
             }
             if (i == selectedIndex) {
-                g.setColor(Theme.BRAND_PINK);
+                g.setColor(Fx.ink(Fx.PINK));
             } else {
-                g.setColor(Theme.textPrimary());
+                g.setColor(Fx.text());
             }
             int ty = itemTop + (itemH - fm.getHeight()) / 2 + fm.getAscent();
             g.drawString(options.get(i), x + padX, ty);
