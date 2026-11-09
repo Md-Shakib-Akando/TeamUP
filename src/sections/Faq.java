@@ -1,133 +1,169 @@
 import java.awt.*;
-import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Faq implements Section {
+/** FAQ — split layout with a support card on the left and animated accordions on the right. */
+public class Faq extends LpSection {
 
+    private final NavBar.NavListener listener;
     private final List<Accordion> items = new ArrayList<>();
-    private final Anim.RevealState reveal = new Anim.RevealState();
+    private int btnX, btnY, btnW, btnH;
+    private boolean btnHover;
+    private final Elastic btnHov = new Elastic(0f, 260f, 20f);
 
-    public Faq() {
-        items.add(new Accordion(
-                "Is TeamUp completely free to use?",
-                "Yes, TeamUp is 100% free for students, developers, and researchers. There are no paywalls, hidden fees, or limits on team formation during the early access and academic rollout."
-        ));
-        items.add(new Accordion(
-                "Who can join and collaborate?",
-                "Anyone looking to build! Whether you are a student assembling a coursework team or hackathon squad, a freelancer grouping into client pods, a researcher needing technical firepower, or an early startup founder."
-        ));
-        items.add(new Accordion(
-                "How does the skill matching engine work?",
-                "Our algorithm computes multi-dimensional compatibility vectors considering complementary technical skills, availability quotas, desired project roles, and verified feedback scores."
-        ));
-        items.add(new Accordion(
-                "How are freeloaders prevented?",
-                "Accountability is baked into the platform lifecycle. Upon project completion or milestone wrap-up, all collaborators submit constructive peer ratings covering reliability, communication, and code quality."
-        ));
-        items.add(new Accordion(
-                "How is my data and privacy secured?",
-                "Passwords undergo salted PBKDF2 cryptographic hashing, direct messages and tokens are session-scoped, and private contact info remains masked until invitations are formally accepted."
-        ));
-        items.add(new Accordion(
-                "What platforms and OS are supported?",
-                "TeamUp is built desktop-first for Windows, macOS, and Linux, powered directly by high-performance core Java without heavy web browser runtimes."
-        ));
-        reveal.trigger();
+    public Faq(NavBar.NavListener listener) {
+        this.listener = listener;
+        items.add(new Accordion("Is TeamUp free to use?",
+                "Yes. TeamUp is free for students, developers and researchers - no paywalls, hidden fees or limits on team formation during early access."));
+        items.add(new Accordion("Who can join and collaborate?",
+                "Anyone who builds: students assembling coursework or hackathon squads, freelancers forming client pods, researchers needing technical help, and early-stage founders."));
+        items.add(new Accordion("How does the matching engine work?",
+                "It scores compatibility across complementary technical skills, availability, desired project roles and verified feedback from previous collaborators."));
+        items.add(new Accordion("How are freeloaders prevented?",
+                "Accountability is built into the lifecycle. At each milestone and at wrap-up, collaborators leave peer ratings on reliability, communication and quality."));
+        items.add(new Accordion("How is my data kept secure?",
+                "Passwords are hashed with salted PBKDF2, sessions are scoped, and private contact details stay masked until an invitation is accepted."));
+        items.add(new Accordion("Which platforms are supported?",
+                "TeamUp is desktop-first for Windows, macOS and Linux, built on high-performance core Java with no heavy browser runtime."));
+        items.get(0).expanded = true;
+        items.get(0).expandProgress = 1f;
     }
 
-    @Override
-    public String getId() {
-        return "faq";
-    }
+    public Faq() { this(null); }
 
-    @Override
-    public int getHeight(int width) {
-        int baseH = 170;
-        Font titleF = Theme.fontCardTitle();
-        Font bodyF = Theme.fontBody();
-
-        FontMetrics tfm = new Canvas().getFontMetrics(titleF);
-        FontMetrics bfm = new Canvas().getFontMetrics(bodyF);
-
-        int totalH = baseH;
-        for (Accordion item : items) {
-            totalH += item.getHeight(width - 112, tfm, bfm) + 16;
-        }
-        return totalH + 40;
-    }
+    @Override public String getId() { return "faq"; }
 
     @Override
     public void update(float dt) {
-        reveal.update(dt);
-        for (Accordion item : items) {
-            item.update(dt);
+        super.update(dt);
+        boolean anim = false;
+        for (Accordion a : items) {
+            a.update(dt);
+            anim |= a.animating();
         }
+        if (anim) invalidateHeight();
+        btnHov.setTarget(btnHover ? 1f : 0f);
+        btnHov.update(dt);
     }
 
     @Override
-    public void paint(Graphics2D g, int y, int width, int viewportY, int viewportH) {
-        int padX = width > 1100 ? 56 : (width > 600 ? 28 : 20);
+    protected int render(Graphics2D g, int y, int width, int viewportY, int viewportH) {
+        int top = y;
+        int cur = y + (width < 700 ? 70 : 110);
+        int[] c = Fx.container(width);
+        boolean split = c[1] >= 980;
 
-        Graphics2D g2 = (Graphics2D) g.create();
-        int rise = reveal.getYOffset();
-        g2.translate(0, rise);
-
-        int topY = y + 24;
-
-        // Eyebrow & Title
-        Draw.drawSectionBadge(g2, "SUPPORT & FAQ", padX, topY, Theme.BRAND_PINK);
-
-        g2.setFont(Theme.fontTitle());
-        FontMetrics tfm = g2.getFontMetrics();
-        g2.setColor(Theme.textPrimary());
-        int titleY = topY + 44 + tfm.getAscent();
-        g2.drawString("Got questions? We've got answers", padX, titleY);
-
-        g2.setFont(Theme.fontBody());
-        g2.setColor(Theme.textSecondary());
-        g2.drawString("Find instant answers to common questions about platform access, peer accountability, and matching mechanics.", padX, titleY + 22);
-
-        // Accordion list
-        int curY = titleY + 48;
-        int listW = width - padX * 2;
-        FontMetrics titleFm = g2.getFontMetrics(Theme.fontCardTitle());
-        FontMetrics bodyFm = g2.getFontMetrics(Theme.fontBody());
-
-        for (Accordion item : items) {
-            item.paint(g2, padX, curY, listW);
-            curY += item.getHeight(listW, titleFm, bodyFm) + 16;
+        int listX, listW, listY;
+        int leftBottom;
+        if (split) {
+            int lw = 380;
+            int lx = c[0];
+            int ly = cur;
+            Graphics2D e = Fx.fade(g, rv.p(0f), 18);
+            e.setFont(Fx.label(11.5f));
+            int ew = e.getFontMetrics().stringWidth("FAQ") + 44;
+            Fx.eyebrow(e, "FAQ", lx + ew / 2f, ly, Fx.MINT);
+            e.dispose();
+            ly += 52;
+            Graphics2D t = Fx.fade(g, rv.p(0.08f), 24);
+            t.setFont(Fx.heading(46));
+            FontMetrics fm = t.getFontMetrics();
+            t.setColor(Fx.text());
+            t.drawString("Questions?", lx, ly + fm.getAscent());
+            ly += Math.round(fm.getHeight() * 1.02f);
+            Fx.gradientText(t, "Answered.", lx, ly + fm.getAscent(), Fx.BRAND, Fx.wave(0.6f, 0) * 0.25f);
+            ly += Math.round(fm.getHeight() * 1.02f);
+            t.dispose();
+            ly += 14;
+            Graphics2D s = Fx.fade(g, rv.p(0.16f), 24);
+            ly = Fx.paragraph(s, "Everything about access, accountability and how matching works. Can't find what you need? We're happy to help.",
+                    Fx.body(16.5f), Fx.text2(), lx, ly, lw - 20, 1.5f, false);
+            s.dispose();
+            ly += 32;
+            ly = paintSupport(g, lx, ly, lw - 20);
+            leftBottom = ly;
+            listX = lx + lw + 40;
+            listW = c[0] + c[1] - listX;
+            listY = cur;
+        } else {
+            cur = Fx.header(g, rv, width, cur, "FAQ", Fx.MINT, "Questions? ", "Answered.",
+                    "Everything about access, accountability and how matching works.");
+            cur += 40;
+            listW = Math.min(820, c[1]);
+            listX = Math.round(width / 2f - listW / 2f);
+            listY = cur;
+            leftBottom = cur;
         }
 
-        g2.dispose();
+        int ly = listY;
+        for (int i = 0; i < items.size(); i++) {
+            Accordion a = items.get(i);
+            int h = a.getHeight(listW);
+            if (!measuring) {
+                Graphics2D ag = Fx.fade(g, rv.p(0.2f + i * 0.07f), 24);
+                a.paint(ag, listX, ly, listW);
+                ag.dispose();
+            }
+            ly += h + 12;
+        }
+        ly -= 12;
+
+        if (!split) {
+            ly += 28;
+            ly = paintSupport(g, listX, ly, listW);
+        }
+        return Math.max(ly, leftBottom) - top + 40;
+    }
+
+    private int paintSupport(Graphics2D g, int x, int y, int w) {
+        int h = 150;
+        if (measuring) return y + h;
+        Graphics2D s = Fx.fade(g, rv.p(0.3f), 24);
+        Fx.card(s, x, y, w, h, 20, btnHov.getValue() * 0.5f, Fx.MINT);
+        // avatar stack
+        String[] ini = {"SR", "SM", "SA"};
+        Color[][] cols = {{Fx.PINK, Fx.VIOLET}, {Fx.MINT, Fx.CYAN}, {Fx.AMBER, Fx.ORANGE}};
+        for (int i = 0; i < 3; i++) {
+            float ax = x + 22 + i * 25;
+            s.setColor(Fx.solid());
+            s.fill(new java.awt.geom.Ellipse2D.Float(ax - 2, y + 20, 34, 34));
+            Draw.drawAvatar(s, Math.round(ax), y + 22, 30, ini[i], cols[i][0], cols[i][1]);
+        }
+        s.setFont(Fx.bold(15));
+        s.setColor(Fx.text());
+        s.drawString("Still curious?", x + 22 + 3 * 25 + 18, y + 35);
+        s.setFont(Fx.body(13));
+        s.setColor(Fx.text3());
+        s.drawString("The team replies within a day.", x + 22 + 3 * 25 + 18, y + 53);
+        btnW = Math.min(w - 44, 220);
+        btnH = 44;
+        btnX = x + 22;
+        btnY = y + h - btnH - 22;
+        Fx.ghostButton(s, btnX, btnY, btnW, btnH, "Join early access", btnHov.getValue(), true);
+        s.dispose();
+        return y + h;
     }
 
     @Override
     public boolean onClick(int mx, int my) {
-        for (Accordion item : items) {
-            if (item.onClick(mx, my)) {
-                return true;
-            }
+        for (Accordion a : items) {
+            if (a.onClick(mx, my)) { invalidateHeight(); return true; }
+        }
+        if (Fx.inside(mx, my, btnX, btnY, btnW, btnH)) {
+            if (listener != null) listener.scrollToSection("cta");
+            return true;
         }
         return false;
     }
 
     @Override
     public boolean onMouseMove(int mx, int my) {
-        boolean changed = false;
-        for (Accordion item : items) {
-            if (item.onMouseMove(mx, my)) {
-                changed = true;
-            }
+        boolean hand = false;
+        for (Accordion a : items) {
+            a.onMouseMove(mx, my);
+            hand |= a.hovered;
         }
-        return changed;
+        btnHover = Fx.inside(mx, my, btnX, btnY, btnW, btnH);
+        return hand || btnHover;
     }
-
-    @Override
-    public boolean onMouseDown(int mx, int my) { return false; }
-    @Override
-    public boolean onMouseUp(int mx, int my) { return false; }
-    @Override
-    public boolean onKey(KeyEvent e) { return false; }
 }
-

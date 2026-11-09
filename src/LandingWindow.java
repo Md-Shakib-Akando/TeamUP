@@ -1,5 +1,7 @@
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.geom.Arc2D;
+import java.awt.geom.Ellipse2D;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferStrategy;
 import java.util.ArrayList;
@@ -17,10 +19,6 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
     public boolean showDashboard = false;
     public boolean showAdminDashboard = false;
 
-    // Floating Back to Top Button
-    private int topBtnX, topBtnY, topBtnSize = 42;
-    private boolean topBtnHovered = false;
-
     // Scrolling state
     private float scrollY = 0f;
     private float targetScrollY = 0f;
@@ -35,6 +33,13 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
     private boolean isDraggingScrollbar = false;
     private int dragStartY = 0;
     private float dragStartScroll = 0f;
+
+    // Floating back-to-top button
+    private final Elastic backTopAnim = new Elastic(0f, 220f, 22f);
+    private final Elastic backTopHover = new Elastic(0f, 260f, 20f);
+    private boolean backTopHovered = false;
+    private int backTopX = -100, backTopY = -100;
+    private static final int BACK_TOP_SIZE = 50;
 
     // Render loop thread
     private Thread renderThread;
@@ -60,17 +65,22 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
         dashboard = new StudentDashboard(this);
         adminDashboard = new AdminDashboard(this);
 
-        sections.add(new Hero(this));
-        sections.add(new Problem());
-        sections.add(new HowItWorks());
-        sections.add(new Features());
-        sections.add(new MatchDemo());
-        sections.add(new Audience());
-        sections.add(new Compare());
-        sections.add(new NumbersStrip());
-        sections.add(new Faq());
-        sections.add(new Cta());
-        sections.add(new Footer(this));
+        sections.addAll(buildSections(this));
+
+        // Hero search hands the query to the live matching demo
+        Hero hero = null;
+        MatchDemo demo = null;
+        for (Section s : sections) {
+            if (s instanceof Hero) hero = (Hero) s;
+            if (s instanceof MatchDemo) demo = (MatchDemo) s;
+        }
+        if (hero != null) {
+            final MatchDemo fDemo = demo;
+            hero.setOnSearch(q -> {
+                if (fDemo != null) fDemo.applyQuery(q);
+                scrollToSection("demo");
+            });
+        }
 
         // Event listeners
         canvas.addMouseListener(this);
@@ -88,6 +98,23 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
                 System.exit(0);
             }
         });
+    }
+
+    /** Landing page sections in display order. */
+    public static List<Section> buildSections(NavBar.NavListener listener) {
+        List<Section> list = new ArrayList<>();
+        list.add(new Hero(listener));
+        list.add(new Problem());
+        list.add(new HowItWorks());
+        list.add(new Features());
+        list.add(new MatchDemo());
+        list.add(new Audience());
+        list.add(new Compare());
+        list.add(new NumbersStrip());
+        list.add(new Faq(listener));
+        list.add(new Cta());
+        list.add(new Footer(listener));
+        return list;
     }
 
     public void start() {
@@ -118,9 +145,11 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
             // Render frame
             render();
 
-            // Target ~60 FPS
+            // Frame pacing: sleep only for what is left of the ~60 FPS budget
+            long frameNanos = System.nanoTime() - now;
+            long sleepMs = (16_666_667L - frameNanos) / 1_000_000L;
             try {
-                Thread.sleep(16);
+                Thread.sleep(Math.max(1L, sleepMs));
             } catch (InterruptedException ignored) {}
         }
     }
@@ -148,7 +177,12 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
         // Smooth scroll interpolation
         int maxScroll = Math.max(0, totalDocHeight - canvas.getHeight());
         targetScrollY = Math.max(0, Math.min(targetScrollY, maxScroll));
-        scrollY = Anim.approach(scrollY, targetScrollY, dt, 14.0f);
+        scrollY = Anim.approach(scrollY, targetScrollY, dt, 9.0f);
+
+        backTopAnim.setTarget(scrollY > 700 ? 1f : 0f);
+        backTopAnim.update(dt);
+        backTopHover.setTarget(backTopHovered ? 1f : 0f);
+        backTopHover.update(dt);
 
         // Active section tracking for navbar
         int currentScrollInt = Math.round(scrollY);
@@ -182,64 +216,22 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
             if (width <= 0 || height <= 0) return;
 
             if (showAdminDashboard) {
-                adminDashboard.paint(g2, width, height);
-            } else if (showDashboard) {
-                dashboard.paint(g2, width, height);
-                modal.paint(g2, width, height);
+                Fx.background(g2, width, height, 0f);
+                ThemedGraphics tg = new ThemedGraphics(g2);
+                adminDashboard.paint(tg, width, height);
             } else {
-                // Background with warm off-white canvas & ambient tint
-                Draw.drawBackground(g2, width, height);
-
-                // Motion Spec #4: Soft pink glow follows mouse with lag
-                Draw.drawCursorGlow(g2);
-
-                int navH = navBar.getHeight(width);
-                int viewportY = Math.round(scrollY);
-
-                // Calculate document height & paint visible sections
-                int curY = navH;
-                for (Section s : sections) {
-                    int sh = s.getHeight(width);
-                    int screenY = curY - viewportY;
-
-                    // Viewport culling: only paint if visible on screen
-                    if (screenY + sh >= 0 && screenY <= height) {
-                        s.paint(g2, screenY, width, viewportY, height);
+                // Frosted-glass modal: capture + blur the scene once when it opens
+                if (modal.needsBackdrop(width, height)) captureBackdrop(width, height);
+                // Once the blurred backdrop fully covers the screen, skip the live scene
+                if (!modal.coversScene()) {
+                    if (showDashboard) {
+                        Fx.background(g2, width, height, 0f);
+                        ThemedGraphics tg = new ThemedGraphics(g2);
+                        dashboard.paint(tg, width, height);
+                    } else {
+                        paintLanding(g2, width, height);
                     }
-                    curY += sh;
                 }
-                totalDocHeight = curY;
-
-                // Paint Sticky Glass Nav on top
-                navBar.paint(g2, 0, width, viewportY, height);
-
-                // Motion Spec #10: Gradient progress bar with glowing leading particle at the very top
-                int maxSc = Math.max(1, totalDocHeight - height);
-                float scrollProgress = Math.min(1.0f, Math.max(0f, scrollY / (float) maxSc));
-                int progW = Math.round(width * scrollProgress);
-                if (progW > 0) {
-                    LinearGradientPaint progGrad = new LinearGradientPaint(
-                            0, 0, Math.max(10, progW), 0,
-                            new float[]{0f, 1f},
-                            new Color[]{Theme.BRAND_PINK, Theme.ACCENT_CYAN}
-                    );
-                    g2.setPaint(progGrad);
-                    g2.fillRect(0, 0, progW, 3);
-
-                    // Glowing leading particle
-                    g2.setColor(Color.WHITE);
-                    g2.fillOval(Math.max(0, progW - 4), 0, 5, 3);
-                }
-
-                // Paint Custom Scrollbar
-                paintScrollbar(g2, width, height);
-
-                // Floating Back-to-Top Button when scrolled down
-                if (scrollY > 350) {
-                    paintBackToTop(g2, width, height);
-                }
-
-                // Paint Modal Dialog if active
                 modal.paint(g2, width, height);
             }
 
@@ -254,12 +246,103 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
         }
     }
 
+    /** Landing page scene (everything except the modal). */
+    void paintLanding(Graphics2D g2, int width, int height) {
+        int navH = navBar.getHeight(width);
+        int viewportY = Math.round(scrollY);
+
+        // Aurora background + cursor light
+        Fx.background(g2, width, height, scrollY);
+        Fx.cursorLight(g2);
+
+        // Paint visible sections (viewport culling)
+        int curY = navH;
+        for (Section s : sections) {
+            int sh = s.getHeight(width);
+            int screenY = curY - viewportY;
+            if (screenY + sh >= 0 && screenY <= height) {
+                s.paint(g2, screenY, width, viewportY, height);
+            }
+            curY += sh;
+        }
+        totalDocHeight = curY;
+
+        // Floating glass nav on top
+        navBar.paint(g2, 0, width, viewportY, height);
+
+        // Scroll progress: thin gradient line with a glowing tip
+        int maxSc = Math.max(1, totalDocHeight - height);
+        float scrollProgress = Math.min(1.0f, Math.max(0f, scrollY / (float) maxSc));
+        int pw = Math.round(width * scrollProgress);
+        if (pw > 0) {
+            g2.setPaint(new GradientPaint(0, 0, Fx.PINK, Math.max(1, width), 0, Fx.CYAN));
+            g2.fillRect(0, 0, pw, 2);
+            Fx.glow(g2, pw, 1, 18, Fx.VIOLET, 0.8f);
+        }
+
+        paintBackToTop(g2, width, height, scrollProgress);
+        paintScrollbar(g2, width, height);
+    }
+
+    /** Renders the current scene at 1/4 scale and hands it to the modal for blurring. */
+    private void captureBackdrop(int w, int h) {
+        int sw = Math.max(1, w / 4), sh = Math.max(1, h / 4);
+        java.awt.image.BufferedImage small = new java.awt.image.BufferedImage(sw, sh, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        Graphics2D sg = small.createGraphics();
+        try {
+            Draw.setQualityHints(sg);
+            sg.scale(sw / (double) w, sh / (double) h);
+            if (showDashboard) {
+                Fx.background(sg, w, h, 0f);
+                ThemedGraphics tg = new ThemedGraphics(sg);
+                dashboard.paint(tg, w, h);
+            } else if (showAdminDashboard) {
+                Fx.background(sg, w, h, 0f);
+                ThemedGraphics tg = new ThemedGraphics(sg);
+                adminDashboard.paint(tg, w, h);
+            } else {
+                paintLanding(sg, w, h);
+            }
+        } finally {
+            sg.dispose();
+        }
+        modal.setBackdrop(small, w, h);
+    }
+
+    private void paintBackToTop(Graphics2D g, int width, int height, float progress) {
+        float a = backTopAnim.getValue();
+        if (a < 0.01f) { backTopX = -100; return; }
+        int s = BACK_TOP_SIZE;
+        backTopX = width - s - 28;
+        backTopY = height - s - 28;
+        Graphics2D b = (Graphics2D) g.create();
+        Fx.fadeBy(b, Fx.clamp(a));
+        float hv = backTopHover.getValue();
+        float x = backTopX, y = backTopY - hv * 3f + (1f - a) * 20f;
+        Fx.glow(b, x + s / 2f, y + s / 2f, s * (0.9f + hv * 0.4f), Fx.VIOLET, 0.25f + 0.3f * hv);
+        b.setColor(Fx.dark() ? new Color(0x10, 0x10, 0x22, 235) : new Color(255, 255, 255, 240));
+        b.fill(new Ellipse2D.Float(x, y, s, s));
+        b.setColor(Fx.border());
+        b.draw(new Ellipse2D.Float(x, y, s, s));
+        // scroll-progress ring
+        b.setStroke(new BasicStroke(2.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        b.setPaint(new GradientPaint(x, y, Fx.PINK, x + s, y + s, Fx.CYAN));
+        b.draw(new Arc2D.Float(x + 3, y + 3, s - 6, s - 6, 90, -360f * progress, Arc2D.OPEN));
+        // arrow up
+        Graphics2D r = (Graphics2D) b.create();
+        r.translate(x + s / 2f, y + s / 2f - hv * 2f);
+        r.rotate(-Math.PI / 2);
+        Fx.arrow(r, -7, 0, 14, Fx.text(), 2f);
+        r.dispose();
+        b.dispose();
+    }
+
     private void paintScrollbar(Graphics2D g, int width, int height) {
         int maxScroll = Math.max(0, totalDocHeight - height);
         if (maxScroll <= 0) return;
 
-        int barW = 8;
-        int barX = width - barW - 4;
+        int barW = 5;
+        int barX = width - barW - 3;
         int navH = navBar.getHeight(width);
         int trackH = height - navH - 8;
         int trackY = navH + 4;
@@ -270,56 +353,12 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
         int thumbY = trackY + Math.round((trackH - thumbH) * scrollPct);
 
         // Thumb
-        Color thumbColor = Theme.isDark ? new Color(255, 255, 255, 60) : new Color(0, 0, 0, 50);
         if (isDraggingScrollbar) {
-            thumbColor = Theme.ACCENT_CYAN;
+            g.setPaint(new GradientPaint(barX, thumbY, Fx.PINK, barX, thumbY + thumbH, Fx.VIOLET));
+        } else {
+            g.setColor(Fx.dark() ? new Color(255, 255, 255, 55) : new Color(20, 18, 50, 55));
         }
-        g.setColor(thumbColor);
         g.fill(new RoundRectangle2D.Float(barX, thumbY, barW, thumbH, barW, barW));
-    }
-
-    private void paintBackToTop(Graphics2D g, int width, int height) {
-        topBtnSize = 44;
-        topBtnX = width - topBtnSize - 22;
-        int targetY = height - topBtnSize - 22;
-        int drawY = topBtnHovered ? targetY - 4 : targetY;
-        topBtnY = targetY;
-
-        Graphics2D g2 = (Graphics2D) g.create();
-        Draw.setQualityHints(g2);
-
-        // Soft drop shadow with dynamic hover glow
-        if (topBtnHovered) {
-            g2.setColor(new Color(Theme.BRAND_PINK.getRed(), Theme.BRAND_PINK.getGreen(), Theme.BRAND_PINK.getBlue(), 80));
-            g2.fillRoundRect(topBtnX - 2, drawY + 1, topBtnSize + 4, topBtnSize + 6, topBtnSize, topBtnSize);
-        } else {
-            g2.setColor(Theme.isDark ? new Color(0, 0, 0, 90) : new Color(0, 0, 0, 35));
-            g2.fillRoundRect(topBtnX + 1, drawY + 3, topBtnSize, topBtnSize, topBtnSize, topBtnSize);
-        }
-
-        // Circular background
-        if (topBtnHovered) {
-            g2.setColor(Theme.BRAND_PINK);
-        } else {
-            g2.setColor(Theme.cardBg());
-        }
-        g2.fillRoundRect(topBtnX, drawY, topBtnSize, topBtnSize, topBtnSize, topBtnSize);
-
-        // Ring border
-        g2.setColor(topBtnHovered ? Theme.BRAND_PINK_HOVER : Theme.cardBorder());
-        g2.setStroke(new BasicStroke(1.5f));
-        g2.drawRoundRect(topBtnX, drawY, topBtnSize, topBtnSize, topBtnSize, topBtnSize);
-
-        // Up arrow icon
-        g2.setColor(topBtnHovered ? Color.WHITE : Theme.textPrimary());
-        int cx = topBtnX + topBtnSize / 2;
-        int cy = drawY + topBtnSize / 2;
-        g2.setStroke(new BasicStroke(2.2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-        g2.drawLine(cx, cy + 5, cx, cy - 6);
-        g2.drawLine(cx - 5, cy - 1, cx, cy - 6);
-        g2.drawLine(cx + 5, cy - 1, cx, cy - 6);
-
-        g2.dispose();
     }
 
     // ==================== NAV BAR LISTENER ====================
@@ -392,8 +431,9 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
             dashboard.onMouseWheel(e.getWheelRotation(), canvas.getHeight());
             return;
         }
-        int notches = e.getWheelRotation();
-        targetScrollY += notches * 85;
+        if (modal.visible) return;
+        if (navBar.isMenuOpen()) navBar.closeMenu();
+        targetScrollY += (float) (e.getPreciseWheelRotation() * 110);
     }
 
     @Override
@@ -421,19 +461,17 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
             return;
         }
 
-        // 3. Floating Back-to-Top Button check
-        if (scrollY > 350 && mx >= topBtnX && mx <= topBtnX + topBtnSize && my >= topBtnY && my <= topBtnY + topBtnSize) {
-            targetScrollY = 0f;
+        // 3. Back-to-top, then floating nav (and its open menu)
+        int navH = navBar.getHeight(width);
+        if (backTopAnim.getValue() > 0.5f && Fx.inside(mx, my, backTopX, backTopY, BACK_TOP_SIZE, BACK_TOP_SIZE)) {
+            targetScrollY = 0;
             return;
         }
-
-        // 4. Sticky Nav click check (header or expanded mobile drawer)
-        int navH = navBar.getHeight(width);
-        if (my <= navH || navBar.isMobileMenuOpen()) {
+        if (navBar.captures(mx, my, width) || navBar.isMenuOpen()) {
             if (navBar.onClick(mx, my)) return;
         }
 
-        // 5. Document sections click
+        // 3. Document sections click
         int viewportY = Math.round(scrollY);
         int curY = navH;
         for (Section s : sections) {
@@ -467,10 +505,10 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
 
         if (showDashboard) return;
 
-        if (modal.visible) return;
+        if (modal.visible) { modal.setPressed(true, mx, my); return; }
 
         int navH = navBar.getHeight(width);
-        if (my <= navH) {
+        if (navBar.captures(mx, my, width)) {
             navBar.onMouseDown(mx, my);
             return;
         }
@@ -512,12 +550,11 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
             return;
         }
 
-        if (modal.visible) return;
+        if (modal.visible) { modal.setPressed(false, mx, my); return; }
 
         int navH = navBar.getHeight(width);
-        if (my <= navH) {
+        if (navBar.captures(mx, my, width)) {
             navBar.onMouseUp(mx, my);
-            return;
         }
 
         int viewportY = Math.round(scrollY);
@@ -560,18 +597,13 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
         }
 
         int navH = navBar.getHeight(width);
-        if (my <= navH || navBar.isMobileMenuOpen()) {
-            if (navBar.onMouseMove(mx, my)) anyHover = true;
-        } else {
-            navBar.onMouseMove(-100, -100);
-        }
-
-        // Floating Back-to-Top Button hover check
-        if (scrollY > 350 && mx >= topBtnX && mx <= topBtnX + topBtnSize && my >= topBtnY && my <= topBtnY + topBtnSize) {
-            topBtnHovered = true;
-            anyHover = true;
-        } else {
-            topBtnHovered = false;
+        backTopHovered = backTopAnim.getValue() > 0.5f && Fx.inside(mx, my, backTopX, backTopY, BACK_TOP_SIZE, BACK_TOP_SIZE);
+        boolean overNav = navBar.captures(mx, my, width);
+        anyHover = navBar.onMouseMove(mx, my) || backTopHovered;
+        if (overNav || backTopHovered) {
+            for (Section s : sections) s.onMouseMove(-100, -100);
+            updateCursor(anyHover);
+            return;
         }
 
         int viewportY = Math.round(scrollY);
@@ -625,43 +657,34 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
             if (modal.onKey(e)) return;
         }
 
-        // Global view toggles & shortcuts
-        if (code == KeyEvent.VK_F2 || (code == KeyEvent.VK_D && !modal.visible && !showDashboard && !showAdminDashboard)) {
+        // F2 or D key toggles Dashboard view directly
+        if (code == KeyEvent.VK_F2) {
             showDashboard = !showDashboard;
-            showAdminDashboard = false;
             return;
-        }
-
-        if (code == KeyEvent.VK_A && !modal.visible && !showDashboard && !showAdminDashboard) {
-            showAdminDashboard = true;
-            showDashboard = false;
-            return;
-        }
-
-        if (code == KeyEvent.VK_T && !modal.visible) {
-            Theme.toggleTheme();
-            return;
-        }
-
-        if (code == KeyEvent.VK_ESCAPE) {
-            if (navBar.isMobileMenuOpen()) {
-                navBar.closeMobileMenu();
-                return;
-            }
-            if (showDashboard || showAdminDashboard) {
-                showDashboard = false;
-                showAdminDashboard = false;
-                return;
-            }
         }
 
         if (showAdminDashboard) {
             if (adminDashboard.onKey(e.getKeyChar(), code)) return;
+            if (code == KeyEvent.VK_ESCAPE) {
+                showAdminDashboard = false;
+                return;
+            }
             return;
         }
         if (showDashboard) {
             if (dashboard.onKey(e)) return;
+            if (code == KeyEvent.VK_ESCAPE) {
+                showDashboard = false;
+                return;
+            }
             return;
+        }
+
+        if (navBar.onKey(e)) return;
+
+        // A focused text field (hero search, early-access email) consumes typing first
+        for (Section s : sections) {
+            if (hasFocusedInput(s) && s.onKey(e)) return;
         }
 
         // Motion toggle: key 'M'
@@ -709,6 +732,10 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
         for (Section s : sections) {
             if (s.onKey(e)) return;
         }
+    }
+
+    private boolean hasFocusedInput(Section s) {
+        return (s instanceof Hero && ((Hero) s).hasFocus()) || (s instanceof Cta && ((Cta) s).hasFocus());
     }
 
     @Override

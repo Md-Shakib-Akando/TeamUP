@@ -73,15 +73,15 @@ public class TestLandingPageResponsiveness {
         int burgerX = mobW - 48;
         int burgerY = (72 - 36) / 2 + 10;
         boolean clickedBurger = navBar.onClick(burgerX, burgerY);
-        System.out.println("  ✓ Mobile hamburger clicked: " + clickedBurger + ", menu open: " + navBar.isMobileMenuOpen());
+        System.out.println("  ✓ Mobile hamburger clicked: " + clickedBurger + ", menu open: " + navBar.isMenuOpen());
 
         // Update animation progress
         navBar.update(0.5f);
         navBar.paint(gMob, 0, mobW, 0, mobH);
 
         // Close mobile drawer
-        navBar.closeMobileMenu();
-        System.out.println("  ✓ Mobile drawer closed cleanly, menu open: " + navBar.isMobileMenuOpen());
+        navBar.closeMenu();
+        System.out.println("  ✓ Mobile drawer closed cleanly, menu open: " + navBar.isMenuOpen());
         gMob.dispose();
 
         System.out.println("\n[Test 3] Testing Interactive Matching Engine Demo Chip Filtering...");

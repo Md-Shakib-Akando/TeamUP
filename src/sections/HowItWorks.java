@@ -1,295 +1,253 @@
 import java.awt.*;
-import java.awt.event.KeyEvent;
+import java.awt.geom.Arc2D;
 import java.awt.geom.Ellipse2D;
-import java.awt.geom.RoundRectangle2D;
 import java.util.ArrayList;
 import java.util.List;
 
-public class HowItWorks implements Section {
+/**
+ * Four-step timeline. A gradient progress line draws in on reveal, then the
+ * active step auto-advances (hover or click takes over).
+ */
+public class HowItWorks extends LpSection {
 
-    private static class StepItem {
-        int num;
-        String tag;
-        String title;
-        String desc;
-        Color accent;
+    private static class Step {
+        final String title, desc, icon;
+        final Color accent;
         int x, y, w, h;
-        boolean hovered = false;
-        float hoverLift = 0f;
-
-        StepItem(int num, String tag, String title, String desc, Color accent) {
-            this.num = num;
-            this.tag = tag;
-            this.title = title;
-            this.desc = desc;
-            this.accent = accent;
-        }
+        boolean hovered;
+        final Elastic act = new Elastic(0f, 200f, 20f);
+        Step(String t, String d, String i, Color a) { title = t; desc = d; icon = i; accent = a; }
     }
 
-    private final List<StepItem> steps = new ArrayList<>();
-    private final Anim.RevealState reveal = new Anim.RevealState();
+    private final List<Step> steps = new ArrayList<>();
+    private int active = 0;
+    private float autoT = 0f;
+    private int hoverIdx = -1;
+    private final Elastic lineFill = new Elastic(0f, 40f, 12f);
 
     public HowItWorks() {
-        steps.add(new StepItem(
-                1,
-                "STEP 01",
-                "Create your profile",
-                "Highlight verified skills, bio, project history, and GitHub or portfolio links.",
-                Theme.ACCENT_CYAN
-        ));
-        steps.add(new StepItem(
-                2,
-                "STEP 02",
-                "Publish or discover",
-                "Explore open initiatives or publish your own requirements, role openings, and technical stack.",
-                Theme.ACCENT_VIOLET
-        ));
-        steps.add(new StepItem(
-                3,
-                "STEP 03",
-                "Match and invite",
-                "Receive algorithmic compatibility scores, inspect complementary skill sets, and send invitations.",
-                Theme.BRAND_PINK
-        ));
-        steps.add(new StepItem(
-                4,
-                "STEP 04",
-                "Collaborate and rate",
-                "Coordinate Kanban milestones, chat instantly, and exchange verifiable peer reputation upon completion.",
-                Theme.SUCCESS_GREEN
-        ));
-        reveal.trigger();
+        steps.add(new Step("Create your profile", "Showcase verified skills, project history and your GitHub or portfolio links.", "users", Fx.CYAN));
+        steps.add(new Step("Publish or discover", "Browse open projects or post your own with roles, stack and timeline.", "rocket", Fx.VIOLET));
+        steps.add(new Step("Match and invite", "Get compatibility scores, compare complementary skills and send invites.", "spark", Fx.PINK));
+        steps.add(new Step("Build and rate", "Ship with Kanban milestones and chat, then exchange verified peer reviews.", "star", Fx.AMBER));
     }
 
-    @Override
-    public String getId() {
-        return "how-it-works";
-    }
-
-    @Override
-    public int getHeight(int width) {
-        if (width < 880) {
-            return 980;
-        } else {
-            return 540;
-        }
-    }
+    @Override public String getId() { return "how-it-works"; }
 
     @Override
     public void update(float dt) {
-        reveal.update(dt);
-        for (StepItem s : steps) {
-            float target = s.hovered ? 6f : 0f;
-            s.hoverLift = Anim.approach(s.hoverLift, target, dt, 14f);
+        super.update(dt);
+        if (rv.started() && hoverIdx < 0 && Theme.motionEnabled) {
+            autoT += dt;
+            if (autoT > 3.4f) { autoT = 0f; active = (active + 1) % steps.size(); }
         }
+        int cur = hoverIdx >= 0 ? hoverIdx : active;
+        for (int i = 0; i < steps.size(); i++) {
+            steps.get(i).act.setTarget(i == cur ? 1f : 0f);
+            steps.get(i).act.update(dt);
+        }
+        lineFill.setTarget(rv.started() ? cur / (float) (steps.size() - 1) : 0f);
+        lineFill.update(dt);
     }
 
     @Override
-    public void paint(Graphics2D g, int y, int width, int viewportY, int viewportH) {
-        int h = getHeight(width);
-        int padX = width > 1100 ? 56 : (width > 600 ? 28 : 20);
+    protected int render(Graphics2D g, int y, int width, int viewportY, int viewportH) {
+        int top = y;
+        int cur = y + (width < 700 ? 70 : 110);
+        cur = Fx.header(g, rv, width, cur, "HOW IT WORKS", Fx.VIOLET,
+                "From idea to ", "dream team.",
+                "A transparent, milestone-driven workflow that surfaces the right talent and keeps everyone accountable.");
+        cur += width < 700 ? 40 : 64;
 
-        Graphics2D g2 = (Graphics2D) g.create();
-        int rise = reveal.getYOffset();
-        g2.translate(0, rise);
+        int[] c = Fx.container(width);
+        boolean horiz = width >= 980;
 
-        // Header Badge
-        int topY = y + 24;
-        Draw.drawSectionBadge(g2, "FOUR SIMPLE STEPS", padX, topY, Theme.ACCENT_VIOLET);
-
-        // Title & Subtitle
-        g2.setFont(Theme.fontTitle());
-        FontMetrics tfm = g2.getFontMetrics();
-        g2.setColor(Theme.textPrimary());
-        int titleY = topY + 44 + tfm.getAscent();
-        g2.drawString("Four steps from idea to dream team", padX, titleY);
-
-        g2.setFont(Theme.fontBody());
-        FontMetrics bfm = g2.getFontMetrics();
-        g2.setColor(Theme.textSecondary());
-        g2.drawString("A transparent, milestone-driven workflow designed to eliminate freeloading and surface the right talent immediately.", padX, titleY + 22);
-
-        boolean isHorizontal = width >= 880;
-        int stepsTop = titleY + 48;
-
-        if (isHorizontal) {
+        if (horiz) {
             int gap = 20;
-            int stepW = (width - padX * 2 - gap * 3) / 4;
-            int stepH = 280;
+            int sw = (c[1] - gap * 3) / 4;
+            int nodeY = cur + 22;
+            int cardY = cur + 70;
+            int ch = 0;
+            for (Step s : steps) ch = Math.max(ch, cardH(g, s, sw));
 
-            // Connecting timeline line behind step badges
-            int lineY = stepsTop + 24;
-            g2.setColor(Theme.isDark ? new Color(255, 255, 255, 20) : new Color(0, 0, 0, 15));
-            g2.setStroke(new BasicStroke(2.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 0, new float[]{6, 6}, 0));
-            g2.drawLine(padX + 30, lineY, width - padX - 30, lineY);
-
-            // Animated glowing energy pulse/comet traveling across the timeline
-            if (Theme.motionEnabled) {
-                float lineWidth = (width - padX * 2 - 60);
-                float pulseX = padX + 30 + ((Anim.globalTime * 140f) % lineWidth);
-                g2.setColor(new Color(Theme.BRAND_PINK.getRed(), Theme.BRAND_PINK.getGreen(), Theme.BRAND_PINK.getBlue(), 180));
-                g2.fillOval((int) pulseX - 5, lineY - 5, 10, 10);
-                g2.setColor(new Color(255, 255, 255, 240));
-                g2.fillOval((int) pulseX - 2, lineY - 2, 4, 4);
+            if (!measuring) {
+                // track
+                int x0 = c[0] + sw / 2, x1 = c[0] + c[1] - sw / 2;
+                float draw = rv.p(0.3f, 1.2f);
+                g.setColor(Fx.border());
+                g.setStroke(new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 1f, new float[]{2f, 7f}, 0f));
+                g.drawLine(x0, nodeY, Math.round(x0 + (x1 - x0) * draw), nodeY);
+                float fx = x0 + (x1 - x0) * lineFill.getValue() * draw;
+                g.setStroke(new BasicStroke(3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                g.setPaint(new GradientPaint(x0, 0, Fx.CYAN, x1, 0, Fx.PINK));
+                g.drawLine(x0, nodeY, Math.round(fx), nodeY);
+                Fx.glow(g, fx, nodeY, 34, Fx.PINK, 0.6f * draw);
             }
 
             for (int i = 0; i < steps.size(); i++) {
-                StepItem s = steps.get(i);
-                s.x = padX + i * (stepW + gap);
-                s.y = stepsTop;
-                s.w = stepW;
-                s.h = stepH;
-                paintStepCard(g2, s, true);
+                Step s = steps.get(i);
+                s.x = c[0] + i * (sw + gap);
+                s.y = cardY;
+                s.w = sw;
+                s.h = ch;
+                if (measuring) continue;
+                float p = rv.p(0.35f + i * 0.14f);
+                Graphics2D ng = Fx.pop(g, p, s.x + sw / 2f, nodeY);
+                paintNode(ng, s, i, s.x + sw / 2f, nodeY);
+                ng.dispose();
+                Graphics2D cg = Fx.fade(g, p, 36);
+                paintCard(cg, s, i);
+                cg.dispose();
             }
+            cur = cardY + ch;
         } else {
-            int stepH = 180;
-            int gap = 18;
-            int stepW = width - padX * 2;
-
+            int cw = Math.min(620, c[1]) - 56;
+            int x = Math.round(width / 2f - (cw + 56) / 2f);
+            int lineX = x + 22;
+            int cy = cur;
+            int startY = cy;
             for (int i = 0; i < steps.size(); i++) {
-                StepItem s = steps.get(i);
-                s.x = padX;
-                s.y = stepsTop + i * (stepH + gap);
-                s.w = stepW;
-                s.h = stepH;
-                paintStepCard(g2, s, false);
+                Step s = steps.get(i);
+                int ch = cardH(g, s, cw);
+                s.x = x + 56; s.y = cy; s.w = cw; s.h = ch;
+                if (!measuring) {
+                    float p = rv.p(0.3f + i * 0.12f);
+                    Graphics2D ng = Fx.pop(g, p, lineX, cy + 24);
+                    paintNode(ng, s, i, lineX, cy + 24);
+                    ng.dispose();
+                    Graphics2D cg = Fx.fade(g, p, 30);
+                    paintCard(cg, s, i);
+                    cg.dispose();
+                }
+                cy += ch + 18;
             }
+            if (!measuring) {
+                g.setColor(Fx.border());
+                g.setStroke(new BasicStroke(2f));
+                g.drawLine(lineX, startY + 48, lineX, cy - 40);
+            }
+            cur = cy - 18;
         }
-
-        g2.dispose();
+        return cur - top + 40;
     }
 
-    private void paintStepCard(Graphics2D g, StepItem s, boolean isHorizontal) {
-        Draw.drawGlassCard(g, s.x, s.y, s.w, s.h, 20, s.hoverLift, s.hovered);
+    private int cardH(Graphics2D g, Step s, int w) {
+        return 24 + 18 + 30 + Fx.paragraphHeight(g, s.desc, Fx.body(14.5f), w - 48, 1.55f) + 18 + 58 + 22;
+    }
 
-        int actualY = s.y - Math.round(s.hoverLift);
-        RoundRectangle2D cardShape = new RoundRectangle2D.Float(s.x, actualY, s.w, s.h, 20, 20);
-
-        // Top accent highlight on hover
-        if (s.hoverLift > 0.5f) {
-            Graphics2D gClip = (Graphics2D) g.create();
-            gClip.setClip(cardShape);
-            gClip.setColor(s.accent);
-            gClip.fillRect(s.x, actualY, s.w, 4);
-            gClip.dispose();
+    private void paintNode(Graphics2D g, Step s, int i, float cx, float cy) {
+        float a = s.act.getValue();
+        float r = 20 + a * 3;
+        Fx.glow(g, cx, cy, 40 + a * 30, s.accent, 0.2f + 0.45f * a);
+        g.setColor(Fx.dark() ? new Color(0x0E, 0x0E, 0x20) : Color.WHITE);
+        g.fill(new Ellipse2D.Float(cx - r, cy - r, r * 2, r * 2));
+        g.setStroke(new BasicStroke(2f));
+        g.setColor(Fx.mix(Fx.borderHi(), s.accent, a));
+        g.draw(new Ellipse2D.Float(cx - r, cy - r, r * 2, r * 2));
+        if (a > 0.05f && Theme.motionEnabled) {
+            // orbiting arc on the active node
+            g.setStroke(new BasicStroke(2.2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g.setColor(Fx.a(s.accent, Math.round(220 * a)));
+            float start = -Fx.time() * 220f;
+            g.draw(new Arc2D.Float(cx - r - 6, cy - r - 6, (r + 6) * 2, (r + 6) * 2, start, 90, Arc2D.OPEN));
         }
+        g.setFont(Fx.bold(14));
+        g.setColor(Fx.mix(Fx.text2(), Fx.text(), a));
+        Fx.textCenter(g, "0" + (i + 1), cx, cy);
+    }
 
-        // Step number badge (gradient circle)
-        int badgeSize = 42;
-        int badgeX = s.x + 20;
-        int badgeY = actualY + 20;
+    private void paintCard(Graphics2D g, Step s, int i) {
+        float a = s.act.getValue();
+        float y = s.y - a * 6f;
+        Fx.card(g, s.x, y, s.w, s.h, 20, a, s.accent);
+        if (a > 0.02f) Fx.gradientBorder(g, Fx.rr(s.x, y, s.w, s.h, 20), 1.3f, a * 0.9f, Fx.time() * 0.5f);
 
-        LinearGradientPaint p = new LinearGradientPaint(
-                badgeX, badgeY, badgeX + badgeSize, badgeY + badgeSize,
-                new float[]{0f, 1f},
-                new Color[]{s.accent, s.accent.darker()}
-        );
-        Paint old = g.getPaint();
-        g.setPaint(p);
-        g.fill(new Ellipse2D.Float(badgeX, badgeY, badgeSize, badgeSize));
-        g.setPaint(old);
+        int px = s.x + 24;
+        float cy = y + 24;
+        Fx.icon(g, s.icon, px, cy, 18, Fx.ink(s.accent));
+        g.setFont(Fx.label(10.5f));
+        g.setColor(Fx.ink(s.accent));
+        g.drawString("STEP 0" + (i + 1), px + 28, cy + 13);
+        cy += 18 + 14;
+        g.setFont(Fx.heading(19));
+        g.setColor(Fx.text());
+        g.drawString(s.title, px, cy + 16);
+        cy += 30;
+        Fx.paragraph(g, s.desc, Fx.body(14.5f), Fx.text2(), px, Math.round(cy), s.w - 48, 1.55f, false);
 
-        // Glowing outer ring on hover
-        if (s.hovered) {
-            g.setColor(new Color(s.accent.getRed(), s.accent.getGreen(), s.accent.getBlue(), 80));
-            g.setStroke(new BasicStroke(3f));
-            g.draw(new Ellipse2D.Float(badgeX - 3, badgeY - 3, badgeSize + 6, badgeSize + 6));
-        }
-
-        g.setColor(Color.WHITE);
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 16));
-        FontMetrics nfm = g.getFontMetrics();
-        String numStr = "0" + s.num;
-        int nx = badgeX + (badgeSize - nfm.stringWidth(numStr)) / 2;
-        int ny = badgeY + (badgeSize - nfm.getHeight()) / 2 + nfm.getAscent();
-        g.drawString(numStr, nx, ny);
-
-        // Tag
-        g.setFont(Theme.fontSmallBold());
-        g.setColor(s.accent);
-        if (isHorizontal) {
-            g.drawString(s.tag, badgeX + badgeSize + 14, badgeY + 25);
-        } else {
-            g.drawString(s.tag, badgeX + badgeSize + 16, badgeY + 16);
-        }
-
-        // Title
-        g.setFont(Theme.fontCardTitle());
-        FontMetrics tfm = g.getFontMetrics();
-        g.setColor(Theme.textPrimary());
-        int titleX = isHorizontal ? (s.x + 20) : (badgeX + badgeSize + 16);
-        int titleY = isHorizontal ? (badgeY + badgeSize + 22 + tfm.getAscent()) : (badgeY + 38);
-        g.drawString(s.title, titleX, titleY);
-
-        // Description
-        g.setFont(Theme.fontBody());
-        FontMetrics bfm = g.getFontMetrics();
-        g.setColor(Theme.textSecondary());
-        int maxW = isHorizontal ? (s.w - 40) : (s.w - (titleX - s.x) - 20);
-        List<String> lines = Draw.wrapText(s.desc, bfm, maxW);
-        int curY = isHorizontal ? (titleY + 10 + bfm.getAscent()) : (titleY + 16 + bfm.getAscent());
-        int lineGap = Math.round(bfm.getHeight() * 1.3f);
-        for (String l : lines) {
-            g.drawString(l, titleX, curY);
-            curY += lineGap;
-        }
-
-        // Mini preview widget at the bottom of the card
-        if (isHorizontal) {
-            int widgetY = actualY + s.h - 48;
-            int widgetX = s.x + 20;
-            int widgetW = s.w - 40;
-            int widgetH = 30;
-
-            RoundRectangle2D wBox = new RoundRectangle2D.Float(widgetX, widgetY, widgetW, widgetH, 8, 8);
-            g.setColor(Theme.isDark ? new Color(255, 255, 255, 8) : new Color(0, 0, 0, 6));
-            g.fill(wBox);
-
-            g.setFont(Theme.fontSmallBold());
-            FontMetrics wfm = g.getFontMetrics();
-
-            if (s.num == 1) {
-                g.setColor(Theme.SUCCESS_GREEN);
-                g.drawString("✓ Verified GitHub", widgetX + 10, widgetY + 19);
-                g.setColor(Theme.textMuted());
-                g.drawString("· Java, UI/UX", widgetX + 115, widgetY + 19);
-            } else if (s.num == 2) {
-                g.setColor(Theme.ACCENT_VIOLET);
-                g.drawString("⚡ Open Project", widgetX + 10, widgetY + 19);
-                g.setColor(Theme.textMuted());
-                g.drawString("· 2 Roles Open", widgetX + 105, widgetY + 19);
-            } else if (s.num == 3) {
-                g.setColor(Theme.BRAND_PINK);
-                g.drawString("★ 96% Match", widgetX + 10, widgetY + 19);
-                g.setColor(Theme.textMuted());
-                g.drawString("· Optimal Team", widgetX + 98, widgetY + 19);
-            } else {
-                g.setColor(new Color(0xFF, 0xC1, 0x07));
-                g.drawString("★★★★★ 4.9", widgetX + 10, widgetY + 19);
-                g.setColor(Theme.textMuted());
-                g.drawString("· Sprint Done", widgetX + 96, widgetY + 19);
+        // mini widget
+        float wy = y + s.h - 22 - 58;
+        int ww = s.w - 48;
+        g.setColor(Fx.subtle());
+        g.fill(Fx.rr(px, wy, ww, 58, 12));
+        g.setColor(Fx.border());
+        g.draw(Fx.rr(px, wy, ww, 58, 12));
+        float mid = wy + 29;
+        switch (i) {
+            case 0: {
+                Draw.drawAvatar(g, px + 12, Math.round(mid - 15), 30, "RK", Fx.CYAN, Fx.VIOLET);
+                g.setFont(Fx.bold(12.5f));
+                g.setColor(Fx.text());
+                g.drawString("Rafi K.", px + 52, mid - 2);
+                Fx.checkCircle(g, px + 52 + g.getFontMetrics().stringWidth("Rafi K.") + 6, mid - 14, 14, Fx.MINT, 1f);
+                g.setFont(Fx.body(11.5f));
+                g.setColor(Fx.text3());
+                g.drawString("Java  -  UI/UX  -  SQL", px + 52, mid + 15);
+                break;
+            }
+            case 1: {
+                g.setFont(Fx.bold(12));
+                g.setColor(Fx.text2());
+                g.drawString("Open roles", px + 14, mid - 4);
+                float tx = px + 14;
+                int w1 = Fx.tag(g, "Backend", tx, mid + 2, Fx.VIOLET, false);
+                if (tx + w1 + 6 + 60 < px + ww) Fx.tag(g, "Design", tx + w1 + 6, mid + 2, Fx.PINK, false);
+                break;
+            }
+            case 2: {
+                g.setFont(Fx.bold(12.5f));
+                g.setColor(Fx.text());
+                g.drawString("Skill match", px + 14, mid - 5);
+                float v = 0.96f * (0.35f + 0.65f * a);
+                String pct = "96%";
+                g.setColor(Fx.ink(Fx.PINK));
+                g.drawString(pct, px + ww - 14 - g.getFontMetrics().stringWidth(pct), mid - 5);
+                g.setColor(Fx.border());
+                g.fill(Fx.rr(px + 14, mid + 6, ww - 28, 7, 3.5f));
+                g.setPaint(new GradientPaint(px + 14, 0, Fx.PINK, px + ww - 14, 0, Fx.VIOLET));
+                g.fill(Fx.rr(px + 14, mid + 6, (ww - 28) * v, 7, 3.5f));
+                break;
+            }
+            default: {
+                int filled = a > 0.5f && Theme.motionEnabled ? Math.min(5, 1 + (int) ((Fx.time() * 3f) % 6)) : 5;
+                for (int k = 0; k < 5; k++) {
+                    Draw.drawStarIcon(g, px + 14 + k * 20, Math.round(mid - 9), 18, k < filled ? Fx.AMBER : Fx.border());
+                }
+                g.setFont(Fx.bold(13));
+                g.setColor(Fx.text());
+                g.drawString("4.9", px + 14 + 5 * 20 + 8, mid + 5);
             }
         }
     }
 
     @Override
-    public boolean onClick(int mx, int my) { return false; }
+    public boolean onClick(int mx, int my) {
+        for (int i = 0; i < steps.size(); i++) {
+            Step s = steps.get(i);
+            if (Fx.inside(mx, my, s.x, s.y, s.w, s.h)) { active = i; autoT = 0f; return true; }
+        }
+        return false;
+    }
 
     @Override
     public boolean onMouseMove(int mx, int my) {
-        boolean changed = false;
-        for (StepItem s : steps) {
-            boolean was = s.hovered;
-            s.hovered = (mx >= s.x && mx <= s.x + s.w && my >= s.y && my <= s.y + s.h);
-            if (s.hovered != was) changed = true;
+        hoverIdx = -1;
+        for (int i = 0; i < steps.size(); i++) {
+            Step s = steps.get(i);
+            s.hovered = Fx.inside(mx, my, s.x, s.y - 6, s.w, s.h + 6);
+            if (s.hovered) hoverIdx = i;
         }
-        return changed;
+        if (hoverIdx >= 0) { active = hoverIdx; autoT = 0f; }
+        return hoverIdx >= 0;
     }
-
-    @Override
-    public boolean onMouseDown(int mx, int my) { return false; }
-    @Override
-    public boolean onMouseUp(int mx, int my) { return false; }
-    @Override
-    public boolean onKey(KeyEvent e) { return false; }
 }

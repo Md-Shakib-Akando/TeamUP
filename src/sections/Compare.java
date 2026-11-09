@@ -1,261 +1,142 @@
 import java.awt.*;
-import java.awt.event.KeyEvent;
 import java.awt.geom.RoundRectangle2D;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Responsive Feature Comparison Matrix for TeamUp.
- * Adapts between full 5-column desktop comparison and streamlined 3-column mobile view.
- */
-public class Compare implements Section {
+/** Comparison matrix — highlighted TeamUp column, staggered tick pop-ins and row hover. */
+public class Compare extends LpSection {
 
-    private static class RowData {
-        String feature;
-        boolean teamUp;
-        boolean campLink;
-        boolean collabConnect;
-        boolean devpost;
-
-        RowData(String feature, boolean tu, boolean cl, boolean cc, boolean dp) {
-            this.feature = feature;
-            this.teamUp = tu;
-            this.campLink = cl;
-            this.collabConnect = cc;
-            this.devpost = dp;
-        }
+    private static class Row {
+        final String feature;
+        final boolean[] has; // TeamUp, CampLink, CollabConnect, Devpost
+        int y;
+        Row(String f, boolean... h) { feature = f; has = h; }
     }
 
-    private final List<RowData> rows = new ArrayList<RowData>();
-    private final Anim.RevealState reveal = new Anim.RevealState();
+    private final List<Row> rows = new ArrayList<>();
+    private final String[] cols = {"TeamUp", "CampLink", "CollabConnect", "Devpost"};
+    private int hoverRow = -1;
+    private int tableX, tableW, rowH = 58, firstRowY;
 
     public Compare() {
-        rows.add(new RowData("Skill-Based Member Matching", true, false, true, false));
-        rows.add(new RowData("Full Project Lifecycle Tracking", true, false, false, true));
-        rows.add(new RowData("Built-in Kanban Task Management", true, false, false, false));
-        rows.add(new RowData("Post-Project Peer Ratings & Reviews", true, false, false, false));
-        rows.add(new RowData("Direct Messaging with Notifications", true, false, false, false));
-        rows.add(new RowData("Admin Moderation & Security Panel", true, false, false, true));
-        reveal.trigger();
+        rows.add(new Row("Skill-based member matching", true, false, true, false));
+        rows.add(new Row("Full project lifecycle tracking", true, false, false, true));
+        rows.add(new Row("Built-in Kanban task management", true, false, false, false));
+        rows.add(new Row("Post-project peer ratings & reviews", true, false, false, false));
+        rows.add(new Row("Direct messaging with notifications", true, false, false, false));
+        rows.add(new Row("Admin moderation & security panel", true, false, false, true));
     }
 
-    @Override
-    public String getId() {
-        return "compare";
-    }
+    @Override public String getId() { return "compare"; }
 
     @Override
-    public int getHeight(int width) {
-        return width < 720 ? 560 : 580;
-    }
+    protected int render(Graphics2D g, int y, int width, int viewportY, int viewportH) {
+        int top = y;
+        int cur = y + (width < 700 ? 70 : 110);
+        cur = Fx.header(g, rv, width, cur, "COMPARE", Fx.VIOLET,
+                "Why teams choose ", "TeamUp.",
+                "Purpose-built for builder teams - with lifecycle tracking, chat and verified peer reviews in one place.");
+        cur += width < 700 ? 36 : 56;
 
-    @Override
-    public void update(float dt) {
-        reveal.update(dt);
-    }
+        int[] c = Fx.container(width);
+        int tw = Math.min(1000, c[1]);
+        int tx = Math.round(width / 2f - tw / 2f);
+        boolean narrow = tw < 720;
+        int nCols = narrow ? 2 : 4;
+        int headH = 84;
+        int th = headH + rows.size() * rowH + 16;
+        if (!measuring) { tableX = tx; tableW = tw; firstRowY = cur + headH; }
+        if (measuring) return cur + th - top + 40;
 
-    @Override
-    public void paint(Graphics2D g, int y, int width, int viewportY, int viewportH) {
-        int padX = width > 1100 ? 56 : (width > 600 ? 28 : 20);
-        boolean isMobile = width < 720;
+        Graphics2D t = Fx.fade(g, rv.p(0.2f, 0.9f), 40);
+        Fx.card(t, tx, cur, tw, th, 24, 0.2f, Fx.VIOLET);
 
-        Graphics2D g2 = (Graphics2D) g.create();
-        int rise = reveal.getYOffset();
-        g2.translate(0, rise);
+        int featW = narrow ? Math.round(tw * 0.5f) : Math.round(tw * 0.38f);
+        int colW = (tw - featW) / nCols;
+        int tuX = tx + featW;
 
-        int topY = y + 24;
+        // Highlight column for TeamUp
+        RoundRectangle2D.Float hl = Fx.rr(tuX + 6, cur + 10, colW - 12, th - 20, 18);
+        Fx.glowOval(t, tuX + colW / 2f, cur + th / 2f, colW * 0.9f, th * 0.55f, Fx.PINK, Fx.dark() ? 0.18f : 0.1f);
+        t.setPaint(new GradientPaint(0, cur, Fx.a(Fx.PINK, Fx.dark() ? 36 : 22), 0, cur + th, Fx.a(Fx.VIOLET, Fx.dark() ? 18 : 10)));
+        t.fill(hl);
+        Fx.gradientBorder(t, hl, 1.4f, 0.9f, Fx.time() * 0.5f);
 
-        // Eyebrow & Title
-        Draw.drawSectionBadge(g2, "COMPARISON MATRIX", padX, topY, Theme.BRAND_PINK);
-
-        g2.setFont(Theme.fontTitle());
-        FontMetrics tfm = g2.getFontMetrics();
-        g2.setColor(Theme.textPrimary());
-        int titleY = topY + 44 + tfm.getAscent();
-        g2.drawString("Why TeamUp stands out", padX, titleY);
-
-        g2.setFont(Theme.fontBody());
-        g2.setColor(Theme.textSecondary());
-        g2.drawString("Purpose-built for student and builder teams with full lifecycle tracking, chat, and verified peer reviews.", padX, titleY + 22);
-
-        // Table container
-        int tableY = titleY + 48;
-        int tableW = width - padX * 2;
-        int rowH = 48;
-        int tableH = (rows.size() + 1) * rowH + 18;
-        Draw.drawGlassCard(g2, padX, tableY, tableW, tableH, 20, 0f, false);
-
-        if (!isMobile) {
-            // ================= 5-COLUMN DESKTOP TABLE =================
-            int featColW = Math.max(180, Math.round(tableW * 0.40f));
-            int remainingW = tableW - featColW;
-            int colW = remainingW / 4;
-
-            int xTU = padX + featColW;
-            int xCL = xTU + colW;
-            int xCC = xCL + colW;
-            int xDP = xCC + colW;
-
-            // Highlight background column for TeamUp (with subtle gradient)
-            LinearGradientPaint tugp = new LinearGradientPaint(
-                    xTU + 4, tableY + 8, xTU + colW - 4, tableY + tableH - 8,
-                    new float[]{0f, 1f},
-                    new Color[]{
-                            new Color(Theme.BRAND_PINK.getRed(), Theme.BRAND_PINK.getGreen(), Theme.BRAND_PINK.getBlue(), 20),
-                            new Color(Theme.ACCENT_VIOLET.getRed(), Theme.ACCENT_VIOLET.getGreen(), Theme.ACCENT_VIOLET.getBlue(), 12)
-                    }
-            );
-            Paint oldPaint = g2.getPaint();
-            g2.setPaint(tugp);
-            g2.fill(new RoundRectangle2D.Float(xTU + 4, tableY + 8, colW - 8, tableH - 16, 14, 14));
-            g2.setPaint(oldPaint);
-
-            g2.setColor(new Color(Theme.BRAND_PINK.getRed(), Theme.BRAND_PINK.getGreen(), Theme.BRAND_PINK.getBlue(), 70));
-            g2.setStroke(new BasicStroke(1.2f));
-            g2.draw(new RoundRectangle2D.Float(xTU + 4, tableY + 8, colW - 8, tableH - 16, 14, 14));
-
-            // Header Row
-            int headerY = tableY + 12;
-            g2.setFont(Theme.fontBodyBold());
-            FontMetrics rfm = g2.getFontMetrics();
-
-            g2.setColor(Theme.textMuted());
-            g2.drawString("Capabilities", padX + 24, headerY + (rowH - rfm.getHeight()) / 2 + rfm.getAscent());
-
-            // TeamUp Header with recommended badge
-            int tuCenter = xTU + colW / 2;
-            int badgeW = 88;
-            int badgeH = 18;
-            int badgeX = tuCenter - badgeW / 2;
-            int badgeY = headerY + 2;
-            RoundRectangle2D tuPill = new RoundRectangle2D.Float(badgeX, badgeY, badgeW, badgeH, badgeH, badgeH);
-            g2.setColor(Theme.BRAND_PINK);
-            g2.fill(tuPill);
-            g2.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 9));
-            FontMetrics bmf = g2.getFontMetrics();
-            g2.setColor(Color.WHITE);
-            g2.drawString("BEST CHOICE", badgeX + (badgeW - bmf.stringWidth("BEST CHOICE")) / 2, badgeY + 13);
-
-            g2.setFont(Theme.fontBodyBold());
-            g2.setColor(Theme.BRAND_PINK);
-            String tuStr = "TeamUp";
-            g2.drawString(tuStr, tuCenter - rfm.stringWidth(tuStr) / 2, headerY + 36);
-
-            g2.setColor(Theme.textSecondary());
-            String clStr = "CampLink";
-            g2.drawString(clStr, xCL + (colW - rfm.stringWidth(clStr)) / 2, headerY + (rowH - rfm.getHeight()) / 2 + rfm.getAscent());
-
-            String ccStr = "CollabConnect";
-            g2.drawString(ccStr, xCC + (colW - rfm.stringWidth(ccStr)) / 2, headerY + (rowH - rfm.getHeight()) / 2 + rfm.getAscent());
-
-            String dpStr = "Devpost";
-            g2.drawString(dpStr, xDP + (colW - rfm.stringWidth(dpStr)) / 2, headerY + (rowH - rfm.getHeight()) / 2 + rfm.getAscent());
-
-            // Divider
-            g2.setColor(Theme.cardBorder());
-            g2.drawLine(padX + 16, headerY + rowH + 6, padX + tableW - 16, headerY + rowH + 6);
-
-            // Data Rows
-            int curY = headerY + rowH + 6;
-            g2.setFont(Theme.fontBody());
-            FontMetrics dfm = g2.getFontMetrics();
-
-            for (int i = 0; i < rows.size(); i++) {
-                RowData r = rows.get(i);
-                int rowCenterY = curY + (rowH - dfm.getHeight()) / 2 + dfm.getAscent();
-
-                g2.setColor(Theme.textPrimary());
-                g2.drawString(r.feature, padX + 24, rowCenterY);
-
-                int iconSize = 20;
-                int iconY = curY + (rowH - iconSize) / 2;
-
-                drawTickOrDash(g2, xTU + (colW - iconSize) / 2, iconY, iconSize, r.teamUp, true);
-                drawTickOrDash(g2, xCL + (colW - iconSize) / 2, iconY, iconSize, r.campLink, false);
-                drawTickOrDash(g2, xCC + (colW - iconSize) / 2, iconY, iconSize, r.collabConnect, false);
-                drawTickOrDash(g2, xDP + (colW - iconSize) / 2, iconY, iconSize, r.devpost, false);
-
-                curY += rowH;
-                if (i < rows.size() - 1) {
-                    g2.setColor(Theme.cardBorder());
-                    g2.drawLine(padX + 16, curY, padX + tableW - 16, curY);
-                }
-            }
+        // Header
+        t.setFont(Fx.label(11));
+        t.setColor(Fx.text3());
+        Fx.textMid(t, "CAPABILITY", tx + 28, cur + headH / 2f + 6);
+        Draw.drawLogo(t, Math.round(tuX + colW / 2f - 13), cur + 18, 26);
+        t.setFont(Fx.heading(15));
+        t.setColor(Fx.text());
+        Fx.textCenter(t, "TeamUp", tuX + colW / 2f, cur + 60);
+        t.setFont(Fx.bold(14));
+        if (narrow) {
+            t.setColor(Fx.text2());
+            Fx.textCenter(t, "Others", tuX + colW + colW / 2f, cur + headH / 2f + 6);
         } else {
-            // ================= 3-COLUMN MOBILE / COMPACT TABLE =================
-            int colTU = 100;
-            int colOthers = 90;
-            int featColW = tableW - colTU - colOthers - 20;
-
-            int xTU = padX + featColW;
-            int xOthers = xTU + colTU;
-
-            // Highlight TeamUp column
-            g2.setColor(new Color(Theme.BRAND_PINK.getRed(), Theme.BRAND_PINK.getGreen(), Theme.BRAND_PINK.getBlue(), 20));
-            g2.fill(new RoundRectangle2D.Float(xTU, tableY + 8, colTU, tableH - 16, 12, 12));
-
-            // Header
-            int headerY = tableY + 14;
-            g2.setFont(Theme.fontSmallBold());
-            g2.setColor(Theme.textMuted());
-            g2.drawString("Feature", padX + 16, headerY + 22);
-
-            g2.setFont(Theme.fontBodyBold());
-            g2.setColor(Theme.BRAND_PINK);
-            g2.drawString("TeamUp", xTU + 20, headerY + 22);
-
-            g2.setColor(Theme.textSecondary());
-            g2.drawString("Others", xOthers + 18, headerY + 22);
-
-            // Divider
-            g2.setColor(Theme.cardBorder());
-            g2.drawLine(padX + 12, headerY + rowH, padX + tableW - 12, headerY + rowH);
-
-            int curY = headerY + rowH;
-            g2.setFont(Theme.fontSmall());
-            FontMetrics dfm = g2.getFontMetrics();
-
-            for (int i = 0; i < rows.size(); i++) {
-                RowData r = rows.get(i);
-                int rowCenterY = curY + (rowH - dfm.getHeight()) / 2 + dfm.getAscent();
-
-                g2.setColor(Theme.textPrimary());
-                g2.drawString(r.feature, padX + 16, rowCenterY);
-
-                int iconSize = 20;
-                int iconY = curY + (rowH - iconSize) / 2;
-
-                drawTickOrDash(g2, xTU + (colTU - iconSize) / 2, iconY, iconSize, r.teamUp, true);
-                drawTickOrDash(g2, xOthers + (colOthers - iconSize) / 2, iconY, iconSize, r.campLink || r.collabConnect, false);
-
-                curY += rowH;
-                if (i < rows.size() - 1) {
-                    g2.setColor(Theme.cardBorder());
-                    g2.drawLine(padX + 12, curY, padX + tableW - 12, curY);
-                }
+            for (int i = 1; i < 4; i++) {
+                t.setColor(Fx.text2());
+                Fx.textCenter(t, cols[i], tuX + i * colW + colW / 2f, cur + headH / 2f + 6);
             }
         }
+        t.setColor(Fx.border());
+        t.drawLine(tx + 20, cur + headH, tx + tw - 20, cur + headH);
 
-        g2.dispose();
-    }
+        // Rows
+        int ry = cur + headH;
+        for (int r = 0; r < rows.size(); r++) {
+            Row row = rows.get(r);
+            row.y = ry;
+            if (r == hoverRow) {
+                t.setColor(Fx.subtle());
+                t.fill(Fx.rr(tx + 10, ry + 4, tw - 20, rowH - 8, 12));
+            }
+            t.setFont(Fx.body(narrow ? 14 : 15));
+            t.setColor(r == hoverRow ? Fx.text() : Fx.text2());
+            String label = row.feature;
+            FontMetrics fm = t.getFontMetrics();
+            while (fm.stringWidth(label) > featW - 40 && label.length() > 6) label = label.substring(0, label.length() - 2);
+            if (!label.equals(row.feature)) label = label.trim() + "...";
+            Fx.textMid(t, label, tx + 28, ry + rowH / 2f);
 
-    private void drawTickOrDash(Graphics2D g, int x, int y, int size, boolean tick, boolean isTeamUp) {
-        if (tick) {
-            Color color = isTeamUp ? Theme.BRAND_PINK : Theme.textSecondary();
-            Draw.drawCheckIcon(g, x, y, size, color);
-        } else {
-            Draw.drawDashIcon(g, x, y, size, Theme.textMuted());
+            for (int k = 0; k < nCols; k++) {
+                boolean has;
+                if (narrow && k == 1) has = row.has[1] || row.has[2] || row.has[3];
+                else has = row.has[k];
+                float ccx = tuX + k * colW + colW / 2f;
+                float p = rv.p(0.45f + r * 0.08f + k * 0.05f, 0.6f);
+                if (has) {
+                    if (k == 0) Fx.glow(t, ccx, ry + rowH / 2f, 22, Fx.PINK, 0.4f * p);
+                    Fx.checkCircle(t, ccx - 13, ry + rowH / 2f - 13, 26, k == 0 ? Fx.PINK : Fx.text3(), Fx.easeOutBack(p));
+                } else {
+                    Graphics2D d = Fx.fade(t, p, 0);
+                    d.setColor(Fx.text3());
+                    d.setStroke(new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                    d.drawLine(Math.round(ccx - 6), Math.round(ry + rowH / 2f), Math.round(ccx + 6), Math.round(ry + rowH / 2f));
+                    d.dispose();
+                }
+            }
+            ry += rowH;
+            if (r < rows.size() - 1) {
+                t.setColor(Fx.border());
+                t.drawLine(tx + 20, ry, tuX + 6, ry);
+                t.drawLine(tuX + colW - 6, ry, tx + tw - 20, ry);
+            }
         }
+        t.dispose();
+        return cur + th - top + 40;
     }
 
     @Override
-    public boolean onClick(int mx, int my) { return false; }
-    @Override
-    public boolean onMouseMove(int mx, int my) { return false; }
-    @Override
-    public boolean onMouseDown(int mx, int my) { return false; }
-    @Override
-    public boolean onMouseUp(int mx, int my) { return false; }
-    @Override
-    public boolean onKey(KeyEvent e) { return false; }
+    public boolean onMouseMove(int mx, int my) {
+        hoverRow = -1;
+        if (mx >= tableX && mx <= tableX + tableW) {
+            for (int i = 0; i < rows.size(); i++) {
+                int ry = firstRowY + i * rowH;
+                if (my >= ry && my < ry + rowH) hoverRow = i;
+            }
+        }
+        return false;
+    }
 }
