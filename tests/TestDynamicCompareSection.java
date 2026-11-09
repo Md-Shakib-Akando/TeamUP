@@ -100,8 +100,14 @@ public class TestDynamicCompareSection {
         // [Test 3] Accordion Row Click-to-Expand Demo Data
         System.out.println("\n[Test 3] Testing Accordion Row Expansion & Detail Visibility...");
         int initialH = compare.getHeight(w);
-        // Click on the first row to expand (y ~ 545)
-        boolean clickedRow = compare.onClick(300, 545);
+        boolean clickedRow = false;
+        for (int ry = 500; ry < 620; ry += 5) {
+            if (compare.onClick(300, ry)) {
+                clickedRow = true;
+                System.out.println("  ✓ Located & Clicked First Row Accordion at y=" + ry);
+                break;
+            }
+        }
         System.out.println("  ✓ Clicked First Row Accordion: " + clickedRow);
         compare.update(0.5f);
         int expandedH = compare.getHeight(w);

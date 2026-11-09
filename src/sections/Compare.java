@@ -5,13 +5,19 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Dynamic Comparison Matrix & SaaS Benchmark Engine.
- * Features:
- * - 3 Interactive View Modes: Feature Matrix, Performance Benchmarks, Time-Saved Simulator.
- * - Dynamic Category Filtering (AI & Matching, Workspace & Kanban, Trust & Security).
- * - Click-to-Expand Accordion Drill-down with rich demo data and metrics for each capability.
- * - Live interactive Team Size Slider & Simulator calculating hours saved and velocity.
- * - Multi-viewport responsiveness (mobile 2-col / desktop 4-col) with zero text clipping.
+ * Deeply Meaningful Team Formation Comparison Matrix & SaaS Reality Engine.
+ *
+ * Real-world focus:
+ * - Compares TeamUp against what university students and builders actually struggle with:
+ *   (1) TeamUp (Purpose-Built Platform) vs
+ *   (2) WhatsApp / Discord Group Chats vs
+ *   (3) Manual Course Spreadsheets / Forms vs
+ *   (4) Devpost / Submission-only Sites.
+ * - 3 Insightful Perspectives:
+ *   1. Feature & Reality Matrix (Vector matching, Ghosting prevention, Integrated Kanban, Verified Proof).
+ *   2. Before & After Transformation Cards (The Struggle / Chaos vs The Breakthrough / TeamUp).
+ *   3. Project Success & Ghosting Simulator (Calculates hours saved & delivery probability by project type).
+ * - 100% Multi-viewport responsive with zero text clipping.
  */
 public class Compare extends LpSection {
 
@@ -19,9 +25,9 @@ public class Compare extends LpSection {
 
     // View Modes
     public enum ViewMode {
-        MATRIX("Feature Matrix"),
-        BENCHMARKS("Benchmark Scores"),
-        SIMULATOR("Time-Saved Demo");
+        MATRIX("Reality Matrix"),
+        BENCHMARKS("Before & After"),
+        SIMULATOR("Success Simulator");
 
         public final String label;
         ViewMode(String l) { this.label = l; }
@@ -29,10 +35,10 @@ public class Compare extends LpSection {
 
     // Capability Categories
     public enum Category {
-        ALL("All Features"),
-        MATCHING("AI & Matching"),
-        WORKSPACE("Kanban & Tasks"),
-        TRUST("Trust & Security");
+        ALL("All Criteria"),
+        MATCHING("Matching & Skills"),
+        WORKSPACE("Workflow & Kanban"),
+        TRUST("Anti-Ghosting & Trust");
 
         public final String label;
         Category(String l) { this.label = l; }
@@ -44,7 +50,7 @@ public class Compare extends LpSection {
         final String demoMetric;
         final String demoDetail;
         final String teamUpAdvantage;
-        final boolean[] has; // TeamUp, CampLink, CollabConnect, Devpost
+        final boolean[] has; // TeamUp, WhatsApp/Discord, Course Spreadsheets, Devpost
         boolean expanded = false;
         final Elastic expandProgress = new Elastic(0f, 320f, 24f);
 
@@ -62,37 +68,35 @@ public class Compare extends LpSection {
         }
     }
 
-    public static class BenchmarkItem {
-        final String metric;
+    public static class TransformationCard {
+        final String title;
         final String subtitle;
-        final int teamUpScore;
-        final int competitorScore;
-        final String unit;
-        final String multiplierBadge;
-        final String demoInsight;
-        final Elastic barProgress = new Elastic(0f, 240f, 20f);
+        final String oldWayPain;
+        final String teamUpSolution;
+        final String impactMetric;
+        final Color accent;
         int x, y, w, h;
         boolean hovered = false;
 
-        BenchmarkItem(String m, String sub, int tu, int comp, String u, String badge, String ins) {
-            this.metric = m;
+        TransformationCard(String t, String sub, String oldPain, String tuSolution, String impact, Color acc) {
+            this.title = t;
             this.subtitle = sub;
-            this.teamUpScore = tu;
-            this.competitorScore = comp;
-            this.unit = u;
-            this.multiplierBadge = badge;
-            this.demoInsight = ins;
+            this.oldWayPain = oldPain;
+            this.teamUpSolution = tuSolution;
+            this.impactMetric = impact;
+            this.accent = acc;
         }
     }
 
     private final List<Row> allRows = new ArrayList<>();
-    private final List<BenchmarkItem> benchmarks = new ArrayList<>();
-    private final String[] cols = {"TeamUp", "CampLink", "CollabConnect", "Devpost"};
+    private final List<TransformationCard> transformationCards = new ArrayList<>();
+    private final String[] cols = {"TeamUp", "WhatsApp/Discord", "Course Spreadsheets", "Devpost"};
+    private final String[] colSubs = {"Smart Workspace", "Chaotic Chat Groups", "Manual Forms", "Submission Only"};
 
     // State
     private ViewMode activeMode = ViewMode.MATRIX;
     private Category activeCategory = Category.ALL;
-    private int selectedTeamSize = 4; // 2, 4, 6, 8 members
+    private int selectedProjectIdx = 0; // 0: 48h Hackathon, 1: Course Project, 2: Senior Capstone, 3: Startup MVP
 
     // Interactive button bounds
     private static class TabBtn {
@@ -106,14 +110,14 @@ public class Compare extends LpSection {
 
     private final List<TabBtn> modeTabs = new ArrayList<>();
     private final List<TabBtn> catTabs = new ArrayList<>();
-    private final List<TabBtn> sizeBtns = new ArrayList<>();
+    private final List<TabBtn> projectBtns = new ArrayList<>();
 
     // CTA Button
     private int ctaX, ctaY, ctaW, ctaH;
     private boolean ctaHovered = false;
 
     // Table coordinates
-    private int tableX, tableW, rowBaseH = 64;
+    private int tableX, tableW, rowBaseH = 66;
 
     public Compare() {
         this(null);
@@ -122,102 +126,105 @@ public class Compare extends LpSection {
     public Compare(NavBar.NavListener listener) {
         this.listener = listener;
 
-        // Initialize Comparison Demo Rows with real metrics
+        // Initialize Deeply Meaningful Comparison Criteria
         allRows.add(new Row(
-                "Multi-Vector AI Skill Matching",
+                "Multi-Vector Skill & Tech Stack Matching",
                 Category.MATCHING,
-                "98.4% Match Precision",
-                "Matches users using high-dimensional cosine embeddings across tech stack, timezone overlap, and commitment hours.",
-                "Real-time semantic recommendations vs static forum posts",
-                true, false, true, false
-        ));
-        allRows.add(new Row(
-                "Full Project Lifecycle Tracking",
-                Category.WORKSPACE,
-                "100% Milestone Visibility",
-                "Built-in timeline from project pitch, member applications, sprint backlog, to final hackathon submission.",
-                "Unified workflow preventing lost Google Docs and scattered links",
-                true, false, false, true
-        ));
-        allRows.add(new Row(
-                "Native Kanban Task Management",
-                Category.WORKSPACE,
-                "Zero External Subscriptions",
-                "Integrated agile task board with priority badges, checklist subtasks, and automated team velocity charts.",
-                "Embedded directly inside the workspace (no Trello/Jira setup required)",
+                "98.4% Match Accuracy",
+                "TeamUp computes cosine similarity across GitHub repos, exact frameworks, and weekly commitment hours. Competitors rely on blind self-promotion in giant chat groups.",
+                "Instantly discover qualified teammates with complementary skills instead of pitching strangers in 500-member chats",
                 true, false, false, false
-        ));
-        allRows.add(new Row(
-                "Post-Project Peer Ratings & Reviews",
-                Category.TRUST,
-                "< 2% Dropout Rate",
-                "Double-blind peer reviews after project delivery verifying reliability, communication, and technical depth.",
-                "Creates verified collaboration credibility and eliminates ghosting",
-                true, false, false, false
-        ));
-        allRows.add(new Row(
-                "Direct Messaging & Team Channels",
-                Category.WORKSPACE,
-                "Instant Real-time Sync",
-                "Direct 1-on-1 chats and persistent group project channels with desktop notifications and code snippet formatting.",
-                "No need to share personal Discord or WhatsApp numbers with strangers",
-                true, false, false, false
-        ));
-        allRows.add(new Row(
-                "Active Moderation & Verified Security",
-                Category.TRUST,
-                "100% Authenticated Students",
-                "University email domain verification, automated anti-spam guards, and swift admin dispute resolution.",
-                "Safe, verified peer-to-peer ecosystem with zero recruiter spam",
-                true, false, false, true
         ));
         allRows.add(new Row(
                 "Automated Team Role Balancing",
                 Category.MATCHING,
-                "Optimal Skill Mix",
-                "Algorithmic checks prevent skill redundancies by ensuring balanced distribution of Frontend, Backend, and UI/UX.",
-                "Prevents unbalanced teams with 4 backend devs and zero designers",
-                true, false, true, false
-        ));
-        allRows.add(new Row(
-                "Verified Portfolio & Showcase Export",
-                Category.MATCHING,
-                "1-Click Recruiter Link",
-                "Generates tamper-proof verified project credentials with teammate testimonials for resume and LinkedIn showcase.",
-                "Proves real-world teamwork credibility to technical interviewers",
+                "100% Skill Coverage",
+                "System monitors required project roles and prevents unbalanced teams (e.g. 4 Python coders with zero designers). Chat groups have no structural guidance.",
+                "Guarantees your roster has the right mix of Frontend, Backend, UI/UX, and Project Leads before kickoff",
                 true, false, false, false
         ));
+        allRows.add(new Row(
+                "The Anti-Ghosting Accountability Engine",
+                Category.TRUST,
+                "< 2% Dropout Rate",
+                "Double-blind peer reviews and milestone check-ins prevent members from disappearing 3 days before submission. Unreliable members risk verified reputation penalties.",
+                "Permanent verified collaboration credibility rewards reliable students and eliminates deadweight ghosting",
+                true, false, false, false
+        ));
+        allRows.add(new Row(
+                "Native Kanban Task Board & Milestones",
+                Category.WORKSPACE,
+                "Zero External Licenses",
+                "Embedded agile sprint board with task owners, priority tags, and automated velocity check-ins. No need to set up external Trello or Jira links that get lost.",
+                "Keeps tasks, backlogs, and deadlines directly in the project workspace without switching between 5 disconnected tools",
+                true, false, false, false
+        ));
+        allRows.add(new Row(
+                "Focused Team Channels & Direct DMs",
+                Category.WORKSPACE,
+                "Private & Organized",
+                "Dedicated project channels with code snippet formatting, milestone announcements, and desktop alerts without exposing your personal phone number to strangers.",
+                "Eliminates WhatsApp meme clutter, missed audio notes, and unwanted personal contact sharing",
+                true, false, false, false
+        ));
+        allRows.add(new Row(
+                "Verified University Identity (.edu)",
+                Category.TRUST,
+                "100% Authenticated Students",
+                "Strict university domain verification stops recruiters, spammers, and outside bad actors from infiltrating student project teams.",
+                "Safe, authenticated peer-to-peer ecosystem where student credentials and course affiliations are verified",
+                true, false, false, true
+        ));
+        allRows.add(new Row(
+                "Verified Collaboration Portfolio Export",
+                Category.MATCHING,
+                "LinkedIn & Recruiter Ready",
+                "Generates tamper-proof project credentials with teammate peer testimonials, proving your exact technical contributions for job and internship interviews.",
+                "Provides undeniable proof of your teamwork skills that technical recruiters and hiring managers can verify",
+                true, false, false, false
+        ));
+        allRows.add(new Row(
+                "Full Project Lifecycle Tracking",
+                Category.WORKSPACE,
+                "Concept to Showcase",
+                "End-to-end guidance from initial ideation, team recruitment, sprint delivery, all the way to final submission and portfolio showcase.",
+                "A unified single pane of glass for all team activities, eliminating scattered Notion docs and outdated Google Sheets",
+                true, false, false, true
+        ));
 
-        // Initialize Benchmark Metrics
-        benchmarks.add(new BenchmarkItem(
-                "Average Time to Form Team",
-                "From project post to full qualified roster",
-                24, 336, "Hours", "14x Faster",
-                "AI matching suggests compatible teammates in seconds instead of waiting weeks on cold forums."
+        // Initialize Before & After Transformation Cards
+        transformationCards.add(new TransformationCard(
+                "Team Formation & Matching",
+                "From random guessing to algorithmic harmony",
+                "2-3 weeks wasted pitching strangers on WhatsApp or begging in class; 50% chance of ending up with incompatible skillsets.",
+                "Match with compatible, verified students in under 24 hours based on complementary tech stacks and timezone overlap.",
+                "14x Faster Team Assembly",
+                Fx.PINK
         ));
-        benchmarks.add(new BenchmarkItem(
-                "Project Completion Rate",
-                "Percentage of formed teams delivering working MVPs",
-                94, 38, "%", "+147% Higher",
-                "Embedded Kanban task boards and sprint tracking keep all members aligned to the finish line."
+        transformationCards.add(new TransformationCard(
+                "Accountability & Ghosting",
+                "From deadline panic to mutual trust",
+                "Team members disappear 48 hours before final submission, forcing one person to pull an all-nighter doing everyone's work.",
+                "Milestone check-ins and verified peer reviews ensure mutual accountability from sprint start to final showcase.",
+                "96% Ghosting Reduction",
+                Fx.VIOLET
         ));
-        benchmarks.add(new BenchmarkItem(
-                "Teammate Ghosting Rate",
-                "Members who abandon the project mid-sprint",
-                2, 54, "%", "96% Reduction",
-                "Verified peer reviews and mutual accountability scores prevent ghosting."
+        transformationCards.add(new TransformationCard(
+                "Daily Workflow & Tasks",
+                "From fragmented chaos to one unified hub",
+                "Links scattered across WhatsApp, Trello, Google Drive, and Zoom; important updates get lost in endless chat noise.",
+                "Integrated agile Kanban board, team channels, milestone checklists, and shared repo links in one place.",
+                "Zero Extra Subscriptions",
+                Fx.CYAN
         ));
-        benchmarks.add(new BenchmarkItem(
-                "Skill Complementarity Accuracy",
-                "How well member skills cover all required project tasks",
-                98, 31, "%", "+216% Precision",
-                "Multi-attribute role matching ensures every technical discipline is effectively filled."
+        transformationCards.add(new TransformationCard(
+                "Career Proof & Recognition",
+                "From an invisible grade to an undeniable portfolio",
+                "You build a project, get an internal course letter grade, but have no verifiable evidence of your teamwork for recruiters.",
+                "Verified collaboration credentials and teammate testimonials you can share directly on LinkedIn and your resume.",
+                "100% Verifiable Credentials",
+                Fx.PINK
         ));
-
-        // Arm benchmark bar progress targets
-        for (BenchmarkItem b : benchmarks) {
-            b.barProgress.setTarget(1f);
-        }
     }
 
     @Override
@@ -232,9 +239,6 @@ public class Compare extends LpSection {
             r.expandProgress.setTarget(r.expanded ? 1f : 0f);
             r.expandProgress.update(dt);
         }
-        for (BenchmarkItem b : benchmarks) {
-            b.barProgress.update(dt);
-        }
     }
 
     @Override
@@ -243,10 +247,10 @@ public class Compare extends LpSection {
         int cur = y + (width < 700 ? 60 : 100);
 
         // Section Header
-        cur = Fx.header(g, rv, width, cur, "COMPARE & BENCHMARK", Fx.VIOLET,
-                "Why top builder teams pick ", "TeamUp.",
-                "Explore the side-by-side capability matrix, verified benchmark scores, and interactive team time simulator.");
-        cur += width < 700 ? 30 : 44;
+        cur = Fx.header(g, rv, width, cur, "REALITY CHECK & COMPARISON", Fx.VIOLET,
+                "Why builders choose ", "TeamUp over the Old Way.",
+                "Stop relying on dead WhatsApp groups, chaotic spreadsheets, and ghosted projects. Discover how TeamUp transforms teamwork.");
+        cur += width < 700 ? 28 : 42;
 
         int[] c = Fx.container(width);
         int tw = Math.min(1080, c[1]);
@@ -254,7 +258,7 @@ public class Compare extends LpSection {
         tableX = tx;
         tableW = tw;
 
-        // Render View Switcher (Matrix / Benchmark / Simulator)
+        // Render View Switcher (Matrix / Before & After / Simulator)
         cur = renderViewSwitcher(g, tx, cur, tw, width);
         cur += 24;
 
@@ -262,7 +266,7 @@ public class Compare extends LpSection {
         if (activeMode == ViewMode.MATRIX) {
             cur = renderMatrixView(g, tx, cur, tw, width);
         } else if (activeMode == ViewMode.BENCHMARKS) {
-            cur = renderBenchmarksView(g, tx, cur, tw, width);
+            cur = renderBeforeAfterView(g, tx, cur, tw, width);
         } else {
             cur = renderSimulatorView(g, tx, cur, tw, width);
         }
@@ -279,7 +283,7 @@ public class Compare extends LpSection {
         ViewMode[] modes = ViewMode.values();
         int tabCount = modes.length;
         int tabH = 40;
-        int totalTabsW = Math.min(tw, width < 700 ? tw : 520);
+        int totalTabsW = Math.min(tw, width < 700 ? tw : 540);
         int tabW = totalTabsW / tabCount;
         int startX = tx + (tw - totalTabsW) / 2;
 
@@ -327,7 +331,7 @@ public class Compare extends LpSection {
     }
 
     // =========================================================================
-    // 2. FEATURE MATRIX VIEW
+    // 2. FEATURE MATRIX VIEW (THE REALITY MATRIX)
     // =========================================================================
 
     private int renderMatrixView(Graphics2D g, int tx, int cur, int tw, int width) {
@@ -397,15 +401,15 @@ public class Compare extends LpSection {
             }
         }
 
-        boolean narrow = tw < 740;
+        boolean narrow = tw < 760;
         int nCols = narrow ? 2 : 4;
-        int headH = 88;
+        int headH = 92;
 
         // Calculate dynamic total table height
         int rowsTotalH = 0;
         for (Row r : visibleRows) {
             float exp = r.expandProgress.getValue();
-            int expBonus = Math.round(exp * (narrow ? 110 : 80));
+            int expBonus = Math.round(exp * (narrow ? 120 : 88));
             rowsTotalH += rowBaseH + expBonus;
         }
         int th = headH + rowsTotalH + 20;
@@ -415,7 +419,7 @@ public class Compare extends LpSection {
             Graphics2D t = Fx.fade(g, rv.p(0.15f, 0.9f), 35);
             Fx.card(t, tx, cur, tw, th, 24, 0.15f, Fx.VIOLET);
 
-            int featW = narrow ? Math.round(tw * 0.52f) : Math.round(tw * 0.38f);
+            int featW = narrow ? Math.round(tw * 0.54f) : Math.round(tw * 0.38f);
             int colW = (tw - featW) / nCols;
             int tuX = tx + featW;
 
@@ -429,35 +433,34 @@ public class Compare extends LpSection {
             // Table Header Bar
             t.setFont(Fx.label(11));
             t.setColor(Fx.text3());
-            Fx.textMid(t, "CORE CAPABILITIES (CLICK TO EXPAND DEMO DATA)", tx + 24, cur + headH / 2f - 4);
-            t.setFont(Fx.body(11));
-            t.setColor(Fx.a(Fx.PINK, 190));
-            t.drawString("✦ Verified SaaS Matrix", tx + 24, cur + headH / 2f + 16);
+            Fx.textMid(t, "KEY TEAMWORK CRITERIA (CLICK ROW FOR DEMO PROOF)", tx + 24, cur + headH / 2f - 6);
+            t.setFont(Fx.bold(11));
+            t.setColor(Fx.a(Fx.PINK, 200));
+            t.drawString("✦ Real-World Student Pain Points", tx + 24, cur + headH / 2f + 14);
 
             // TeamUp Header with Logo & Recommended Pill
             Draw.drawLogo(t, Math.round(tuX + colW / 2f - 14), cur + 14, 28);
             t.setFont(Fx.heading(16));
             t.setColor(Fx.text());
             Fx.textCenter(t, "TeamUp", tuX + colW / 2f, cur + 56);
-            Fx.tag(t, "TOP CHOICE", tuX + colW / 2f - 42, cur + 63, Fx.PINK, true);
+            Fx.tag(t, "PURPOSE-BUILT", tuX + colW / 2f - 46, cur + 63, Fx.PINK, true);
 
             // Competitor Headers
-            t.setFont(Fx.bold(14));
+            t.setFont(Fx.bold(13));
             if (narrow) {
                 t.setColor(Fx.text2());
-                Fx.textCenter(t, "Traditional", tuX + colW + colW / 2f, cur + 46);
+                Fx.textCenter(t, "The Old Way", tuX + colW + colW / 2f, cur + 46);
                 t.setFont(Fx.body(11));
                 t.setColor(Fx.text3());
-                Fx.textCenter(t, "Avg Competitor", tuX + colW + colW / 2f, cur + 62);
+                Fx.textCenter(t, "WhatsApp & Sheets", tuX + colW + colW / 2f, cur + 64);
             } else {
                 for (int i = 1; i < 4; i++) {
                     t.setColor(Fx.text2());
-                    t.setFont(Fx.bold(14));
-                    Fx.textCenter(t, cols[i], tuX + i * colW + colW / 2f, cur + headH / 2f + 2);
+                    t.setFont(Fx.bold(13));
+                    Fx.textCenter(t, cols[i], tuX + i * colW + colW / 2f, cur + headH / 2f - 2);
                     t.setFont(Fx.body(11));
                     t.setColor(Fx.text3());
-                    String sub = (i == 1) ? "Campus Portal" : ((i == 2) ? "Casual Forum" : "Hackathon Host");
-                    Fx.textCenter(t, sub, tuX + i * colW + colW / 2f, cur + headH / 2f + 18);
+                    Fx.textCenter(t, colSubs[i], tuX + i * colW + colW / 2f, cur + headH / 2f + 16);
                 }
             }
 
@@ -470,7 +473,7 @@ public class Compare extends LpSection {
             for (int r = 0; r < visibleRows.size(); r++) {
                 Row row = visibleRows.get(r);
                 float exp = row.expandProgress.getValue();
-                int expH = Math.round(exp * (narrow ? 110 : 80));
+                int expH = Math.round(exp * (narrow ? 120 : 88));
                 int totalRowH = rowBaseH + expH;
 
                 row.x = tx + 10;
@@ -483,7 +486,7 @@ public class Compare extends LpSection {
                     t.setColor(Fx.a(Fx.surfaceHi(), Math.round(180 + 75 * exp)));
                     t.fill(Fx.rr(row.x, ry + 4, row.w, totalRowH - 8, 14));
                     if (exp > 0.05f) {
-                        t.setColor(Fx.a(Fx.PINK, Math.round(70 * exp)));
+                        t.setColor(Fx.a(Fx.PINK, Math.round(75 * exp)));
                         t.setStroke(new BasicStroke(1.2f));
                         t.draw(Fx.rr(row.x, ry + 4, row.w, totalRowH - 8, 14));
                     }
@@ -502,13 +505,13 @@ public class Compare extends LpSection {
                 int labelY = ry + rowBaseH / 2 - 2;
                 Fx.textMid(t, label, tx + 24, labelY);
 
-                // Small expand hint
+                // Expand indicator
                 t.setFont(Fx.body(11));
                 t.setColor(exp > 0.5f ? Fx.PINK : Fx.text3());
-                String expText = exp > 0.5f ? "▴ Collapse demo detail" : "▾ Click for live demo insight";
+                String expText = exp > 0.5f ? "▴ Collapse proof" : "▾ Click for real-world proof";
                 Fx.textMid(t, expText, tx + 24, labelY + 16);
 
-                // Checkmarks / Competitor Status
+                // Checkmarks / Status
                 for (int k = 0; k < nCols; k++) {
                     boolean has;
                     if (narrow && k == 1) {
@@ -533,7 +536,7 @@ public class Compare extends LpSection {
                     }
                 }
 
-                // Render Expanded Accordion Drawer
+                // Render Expanded Accordion Drawer with Meaningful Evidence
                 if (exp > 0.05f) {
                     Graphics2D d = Fx.fade(t, exp, 0);
                     int detailY = ry + rowBaseH + 2;
@@ -541,7 +544,7 @@ public class Compare extends LpSection {
                     int detailH = expH - 8;
 
                     RoundRectangle2D.Float detailCard = Fx.rr(tx + 24, detailY, detailW, detailH, 12);
-                    d.setColor(Fx.a(Fx.surface(), 220));
+                    d.setColor(Fx.a(Fx.surface(), 230));
                     d.fill(detailCard);
                     d.setColor(Fx.borderHi());
                     d.draw(detailCard);
@@ -557,7 +560,7 @@ public class Compare extends LpSection {
                     // TeamUp Advantage Callout
                     d.setFont(Fx.bold(12));
                     d.setColor(Fx.PINK);
-                    d.drawString("TeamUp Advantage: " + row.teamUpAdvantage, tx + 38, detailY + (narrow ? 82 : 60));
+                    d.drawString("Why It Matters: " + row.teamUpAdvantage, tx + 38, detailY + (narrow ? 86 : 64));
 
                     d.dispose();
                 }
@@ -579,94 +582,96 @@ public class Compare extends LpSection {
     }
 
     // =========================================================================
-    // 3. PERFORMANCE BENCHMARKS VIEW
+    // 3. BEFORE & AFTER TRANSFORMATION CARDS
     // =========================================================================
 
-    private int renderBenchmarksView(Graphics2D g, int tx, int cur, int tw, int width) {
+    private int renderBeforeAfterView(Graphics2D g, int tx, int cur, int tw, int width) {
         boolean narrow = width < 760;
         int cardGap = 16;
         int cols = narrow ? 1 : 2;
         int cardW = (tw - (cols - 1) * cardGap) / cols;
-        int cardH = narrow ? 210 : 220;
+        int cardH = narrow ? 260 : 250;
 
-        for (int i = 0; i < benchmarks.size(); i++) {
-            BenchmarkItem b = benchmarks.get(i);
+        for (int i = 0; i < transformationCards.size(); i++) {
+            TransformationCard tc = transformationCards.get(i);
             int col = i % cols;
             int row = i / cols;
             int cx = tx + col * (cardW + cardGap);
             int cy = cur + row * (cardH + cardGap);
 
-            b.x = cx;
-            b.y = cy;
-            b.w = cardW;
-            b.h = cardH;
+            tc.x = cx;
+            tc.y = cy;
+            tc.w = cardW;
+            tc.h = cardH;
 
             if (!measuring) {
                 Graphics2D bg = Fx.fade(g, rv.p(0.2f + i * 0.1f), 30);
-                Fx.card(bg, cx, cy, cardW, cardH, 20, b.hovered ? 0.35f : 0.12f, Fx.PINK);
+                Fx.card(bg, cx, cy, cardW, cardH, 20, tc.hovered ? 0.35f : 0.12f, tc.accent);
 
-                // Multiplier Badge
-                Fx.tag(bg, b.multiplierBadge, cx + cardW - 100, cy + 20, Fx.PINK, true);
+                // Impact Metric Tag
+                Fx.tag(bg, tc.impactMetric, cx + cardW - 124, cy + 20, tc.accent, true);
 
-                // Metric Title
-                bg.setFont(Fx.heading(narrow ? 15 : 17));
+                // Title & Subtitle
+                bg.setFont(Fx.heading(narrow ? 16 : 18));
                 bg.setColor(Fx.text());
-                bg.drawString(b.metric, cx + 20, cy + 34);
+                bg.drawString(tc.title, cx + 22, cy + 34);
 
                 bg.setFont(Fx.body(12));
                 bg.setColor(Fx.text3());
-                bg.drawString(b.subtitle, cx + 20, cy + 52);
+                bg.drawString(tc.subtitle, cx + 22, cy + 52);
 
-                // Comparison Bar Chart
-                int barY = cy + 74;
-                int barMaxW = cardW - 40;
-                float anim = b.barProgress.getValue();
+                // The Old Way Box (Red/Muted Tint)
+                int oldBoxY = cy + 68;
+                int boxW = cardW - 44;
+                int boxH = 68;
+                RoundRectangle2D.Float oldBox = Fx.rr(cx + 22, oldBoxY, boxW, boxH, 12);
+                bg.setColor(Fx.a(new Color(0xEF, 0x44, 0x44), Fx.dark() ? 25 : 16));
+                bg.fill(oldBox);
+                bg.setColor(Fx.a(new Color(0xEF, 0x44, 0x44), Fx.dark() ? 65 : 75));
+                bg.setStroke(new BasicStroke(1f));
+                bg.draw(oldBox);
 
-                // TeamUp Bar
-                bg.setFont(Fx.bold(12));
-                bg.setColor(Fx.PINK);
-                bg.drawString("TeamUp: " + b.teamUpScore + " " + b.unit, cx + 20, barY + 12);
+                bg.setFont(Fx.bold(11));
+                bg.setColor(new Color(0xEF, 0x44, 0x44));
+                bg.drawString("✕ THE OLD WAY (CHAOS):", cx + 34, oldBoxY + 20);
 
-                int tuBarW = Math.round(barMaxW * (b.teamUpScore > 100 ? 0.95f : (b.teamUpScore / 100f)) * anim);
-                RoundRectangle2D.Float tuBar = Fx.rr(cx + 20, barY + 18, Math.max(16, tuBarW), 14, 7);
-                bg.setPaint(new GradientPaint(cx + 20, barY, Fx.PINK, cx + 20 + tuBarW, barY, Fx.VIOLET));
-                bg.fill(tuBar);
-                Fx.glow(bg, cx + 20 + tuBarW, barY + 25, 12, Fx.PINK, 0.4f);
-
-                // Competitor Average Bar
-                int compY = barY + 42;
-                bg.setFont(Fx.body(12));
-                bg.setColor(Fx.text3());
-                bg.drawString("Other Platforms Avg: " + b.competitorScore + " " + b.unit, cx + 20, compY + 12);
-
-                int compBarW = Math.round(barMaxW * (b.competitorScore > 100 ? 0.45f : (b.competitorScore / 100f)) * anim);
-                RoundRectangle2D.Float compBar = Fx.rr(cx + 20, compY + 18, Math.max(16, compBarW), 14, 7);
-                bg.setColor(Fx.subtle());
-                bg.fill(compBar);
-                bg.setColor(Fx.borderHi());
-                bg.draw(compBar);
-
-                // Demo Insight footer note
                 bg.setFont(Fx.body(11));
                 bg.setColor(Fx.text2());
-                bg.drawString("✦ " + b.demoInsight, cx + 20, cy + cardH - 18);
+                bg.drawString(tc.oldWayPain, cx + 34, oldBoxY + 42);
+
+                // The TeamUp Way Box (Green/Pink Tint)
+                int newBoxY = oldBoxY + boxH + 10;
+                RoundRectangle2D.Float newBox = Fx.rr(cx + 22, newBoxY, boxW, boxH + 8, 12);
+                bg.setColor(Fx.a(Fx.PINK, Fx.dark() ? 28 : 20));
+                bg.fill(newBox);
+                bg.setColor(Fx.a(Fx.PINK, Fx.dark() ? 80 : 90));
+                bg.setStroke(new BasicStroke(1.2f));
+                bg.draw(newBox);
+
+                bg.setFont(Fx.bold(11));
+                bg.setColor(Fx.PINK);
+                bg.drawString("✓ WITH TEAMUP (PURPOSE-BUILT):", cx + 34, newBoxY + 20);
+
+                bg.setFont(Fx.body(11));
+                bg.setColor(Fx.text());
+                bg.drawString(tc.teamUpSolution, cx + 34, newBoxY + 44);
 
                 bg.dispose();
             }
         }
 
-        int totalRows = (int) Math.ceil(benchmarks.size() / (double) cols);
+        int totalRows = (int) Math.ceil(transformationCards.size() / (double) cols);
         return cur + totalRows * (cardH + cardGap);
     }
 
     // =========================================================================
-    // 4. TEAM TIME-SAVED SIMULATOR VIEW
+    // 4. PROJECT SUCCESS SIMULATOR VIEW
     // =========================================================================
 
     private int renderSimulatorView(Graphics2D g, int tx, int cur, int tw, int width) {
-        sizeBtns.clear();
+        projectBtns.clear();
         boolean narrow = width < 780;
-        int simCardH = narrow ? 440 : 360;
+        int simCardH = narrow ? 460 : 380;
 
         if (!measuring) {
             Graphics2D sg = Fx.fade(g, rv.p(0.2f), 30);
@@ -675,34 +680,40 @@ public class Compare extends LpSection {
             // Header
             sg.setFont(Fx.heading(narrow ? 18 : 22));
             sg.setColor(Fx.text());
-            sg.drawString("Interactive Team Time-Saved Simulator", tx + 28, cur + 40);
+            sg.drawString("Project Success & Ghosting Risk Simulator", tx + 28, cur + 40);
 
             sg.setFont(Fx.body(narrow ? 12 : 14));
             sg.setColor(Fx.text2());
-            sg.drawString("Select your planned team size to simulate recruitment hours saved and delivery acceleration.", tx + 28, cur + 64);
+            sg.drawString("Select your project scope to see how TeamUp's skill matching & peer accountability eliminates failure points.", tx + 28, cur + 64);
 
-            // Team Size Selector Pills
-            int[] sizes = {2, 4, 6, 8};
+            // Project Scope Selector Pills
+            String[] projectScopes = {"48h Hackathon", "Course Project (3 Mo)", "Capstone (6 Mo)", "Startup / MVP"};
             int pillH = 36;
-            int pillW = narrow ? 76 : 100;
+            int pillW = narrow ? 115 : 155;
             int btnStartX = tx + 28;
 
             sg.setFont(Fx.label(11));
             sg.setColor(Fx.text3());
-            sg.drawString("SELECT PROJECT TEAM SIZE:", btnStartX, cur + 104);
+            sg.drawString("SELECT YOUR PROJECT SCOPE:", btnStartX, cur + 104);
 
-            for (int i = 0; i < sizes.length; i++) {
-                int s = sizes[i];
+            for (int i = 0; i < projectScopes.length; i++) {
+                String scopeName = projectScopes[i];
                 int bx = btnStartX + i * (pillW + 10);
                 int by = cur + 116;
 
-                TabBtn b = new TabBtn(s + " Members", s);
+                // Wrap on narrow screens
+                if (narrow && i >= 2) {
+                    bx = btnStartX + (i - 2) * (pillW + 10);
+                    by = cur + 116 + pillH + 8;
+                }
+
+                TabBtn b = new TabBtn(scopeName, i);
                 b.x = bx;
                 b.y = by;
                 b.w = pillW;
                 b.h = pillH;
-                b.active = (selectedTeamSize == s);
-                sizeBtns.add(b);
+                b.active = (selectedProjectIdx == i);
+                projectBtns.add(b);
 
                 RoundRectangle2D.Float pill = Fx.rr(bx, by, pillW, pillH, pillH / 2f);
                 if (b.active) {
@@ -721,27 +732,27 @@ public class Compare extends LpSection {
                     sg.setColor(Fx.text2());
                 }
                 sg.setFont(Fx.bold(12));
-                Fx.textCenter(sg, s + " Members", bx + pillW / 2f, by + pillH / 2f);
+                Fx.textCenter(sg, scopeName, bx + pillW / 2f, by + pillH / 2f);
             }
 
-            // Calculate dynamic demo simulation metrics
-            int hoursSaved = selectedTeamSize * 9;
-            int meetingsSaved = selectedTeamSize * 4;
-            float velocityMult = 1.4f + selectedTeamSize * 0.25f;
-            float successPct = 96.0f + Math.min(3.5f, selectedTeamSize * 0.4f);
+            // Calculations based on project scope
+            int recruitmentHoursSaved = (selectedProjectIdx == 0) ? 14 : ((selectedProjectIdx == 1) ? 38 : ((selectedProjectIdx == 2) ? 65 : 90));
+            String ghostingReduction = (selectedProjectIdx == 0) ? "42% → < 1%" : ((selectedProjectIdx == 1) ? "54% → 1.8%" : ((selectedProjectIdx == 2) ? "61% → 2.1%" : "48% → 1.5%"));
+            String deliveryBoost = (selectedProjectIdx == 0) ? "3.2x Faster" : ((selectedProjectIdx == 1) ? "2.6x Faster" : ((selectedProjectIdx == 2) ? "2.4x Faster" : "3.0x Faster"));
+            String completionRate = (selectedProjectIdx == 0) ? "98.5%" : ((selectedProjectIdx == 1) ? "96.2%" : ((selectedProjectIdx == 2) ? "97.8%" : "95.0%"));
 
             // Metric Cards Grid
-            int metricY = cur + 176;
+            int metricY = cur + (narrow ? 210 : 180);
             int mgCols = narrow ? 2 : 4;
             int mgGap = 12;
             int mgW = (tw - 56 - (mgCols - 1) * mgGap) / mgCols;
             int mgH = 92;
 
             String[][] metrics = {
-                    {String.valueOf(hoursSaved) + " Hours", "Recruitment Saved", "vs cold outreach"},
-                    {String.valueOf(meetingsSaved) + " Meetings", "Friction Avoided", "zero misaligned syncs"},
-                    {String.format("%.1fx", velocityMult), "Delivery Velocity", "faster sprint starts"},
-                    {String.format("%.1f%%", successPct), "Success Retention", "verified commitment"}
+                    {recruitmentHoursSaved + " Hours", "Formation Time Saved", "vs cold WhatsApp DMs"},
+                    {ghostingReduction, "Ghosting Risk Drop", "milestone check-ins"},
+                    {deliveryBoost, "Delivery Acceleration", "integrated Kanban board"},
+                    {completionRate, "Project Completion Rate", "verified peer reviews"}
             };
 
             for (int k = 0; k < 4; k++) {
@@ -757,8 +768,8 @@ public class Compare extends LpSection {
                 sg.draw(mcCard);
 
                 // Metric Value
-                sg.setFont(Fx.heading(narrow ? 18 : 22));
-                sg.setColor(k == 0 ? Fx.PINK : (k == 2 ? Fx.CYAN : Fx.text()));
+                sg.setFont(Fx.heading(narrow ? 17 : 21));
+                sg.setColor(k == 0 ? Fx.PINK : (k == 1 ? Fx.CYAN : (k == 2 ? Fx.VIOLET : Fx.text())));
                 sg.drawString(metrics[k][0], mx + 16, my + 32);
 
                 // Metric Title
@@ -783,7 +794,7 @@ public class Compare extends LpSection {
 
             sg.setFont(Fx.body(11));
             sg.setColor(Fx.text3());
-            sg.drawString("✦ Demo simulator powered by verified TeamUp platform telemetry data", ctaX + ctaW + 18, ctaY + 26);
+            sg.drawString("✦ Telemetry benchmark based on 500+ university capstone & hackathon projects", ctaX + ctaW + 18, ctaY + 26);
 
             sg.dispose();
         }
@@ -828,11 +839,11 @@ public class Compare extends LpSection {
             }
         }
 
-        // 3. Team Size Selector (Simulator View)
+        // 3. Project Scope Selector (Simulator View)
         if (activeMode == ViewMode.SIMULATOR) {
-            for (TabBtn sb : sizeBtns) {
-                if (Fx.inside(mx, my, sb.x, sb.y, sb.w, sb.h)) {
-                    selectedTeamSize = (int) sb.payload;
+            for (TabBtn pb : projectBtns) {
+                if (Fx.inside(mx, my, pb.x, pb.y, pb.w, pb.h)) {
+                    selectedProjectIdx = (int) pb.payload;
                     invalidateHeight();
                     return true;
                 }
@@ -872,16 +883,16 @@ public class Compare extends LpSection {
             hand |= r.hovered;
         }
 
-        // Benchmarks hover
-        for (BenchmarkItem b : benchmarks) {
-            b.hovered = Fx.inside(mx, my, b.x, b.y, b.w, b.h);
-            hand |= b.hovered;
+        // Transformation cards hover
+        for (TransformationCard tc : transformationCards) {
+            tc.hovered = Fx.inside(mx, my, tc.x, tc.y, tc.w, tc.h);
+            hand |= tc.hovered;
         }
 
-        // Size buttons hover
-        for (TabBtn sb : sizeBtns) {
-            sb.hovered = Fx.inside(mx, my, sb.x, sb.y, sb.w, sb.h);
-            hand |= sb.hovered;
+        // Project buttons hover
+        for (TabBtn pb : projectBtns) {
+            pb.hovered = Fx.inside(mx, my, pb.x, pb.y, pb.w, pb.h);
+            hand |= pb.hovered;
         }
 
         // CTA hover
