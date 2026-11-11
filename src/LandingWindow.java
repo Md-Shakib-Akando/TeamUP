@@ -109,7 +109,7 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
         list.add(new Features());
         list.add(new MatchDemo());
         list.add(new Audience());
-        list.add(new Compare());
+        list.add(new Compare(listener));
         list.add(new NumbersStrip());
         list.add(new Faq(listener));
         list.add(new Cta());

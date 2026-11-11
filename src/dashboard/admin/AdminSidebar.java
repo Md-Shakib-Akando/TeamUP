@@ -12,6 +12,7 @@ public class AdminSidebar {
         USERS("Users"),
         PROJECTS("Projects"),
         REPORTS("Reports"),
+        FEEDBACK("Reviews & Feedback"),
         SKILLS("Categories & Skills"),
         SETTINGS("Settings");
 
@@ -109,7 +110,7 @@ public class AdminSidebar {
         g.setColor(AdminTheme.TEXT_LIGHT);
         g.drawString("Platform administrator", avX + 44, avY + 31);
 
-        Draw.drawChevronDown(g, x + w - padX - 8, avY + 14, 10, AdminTheme.TEXT_LIGHT, 0f);
+        AdminTheme.drawChevronDown(g, x + w - padX - 8, avY + 14, 10, AdminTheme.TEXT_LIGHT, 0f);
     }
 
     private void paintLogo(Graphics2D g, int x, int y) {
@@ -167,6 +168,12 @@ public class AdminSidebar {
             case REPORTS:
                 g.drawLine(x + 2, y, x + 2, y + size);
                 g.drawRect(x + 2, y + 1, 10, 7);
+                break;
+            case FEEDBACK:
+                g.drawRoundRect(x, y + 1, size - 2, size - 4, 3, 3);
+                g.drawLine(x + 3, y + size - 3, x + 3, y + size);
+                g.drawLine(x + 3, y + size, x + 6, y + size - 3);
+                g.fillOval(x + 5, y + 4, 4, 4);
                 break;
             case SKILLS:
                 g.drawOval(x + 2, y + 2, size - 4, size - 4);

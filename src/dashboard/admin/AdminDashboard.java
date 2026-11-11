@@ -34,6 +34,7 @@ public class AdminDashboard {
     private final AdminUsers usersView;
     private final AdminProjects projectsView;
     private final AdminReports reportsView;
+    private final AdminReviews reviewsView;
     private final AdminCategories categoriesView;
     private final AdminSettings settingsView;
 
@@ -58,6 +59,7 @@ public class AdminDashboard {
         this.usersView = new AdminUsers();
         this.projectsView = new AdminProjects();
         this.reportsView = new AdminReports();
+        this.reviewsView = new AdminReviews();
         this.categoriesView = new AdminCategories();
         this.settingsView = new AdminSettings();
 
@@ -136,6 +138,8 @@ public class AdminDashboard {
                 return projectsView.getComputedHeight(contentW);
             case REPORTS:
                 return reportsView.getComputedHeight(contentW);
+            case FEEDBACK:
+                return reviewsView.getComputedHeight(contentW);
             case SKILLS:
                 return categoriesView.getComputedHeight(contentW);
             case SETTINGS:
@@ -158,6 +162,9 @@ public class AdminDashboard {
                 break;
             case REPORTS:
                 reportsView.paint(g, x, y, w, h, this);
+                break;
+            case FEEDBACK:
+                reviewsView.paint(g, x, y, w, h, this);
                 break;
             case SKILLS:
                 categoriesView.paint(g, x, y, w, h, this);
@@ -236,6 +243,60 @@ public class AdminDashboard {
         modals.openAddSkill();
     }
 
+    public void openUserDetailsModal(AdminDataStore.UserModel user) {
+        modals.openUserDetails(user);
+    }
+
+    public void openAddUserModal() {
+        modals.openAddUser();
+    }
+
+    public void openProjectDetailsModal(AdminDataStore.ProjectModel project) {
+        modals.openProjectDetails(project);
+    }
+
+    public void openAddProjectModal() {
+        modals.openAddProject();
+    }
+
+    public void closeModal() {
+        if (modals != null) {
+            modals.closeModal();
+        }
+    }
+
+    public AdminOverview getOverviewView() {
+        return overview;
+    }
+
+    public AdminUsers getUsersView() {
+        return usersView;
+    }
+
+    public AdminProjects getProjectsView() {
+        return projectsView;
+    }
+
+    public AdminReviews getReviewsView() {
+        return reviewsView;
+    }
+
+    public AdminSettings getSettingsView() {
+        return settingsView;
+    }
+
+    public void openReviewDetailsModal(AdminDataStore.ReviewModel review) {
+        modals.openReviewDetails(review);
+    }
+
+    public void openAddReviewModal() {
+        modals.openAddReview();
+    }
+
+    public AdminModals getModals() {
+        return modals;
+    }
+
     public boolean onClick(int mx, int my) {
         // Modal consumes all clicks when open (0ms dismiss)
         if (modals.getActiveModal() != AdminModals.ActiveModal.NONE) {
@@ -266,6 +327,8 @@ public class AdminDashboard {
                 return projectsView.onClick(mx, cy, this);
             case REPORTS:
                 return reportsView.onClick(mx, cy, this);
+            case FEEDBACK:
+                return reviewsView.onClick(mx, cy, this);
             case SKILLS:
                 return categoriesView.onClick(mx, cy, this);
             case SETTINGS:
@@ -299,6 +362,9 @@ public class AdminDashboard {
                 break;
             case REPORTS:
                 c2 = reportsView.onMouseMove(mx, cy);
+                break;
+            case FEEDBACK:
+                c2 = reviewsView.onMouseMove(mx, cy);
                 break;
             case SKILLS:
                 c2 = categoriesView.onMouseMove(mx, cy);
@@ -344,6 +410,9 @@ public class AdminDashboard {
                 break;
             case REPORTS:
                 handled = reportsView.onKey(ch, keyCode, this);
+                break;
+            case FEEDBACK:
+                handled = reviewsView.onKey(ch, keyCode, this);
                 break;
             case SKILLS:
                 handled = categoriesView.onKey(ch, keyCode, this);

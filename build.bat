@@ -18,6 +18,7 @@ if not exist "bin" (
 echo Compiling TeamUp Platform (src to bin)...
 "%JAVAC%" -d bin src\*.java src\sections\*.java src\widgets\*.java src\dashboard\admin\*.java src\dashboard\student\*.java tests\*.java
 if %ERRORLEVEL% EQU 0 (
+    if exist "assets" xcopy /e /i /y "assets" "bin\assets" >nul
     echo [OK] Build succeeded! Run run.bat, ./run.sh or "java -cp bin Main".
 ) else (
     echo [ERROR] Compilation failed.

@@ -75,7 +75,7 @@ public class AdminHeader {
         g.setFont(AdminTheme.FONT_BOLD_11);
         g.setColor(AdminTheme.BRAND_PRIMARY);
         g.drawString("JL", userX + 9, userY + 21);
-        Draw.drawChevronDown(g, userX + avSize + 4, userY + 14, 8, AdminTheme.TEXT_LIGHT, 0f);
+        AdminTheme.drawChevronDown(g, userX + avSize + 4, userY + 14, 8, AdminTheme.TEXT_LIGHT, 0f);
 
         // Notification Bell Icon
         bellX = userX - 44;
@@ -96,7 +96,7 @@ public class AdminHeader {
         g.draw(searchBox);
 
         // Search icon
-        Draw.drawSearchIcon(g, searchX + 11, searchY + 9, 16, AdminTheme.TEXT_LIGHT);
+        AdminTheme.drawSearchIcon(g, searchX + 11, searchY + 9, 16, AdminTheme.TEXT_LIGHT);
 
         // Placeholder or entered text
         if (searchText.isEmpty() && !searchFocused) {
