@@ -1,0 +1,21 @@
+TeamUp Platform Analytics & Statistics Report
+Generated on: Nov 11, 2026
+
+METRIC,VALUE,TREND/NOTES
+Total Platform Users,12480,+14.8% MoM
+Total Projects,482,+12.6% vs last term
+Active In-flight Projects,286,Active sprints
+Project Success Rate,94.6%,Based on milestone completions
+Active Teams,186,In-flight collaboration
+Average Team Size,4.6 / 6,84% fill ratio
+Collaboration Requests,1642,Active matching
+Platform Average Rating,4.7 ★,Verified peer reviews
+
+TOP POPULAR SKILLS
+Skill Name,Enrolled Students,Active Status
+"React",1248,true
+"TypeScript",986,true
+"Node.js",842,true
+"UI Design",728,true
+"User Research",412,true
+"AngularJS",23,false

@@ -50,6 +50,7 @@ public class AdminTheme {
     public static final Color STATUS_GREEN_TEXT  = new Color(0x05, 0x96, 0x69);
     public static final Color STATUS_RED_BG      = new Color(0xFF, 0xE4, 0xE6); // Soft coral
     public static final Color STATUS_RED_TEXT    = new Color(0xE1, 0x1D, 0x48);
+    public static final Color ACCENT_RED         = STATUS_RED_TEXT;
     public static final Color STATUS_GRAY_BG     = new Color(0xF1, 0xF5, 0xF9);
     public static final Color STATUS_GRAY_TEXT   = new Color(0x64, 0x74, 0x8B);
 
@@ -66,9 +67,11 @@ public class AdminTheme {
     // =========================================================================
     public static final Font FONT_HEADING = new Font(Font.SANS_SERIF, Font.BOLD, 24);
     public static final Font FONT_BOLD_24 = FONT_HEADING;
+    public static final Font FONT_BOLD_20 = new Font(Font.SANS_SERIF, Font.BOLD, 20);
     public static final Font FONT_TITLE   = new Font(Font.SANS_SERIF, Font.BOLD, 17);
     public static final Font FONT_BOLD_16 = new Font(Font.SANS_SERIF, Font.BOLD, 16);
     public static final Font FONT_SECTION = new Font(Font.SANS_SERIF, Font.BOLD, 15);
+    public static final Font FONT_BOLD_15 = FONT_SECTION;
     public static final Font FONT_BOLD_14 = new Font(Font.SANS_SERIF, Font.BOLD, 14);
     public static final Font FONT_METRIC  = new Font(Font.SANS_SERIF, Font.BOLD, 28);
     public static final Font FONT_BOLD_13 = new Font(Font.SANS_SERIF, Font.BOLD, 13);
