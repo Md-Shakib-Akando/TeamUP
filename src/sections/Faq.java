@@ -150,7 +150,7 @@ public class Faq extends LpSection {
             if (a.onClick(mx, my)) { invalidateHeight(); return true; }
         }
         if (Fx.inside(mx, my, btnX, btnY, btnW, btnH)) {
-            if (listener != null) listener.scrollToSection("cta");
+            if (listener != null) listener.openModal("Join Early Access", "Create your TeamUp account or sign in to get started.", true);
             return true;
         }
         return false;

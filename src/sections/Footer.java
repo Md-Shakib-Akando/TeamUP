@@ -25,11 +25,9 @@ public class Footer extends LpSection {
         a.add(new Link("Features", "features"));
         a.add(new Link("How it works", "how-it-works"));
         a.add(new Link("Live demo", "demo"));
-        a.add(new Link("Compare", "compare"));
         List<Link> b = new ArrayList<>();
         b.add(new Link("Who it's for", "audience"));
         b.add(new Link("FAQ", "faq"));
-        b.add(new Link("Early access", "cta"));
         b.add(new Link("Back to top", "hero"));
         List<Link> c = new ArrayList<>();
         c.add(new Link("Student dashboard", "@dashboard"));

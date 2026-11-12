@@ -618,11 +618,8 @@ public class StudentDashboard {
         g.setStroke(new BasicStroke(1.1f));
         g.draw(heroCard);
 
-        // Gradient cover banner strip from Pastel Pink to Pastel Violet
-        GradientPaint coverGrad = new GradientPaint(
-                startX + padX, curY, Theme.PASTEL_PINK,
-                startX + padX + contentW, curY, Theme.PASTEL_VIOLET);
-        g.setPaint(coverGrad);
+        // Cover banner strip: single accent tint, no gradient
+        g.setColor(Theme.PASTEL_VIOLET);
         g.fill(new RoundRectangle2D.Float(startX + padX, curY, contentW, 64, 14, 14));
         g.fillRect(startX + padX, curY + 20, contentW, 44);
 

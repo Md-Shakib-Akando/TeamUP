@@ -33,9 +33,6 @@ public class Modal {
     private float feedbackT = 0f;
 
     // Hit areas
-    private int googleBtnX, googleBtnY, googleBtnW, googleBtnH;
-    private int githubBtnX, githubBtnY, githubBtnW, githubBtnH;
-    private boolean googleHovered, githubHovered;
     private int submitBtnX, submitBtnY, submitBtnW, submitBtnH;
     private boolean submitHovered, submitPressed;
     private int closeX, closeY, closeSize = 34;
@@ -67,7 +64,7 @@ public class Modal {
         emailInput = new TextBox("name@university.edu");
         passInput = new TextBox("At least 6 characters", true);
         roleSelect = new Dropdown(Arrays.asList(
-                "Developer", "UI/UX Designer", "Team Leader", "Researcher", "Freelancer"
+                "Student", "Developer", "UI/UX Designer", "Team Leader", "Researcher", "Freelancer"
         ));
         nameInput.onGlass = true;
         emailInput.onGlass = true;
@@ -234,8 +231,7 @@ public class Modal {
         h += 20 + 20;                              // checkbox row
         h += 50 + 16;                              // submit
         if (!feedbackMessage.isEmpty()) h += 30;
-        h += 16 + 16;                              // divider
-        h += 46 + 22;                              // social
+        h += 12;                                   // spacing between submit and switch link
         h += 20 + 30;                              // switch link + bottom pad
         return h;
     }
@@ -514,30 +510,7 @@ public class Modal {
             cur += 30;
         }
 
-        // Divider
-        Graphics2D dv = stagger(f, row++);
-        dv.setFont(Fx.body(12.5f));
-        String divStr = "or continue with";
-        int dw = dv.getFontMetrics().stringWidth(divStr);
-        float mid = cur + 8;
-        dv.setPaint(new GradientPaint(cx, 0, Fx.a(Fx.borderHi(), 0), cx + (cw - dw) / 2f - 12, 0, Fx.borderHi()));
-        dv.fill(new Rectangle2D.Float(cx, mid, (cw - dw) / 2f - 12, 1));
-        dv.setPaint(new GradientPaint(cx + (cw + dw) / 2f + 12, 0, Fx.borderHi(), cx + cw, 0, Fx.a(Fx.borderHi(), 0)));
-        dv.fill(new Rectangle2D.Float(cx + (cw + dw) / 2f + 12, mid, (cw - dw) / 2f - 12, 1));
-        dv.setColor(Fx.text3());
-        Fx.textCenter(dv, divStr, cx + cw / 2f, mid);
-        dv.dispose();
-        cur += 16 + 16;
-
-        // Social buttons
-        int gap = 12, sw = (cw - gap) / 2, sh = 46;
-        googleBtnX = cx; googleBtnY = cur; googleBtnW = sw; googleBtnH = sh;
-        githubBtnX = cx + sw + gap; githubBtnY = cur; githubBtnW = cw - sw - gap; githubBtnH = sh;
-        Graphics2D so = stagger(f, row++);
-        paintSocialButton(so, googleBtnX, googleBtnY, googleBtnW, googleBtnH, "Google", true, googleHovered);
-        paintSocialButton(so, githubBtnX, githubBtnY, githubBtnW, githubBtnH, "GitHub", false, githubHovered);
-        so.dispose();
-        cur += sh + 22;
+        cur += 12;
 
         // Switch link
         Graphics2D sl = stagger(f, row);
@@ -589,68 +562,6 @@ public class Modal {
         }
     }
 
-    private void paintSocialButton(Graphics2D g, int x, int y, int w, int h, String name, boolean isGoogle, boolean hovered) {
-        RoundRectangle2D.Float shape = Fx.rr(x, y, w, h, 14);
-        g.setColor(Fx.glassField(hovered));
-        g.fill(shape);
-        g.setColor(hovered ? Fx.borderHi() : Fx.border());
-        g.setStroke(new BasicStroke(1f));
-        g.draw(shape);
-        if (hovered) Fx.spotlightBorder(g, shape, isGoogle ? new Color(0x42, 0x85, 0xF4) : Fx.VIOLET, 1f);
-
-        g.setFont(Fx.bold(14));
-        FontMetrics fm = g.getFontMetrics();
-        int icon = 18;
-        int total = icon + 10 + fm.stringWidth(name);
-        int ix = x + (w - total) / 2;
-        int iy = y + (h - icon) / 2;
-        if (isGoogle) paintGoogleG(g, ix, iy, icon);
-        else paintGitHub(g, ix, iy, icon);
-        g.setColor(Fx.text());
-        Fx.textMid(g, name, ix + icon + 10, y + h / 2f);
-    }
-
-    /** Four-colour "G" built from arcs. */
-    private void paintGoogleG(Graphics2D g, float x, float y, float s) {
-        Graphics2D G = (Graphics2D) g.create();
-        float sw = s * 0.2f;
-        G.setStroke(new BasicStroke(sw, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER));
-        float in = sw / 2f;
-        Arc2D.Float arc = new Arc2D.Float(x + in, y + in, s - sw, s - sw, 0, 0, Arc2D.OPEN);
-        Color[] cols = {new Color(0xEA, 0x43, 0x35), new Color(0xFB, 0xBC, 0x05), new Color(0x34, 0xA8, 0x53), new Color(0x42, 0x85, 0xF4)};
-        float[][] seg = {{40, 100}, {140, 75}, {215, 95}, {310, 50}};
-        for (int i = 0; i < 4; i++) {
-            G.setColor(cols[i]);
-            arc.setAngleStart(seg[i][0]);
-            arc.setAngleExtent(seg[i][1]);
-            G.draw(arc);
-        }
-        G.setColor(cols[3]);
-        G.fill(new Rectangle2D.Float(x + s / 2f, y + s / 2f - sw / 2f, s / 2f - in + sw / 2f, sw));
-        G.dispose();
-    }
-
-    /** Simplified GitHub mark: cat head silhouette in a circle. */
-    private void paintGitHub(Graphics2D g, float x, float y, float s) {
-        Graphics2D G = (Graphics2D) g.create();
-        G.setColor(Fx.text());
-        G.fill(new Ellipse2D.Float(x, y, s, s));
-        G.setColor(Fx.dark() ? new Color(0x20, 0x1E, 0x3A) : Color.WHITE);
-        Path2D.Float cat = new Path2D.Float();
-        float cx = x + s / 2f;
-        cat.moveTo(cx - s * 0.26f, y + s * 0.62f);
-        cat.lineTo(cx - s * 0.27f, y + s * 0.26f);
-        cat.lineTo(cx - s * 0.12f, y + s * 0.34f);
-        cat.lineTo(cx + s * 0.12f, y + s * 0.34f);
-        cat.lineTo(cx + s * 0.27f, y + s * 0.26f);
-        cat.lineTo(cx + s * 0.26f, y + s * 0.62f);
-        cat.quadTo(cx, y + s * 0.78f, cx - s * 0.26f, y + s * 0.62f);
-        cat.closePath();
-        G.fill(cat);
-        G.fill(new Rectangle2D.Float(cx - s * 0.08f, y + s * 0.66f, s * 0.16f, s * 0.3f));
-        G.dispose();
-    }
-
     // ------------------------------------------------------------------ input
 
     public boolean onClick(int mx, int my, int screenW, int screenH) {
@@ -673,8 +584,6 @@ public class Modal {
             return true;
         }
         if (Fx.inside(mx, my, submitBtnX, submitBtnY, submitBtnW, submitBtnH)) { handleAuthSubmit(); return true; }
-        if (Fx.inside(mx, my, googleBtnX, googleBtnY, googleBtnW, googleBtnH)) { setFeedback("Authenticated via Google account.", true); return true; }
-        if (Fx.inside(mx, my, githubBtnX, githubBtnY, githubBtnW, githubBtnH)) { setFeedback("Authenticated via GitHub account.", true); return true; }
         if (Fx.inside(mx, my, switchLinkX, switchLinkY - 4, switchLinkW, switchLinkH + 8)) {
             isRegister = !isRegister;
             feedbackMessage = "";
@@ -698,8 +607,6 @@ public class Modal {
         if (!visible) return false;
         closeHovered = Fx.inside(mx, my, closeX, closeY, closeSize, closeSize);
         submitHovered = Fx.inside(mx, my, submitBtnX, submitBtnY, submitBtnW, submitBtnH);
-        googleHovered = Fx.inside(mx, my, googleBtnX, googleBtnY, googleBtnW, googleBtnH);
-        githubHovered = Fx.inside(mx, my, githubBtnX, githubBtnY, githubBtnW, githubBtnH);
         switchLinkHovered = Fx.inside(mx, my, switchLinkX, switchLinkY - 4, switchLinkW, switchLinkH + 8);
         forgotHovered = forgotX > 0 && Fx.inside(mx, my, forgotX, forgotY, forgotW, forgotH);
         tab1Hovered = Fx.inside(mx, my, tab1X, tab1Y, tab1W, tab1H);
@@ -707,7 +614,7 @@ public class Modal {
         boolean dd = isRegister && roleSelect.contains(mx, my);
         if (isRegister) roleSelect.onMouseMove(mx, my);
         boolean check = mx >= checkX && mx <= checkX + 300 && my >= checkY - 4 && my <= checkY + checkSize + 4;
-        return closeHovered || submitHovered || googleHovered || githubHovered || switchLinkHovered
+        return closeHovered || submitHovered || switchLinkHovered
                 || forgotHovered || tab1Hovered || tab2Hovered || dd || check;
     }
 

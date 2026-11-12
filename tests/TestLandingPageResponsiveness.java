@@ -22,18 +22,7 @@ public class TestLandingPageResponsiveness {
         };
 
         NavBar navBar = new NavBar(mockListener);
-        List<Section> sections = new ArrayList<>();
-        sections.add(new Hero(mockListener));
-        sections.add(new Problem());
-        sections.add(new NumbersStrip());
-        sections.add(new Features());
-        sections.add(new HowItWorks());
-        sections.add(new MatchDemo());
-        sections.add(new Audience());
-        sections.add(new Compare());
-        sections.add(new Faq());
-        sections.add(new Cta());
-        sections.add(new Footer(mockListener));
+        List<Section> sections = LandingWindow.buildSections(mockListener);
 
         int[] viewports = {375, 480, 600, 768, 840, 1024, 1280, 1440, 1920, 2560};
 

@@ -13,19 +13,22 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * ThemedGraphics — paints the dashboards in the landing page's "Aurora Glass" theme.
+ * ThemedGraphics — paints the dashboards with a restrained, professional palette.
  *
  * The dashboards were written against a light palette with ~600 hard-coded colours.
  * Instead of rewriting every call site, this Graphics2D decorator remaps colours at
  * draw time, following {@link Theme#themeTransition} (so the landing page's
  * dark/light toggle also applies to the dashboards):
  *
- *  - dark mode: white surfaces become dark glass, ink text becomes light,
- *    pastel tints become deep tints, light borders become subtle hairlines;
- *  - the page canvas colour becomes translucent so the aurora background shows;
- *  - {@link #SURFACE_GLASS} (sidebar/header) becomes frosted glass;
- *  - solid brand-pink fills (buttons, active pills, progress) get the landing
- *    pink → violet gradient.
+ *  - both modes: every chromatic colour is folded onto one of four hues — accent
+ *    blue (#2563EB), success green, warning amber, danger red — keeping its lightness, so
+ *    cards don't mix violet, cyan, pink, teal, etc. Tinted neutrals (warm stone,
+ *    violet ink) are put on one cool slate hue;
+ *  - dark mode: neutrals map onto one cool-grey ramp (white cards → #1D1F23,
+ *    ink text → near-white, light borders → hairlines), pastel tints become
+ *    muted deep tints;
+ *  - the page canvas and {@link #SURFACE_GLASS} (sidebar/header) are flat,
+ *    opaque surfaces — no aurora glow behind the dashboards.
  *
  * getColor()/getPaint() return what the caller set, so existing code that reads
  * colours back keeps working. Colour mapping depends on the operation: text,
@@ -38,7 +41,8 @@ public class ThemedGraphics extends Graphics2D {
     public static final Color SURFACE_GLASS = new Color(0xFF, 0xFF, 0xFE);
 
     private static final int CANVAS_A = 0xF8F7F4, CANVAS_B = 0xF8FAFC;
-    private static final int BRAND = 0xEA4C89, BRAND_HOVER = 0xD83A77;
+    /** Dashboard accent (buttons, links, active states): professional blue. Change here to re-brand. */
+    private static final int ACCENT = 0x2563EB;
 
     private static final int FILL = 0, TEXT = 1, STROKE = 2;
 
@@ -81,54 +85,114 @@ public class ThemedGraphics extends Graphics2D {
         }
     }
 
+    // ---------------------------------------------------------------------
+    // Restrained palette: one brand accent + three semantic colours.
+    // Every hard-coded hue in the dashboards is folded onto one of these, so
+    // a card never shows violet, cyan, indigo, sky, teal and pink side by side.
+    // ---------------------------------------------------------------------
+    private static final float BRAND_HUE   = hsl(new Color(ACCENT))[0]; // #2563EB blue
+    private static final float SUCCESS_HUE = 152f / 360f;
+    private static final float WARNING_HUE = 38f / 360f;
+    private static final float DANGER_HUE  = 0f;
+
+    /** Cool neutral grey used for every neutral (no warm/violet cast). */
+    private static final float NEUTRAL_HUE = 220f / 360f, NEUTRAL_SAT = 0.10f;
+
+    /** Flat dark canvas / chrome — replaces the aurora glow behind the dashboards. */
+    private static final Color DARK_CANVAS  = new Color(0x0D, 0x0F, 0x13);
+    private static final Color DARK_CHROME  = new Color(0x13, 0x15, 0x1A);
+    private static final Color LIGHT_CANVAS = new Color(0xF5, 0xF7, 0xFA);
+
+    /** Slate / grey scale values whose HSL saturation looks "colourful" but are neutral. */
+    private static final java.util.Set<Integer> NEUTRALS = new java.util.HashSet<>(java.util.Arrays.asList(
+            0xF8FAFC, 0xF1F5F9, 0xE2E8F0, 0xCBD5E1, 0x94A3B8, 0x64748B, 0x475569, 0x334155, 0x1E293B, 0x0F172A, 0x020617,
+            0xF9FAFB, 0xF3F4F6, 0xE5E7EB, 0xD1D5DB, 0x9CA3AF, 0x6B7280, 0x4B5563, 0x374151, 0x1F2937, 0x111827,
+            0x0D0C22));
+
+    private static boolean isNeutral(Color c, float s) {
+        int max = Math.max(c.getRed(), Math.max(c.getGreen(), c.getBlue()));
+        int min = Math.min(c.getRed(), Math.min(c.getGreen(), c.getBlue()));
+        return (max - min) < 10 || s < 0.30f || NEUTRALS.contains(c.getRGB() & 0xFFFFFF);
+    }
+
+    /** Folds a chromatic colour onto the brand / success / warning / danger hue, keeping its lightness. */
+    private static Color normalize(Color c, float[] hsl) {
+        float deg = hsl[0] * 360f;
+        float hue;
+        float maxSat;
+        if (deg >= 341f || deg < 15f)  { hue = DANGER_HUE;  maxSat = 0.80f; }
+        else if (deg < 70f)            { hue = WARNING_HUE; maxSat = 0.90f; }
+        else if (deg < 175f)           { hue = SUCCESS_HUE; maxSat = 0.75f; }
+        else                           { hue = BRAND_HUE;   maxSat = 0.80f; }
+        float l = hsl[2];
+        // The old pink sat at L 0.61; a blue carrying white button text needs to sit a little deeper.
+        if (hue == BRAND_HUE && l >= 0.35f && l <= 0.80f) l -= 0.08f;
+        return fromHsl(hue, Math.min(hsl[1], maxSat), l, c.getAlpha());
+    }
+
+    /** Puts every tinted neutral (warm stone, violet ink) on one cool slate hue, in both themes. */
+    private static Color coolNeutral(Color c, float[] hsl) {
+        int max = Math.max(c.getRed(), Math.max(c.getGreen(), c.getBlue()));
+        int min = Math.min(c.getRed(), Math.min(c.getGreen(), c.getBlue()));
+        if (max - min < 3) return c; // pure white / grey
+        return fromHsl(NEUTRAL_HUE, Math.min(hsl[1], 0.25f), hsl[2], c.getAlpha());
+    }
+
+    /** Paints the dashboard backdrop: a flat canvas in both themes. */
+    public static void paintCanvas(Graphics2D g, int w, int h) {
+        g.setColor(Theme.lerp(DARK_CANVAS, LIGHT_CANVAS, Theme.themeTransition));
+        g.fillRect(0, 0, w, h);
+    }
+
     private static Color compute(Color c, int mode, float light) {
         int rgb = c.getRGB() & 0xFFFFFF;
         int a = c.getAlpha();
         if (mode == FILL && (rgb == CANVAS_A || rgb == CANVAS_B)) {
-            Color dark = new Color(255, 255, 255, 10 * a / 255);
-            return Theme.lerp(dark, c, light);
+            Color dark = new Color(DARK_CANVAS.getRed(), DARK_CANVAS.getGreen(), DARK_CANVAS.getBlue(), a);
+            Color lite = new Color(LIGHT_CANVAS.getRed(), LIGHT_CANVAS.getGreen(), LIGHT_CANVAS.getBlue(), a);
+            return Theme.lerp(dark, lite, light);
         }
         if (mode == FILL && rgb == (SURFACE_GLASS.getRGB() & 0xFFFFFF)) {
-            return Theme.lerp(new Color(10, 10, 24, 212), new Color(255, 255, 255, 240), light);
+            return Theme.lerp(DARK_CHROME, Color.WHITE, light);
         }
-        if (light >= 0.999f) return c;
-        Color d = darkVariant(c, mode);
-        return light <= 0.001f ? d : Theme.lerp(d, c, light);
+        float[] hsl = hsl(c);
+        boolean neutral = isNeutral(c, hsl[1]);
+        Color base = neutral ? coolNeutral(c, hsl) : normalize(c, hsl);
+        if (light >= 0.999f) return base;
+        Color d = darkVariant(base, mode, neutral);
+        return light <= 0.001f ? d : Theme.lerp(d, base, light);
     }
 
-    private static Color darkVariant(Color c, int mode) {
+    private static Color darkVariant(Color c, int mode, boolean neutral) {
         float[] hsl = hsl(c);
         float h = hsl[0], s = hsl[1], l = hsl[2];
-        int max = Math.max(c.getRed(), Math.max(c.getGreen(), c.getBlue()));
-        int min = Math.min(c.getRed(), Math.min(c.getGreen(), c.getBlue()));
-        boolean neutral = (max - min) < 18;
         int a = c.getAlpha();
 
         if (mode == TEXT) {
             if (neutral) {
-                if (l > 0.85f) return c;                       // white text on colour stays white
-                return fromHsl(h, s, 0.97f - l * 0.7f, a);     // ink -> light, grey -> mid
+                if (l > 0.85f) return c;                                         // white text on colour stays white
+                return fromHsl(NEUTRAL_HUE, NEUTRAL_SAT, 0.95f - l * 0.70f, a);  // ink -> light, grey -> mid
             }
-            if (l < 0.55f) return fromHsl(h, Math.min(1f, s * 1.05f), 0.70f, a);
+            if (l < 0.55f) return fromHsl(h, Math.min(s, 0.80f), 0.68f, a);
             return c;
         }
         if (mode == STROKE) {
             if (neutral) {
-                if (l >= 0.8f) return fromHsl(h, s, 0.24f, a); // light borders -> hairlines
-                return fromHsl(h, s, 0.97f - l * 0.7f, a);
+                if (l >= 0.8f) return fromHsl(NEUTRAL_HUE, NEUTRAL_SAT, 0.19f, a); // light borders -> hairlines
+                return fromHsl(NEUTRAL_HUE, NEUTRAL_SAT, 0.95f - l * 0.70f, a);
             }
-            if (l >= 0.85f) return fromHsl(h, Math.min(s, 0.6f), 0.32f, a);
-            if (l < 0.55f) return fromHsl(h, s, 0.68f, a);
+            if (l >= 0.85f) return fromHsl(h, Math.min(s, 0.45f), 0.30f, a);
+            if (l < 0.55f) return fromHsl(h, Math.min(s, 0.80f), 0.66f, a);
             return c;
         }
         // FILL
         if (neutral) {
-            if (l >= 0.86f) return fromHsl(h, s * 0.6f, 0.045f + (l - 0.86f) * 0.6f, a);   // white -> ~#1C1C2A
-            if (l >= 0.55f) return fromHsl(h, s, 0.24f, a);
-            if (a > 200) return fromHsl(h, s, Math.max(l, 0.16f), a);                      // dark buttons stay visible
-            return c;                                                                     // shadows, scrims
+            if (l >= 0.86f) return fromHsl(NEUTRAL_HUE, NEUTRAL_SAT, 0.075f + (l - 0.86f) * 0.36f, a); // white -> #1D1F23
+            if (l >= 0.55f) return fromHsl(NEUTRAL_HUE, NEUTRAL_SAT, 0.98f - l * 0.80f, a);           // tracks, controls
+            if (a > 200) return fromHsl(NEUTRAL_HUE, NEUTRAL_SAT, Math.max(l, 0.22f), a);             // dark buttons stay visible
+            return c;                                                                                 // shadows, scrims
         }
-        if (l >= 0.85f) return fromHsl(h, Math.min(s, 0.55f), 0.16f + (l - 0.85f) * 0.5f, a); // pastel -> deep tint
+        if (l >= 0.85f) return fromHsl(h, Math.min(s, 0.30f), 0.14f + (l - 0.85f) * 0.3f, a); // pastel -> muted deep tint
         if (l < 0.3f) return fromHsl(h, s, 0.42f, a);
         return c;
     }
@@ -206,29 +270,6 @@ public class ThemedGraphics extends Graphics2D {
         }
     }
 
-    /** Fill with brand-gradient upgrade for solid brand-pink shapes. */
-    private boolean brandFill(Shape s) {
-        if (!paintIsColor || color.getAlpha() != 255) return false;
-        int rgb = color.getRGB() & 0xFFFFFF;
-        if (rgb != BRAND && rgb != BRAND_HOVER && rgb != 0x8B5CF6 && rgb != 0x7C5CFF) return false;
-        Rectangle2D b = s.getBounds2D();
-        if (b.getWidth() < 6 || b.getHeight() < 3) return false;
-        Color a, z;
-        if (rgb == BRAND || rgb == BRAND_HOVER) {
-            a = rgb == BRAND ? Fx.PINK : new Color(0xD8, 0x3A, 0x77);
-            z = rgb == BRAND ? Fx.VIOLET : new Color(0x7C, 0x3A, 0xED);
-        } else {
-            a = Fx.VIOLET;
-            z = Fx.CYAN;
-        }
-        Paint old = g.getPaint();
-        g.setPaint(new GradientPaint((float) b.getX(), (float) b.getY(), a,
-                (float) b.getMaxX(), (float) b.getMaxY(), z));
-        g.fill(s);
-        g.setPaint(old);
-        return true;
-    }
-
     /** Small white fills (toggle knobs, dots, icon cut-outs) keep their colour. */
     private boolean keepSmallWhite(double w, double h) {
         if (!paintIsColor) return false;
@@ -237,7 +278,6 @@ public class ThemedGraphics extends Graphics2D {
     }
 
     private void fillShape(Shape s) {
-        if (brandFill(s)) return;
         Rectangle2D b = s.getBounds2D();
         if (keepSmallWhite(b.getWidth(), b.getHeight())) {
             g.setColor(color);
@@ -288,7 +328,6 @@ public class ThemedGraphics extends Graphics2D {
 
     @Override
     public void fillRect(int x, int y, int w, int h) {
-        if (brandFill(new Rectangle(x, y, w, h))) return;
         if (keepSmallWhite(w, h)) { g.setColor(color); applied = -1; g.fillRect(x, y, w, h); return; }
         prep(FILL);
         g.fillRect(x, y, w, h);
