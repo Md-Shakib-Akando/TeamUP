@@ -125,7 +125,6 @@ public class DashboardTeammates {
     private TeammateCard activeProfileTeammate = null;
     private int modalCloseX, modalCloseY, modalCloseSize = 28;
     private int modalInviteBtnX, modalInviteBtnY, modalInviteBtnW = 140, modalInviteBtnH = 38;
-    private int modalMsgBtnX, modalMsgBtnY, modalMsgBtnW = 130, modalMsgBtnH = 38;
 
     public DashboardTeammates() {
         initDemoTeammates();
@@ -979,17 +978,6 @@ public class DashboardTeammates {
         String invText = tm.invited ? "✓ Invited to Team" : "+ Invite to Team";
         int itw = g.getFontMetrics().stringWidth(invText);
         g.drawString(invText, modalInviteBtnX + (modalInviteBtnW - itw) / 2, modalInviteBtnY + 24);
-
-        modalMsgBtnX = modalInviteBtnX - modalMsgBtnW - 10;
-        modalMsgBtnY = btnRowY;
-        RoundRectangle2D msgB = new RoundRectangle2D.Float(modalMsgBtnX, modalMsgBtnY, modalMsgBtnW, modalMsgBtnH, 8, 8);
-        g.setColor(Color.WHITE);
-        g.fill(msgB);
-        g.setColor(DashboardTheme.BORDER_COLOR);
-        g.draw(msgB);
-        g.setFont(DashboardTheme.FONT_BOLD_12);
-        g.setColor(DashboardTheme.TEXT_DARK);
-        g.drawString("Send Message", modalMsgBtnX + 18, modalMsgBtnY + 24);
     }
 
     // =========================================================================
@@ -1008,12 +996,6 @@ public class DashboardTeammates {
             if (mx >= modalInviteBtnX && mx <= modalInviteBtnX + modalInviteBtnW && my >= modalInviteBtnY && my <= modalInviteBtnY + modalInviteBtnH) {
                 activeProfileTeammate.invited = !activeProfileTeammate.invited;
                 dashboard.showToast(activeProfileTeammate.invited ? "Invite sent to " + activeProfileTeammate.name + "!" : "Invite cancelled.");
-                return true;
-            }
-            // Message button
-            if (mx >= modalMsgBtnX && mx <= modalMsgBtnX + modalMsgBtnW && my >= modalMsgBtnY && my <= modalMsgBtnY + modalMsgBtnH) {
-                dashboard.openModal(StudentDashboard.ActiveModal.MESSAGES);
-                activeProfileTeammate = null;
                 return true;
             }
             // Outside click closes modal

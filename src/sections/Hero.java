@@ -773,7 +773,7 @@ public class Hero extends LpSection {
         Fx.textMid(g, "TeamUp", x + 52, cy + 13);
         cy += 48;
 
-        String[][] items = {{"Overview", "chart"}, {"Projects", "task"}, {"Teammates", "users"}, {"Messages", "chat"}, {"Reviews", "star"}};
+        String[][] items = {{"Overview", "chart"}, {"Projects", "task"}, {"Teammates", "users"}, {"Reviews", "star"}};
         for (int i = 0; i < items.length; i++) {
             boolean act = i == 1;
             if (act) {

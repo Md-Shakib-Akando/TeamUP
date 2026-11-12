@@ -132,9 +132,6 @@ public class DashboardModals {
         } else if (activeModal == StudentDashboard.ActiveModal.ALL_TASKS) {
             modalW = 520;
             modalH = 480;
-        } else if (activeModal == StudentDashboard.ActiveModal.MESSAGES) {
-            modalW = 560;
-            modalH = 530;
         }
 
         // Clamp to screen bounds
@@ -211,9 +208,6 @@ public class DashboardModals {
                 break;
             case ALL_TASKS:
                 paintAllTasksModal(g, modalX, modalY, modalW, modalH, dashboard);
-                break;
-            case MESSAGES:
-                paintMessagesModal(g, modalX, modalY, modalW, modalH, dashboard);
                 break;
             default:
                 break;
@@ -871,73 +865,6 @@ public class DashboardModals {
         g.drawString("Done", tasksDoneBtnX + (tasksDoneBtnW - g.getFontMetrics().stringWidth("Done")) / 2, tasksDoneBtnY + 23);
     }
 
-    private void paintMessagesModal(Graphics2D g, int x, int y, int w, int h, StudentDashboard dashboard) {
-        int padX = 26;
-        int innerW = w - padX * 2;
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 18));
-        g.setColor(DashboardTheme.TEXT_DARK);
-        g.drawString("Team Messages & Chat", x + padX, y + 36);
-
-        g.setFont(DashboardTheme.FONT_REG_12);
-        g.setColor(DashboardTheme.TEXT_MUTED);
-        g.drawString("Conversations with your project teammates at UW.", x + padX, y + 54);
-
-        int curY = y + 74;
-        g.setColor(new Color(0xF1, 0xF5, 0xF9));
-        g.drawLine(x, curY, x + w, curY);
-        curY += 14;
-
-        for (String msg : dashboard.getChatHistory()) {
-            RoundRectangle2D bubble = new RoundRectangle2D.Float(x + padX, curY, innerW, 40, 8, 8);
-            boolean isAlex = msg.startsWith("Alex Morgan");
-            g.setColor(isAlex ? DashboardTheme.PURPLE_TINT_BG : new Color(0xF8, 0xFA, 0xFC));
-            g.fill(bubble);
-            g.setColor(new Color(0xE2, 0xE8, 0xF0));
-            g.draw(bubble);
-
-            g.setFont(DashboardTheme.FONT_REG_11);
-            g.setColor(DashboardTheme.TEXT_DARK);
-            g.drawString(msg, x + padX + 12, curY + 24);
-            curY += 48;
-        }
-
-        // Input Box
-        curY = y + h - 60;
-        msgInputX = x + padX;
-        msgInputY = curY;
-        msgInputW = innerW - 80;
-        msgInputH = 38;
-
-        RoundRectangle2D inputBox = new RoundRectangle2D.Float(msgInputX, msgInputY, msgInputW, msgInputH, 8, 8);
-        g.setColor(Color.WHITE);
-        g.fill(inputBox);
-        g.setColor(DashboardTheme.BRAND_PURPLE);
-        g.draw(inputBox);
-
-        g.setFont(DashboardTheme.FONT_REG_12);
-        g.setColor(newMessageText.isEmpty() ? DashboardTheme.TEXT_LIGHT : DashboardTheme.TEXT_DARK);
-        g.drawString(newMessageText.isEmpty() ? "Type your message..." : newMessageText, msgInputX + 12, msgInputY + 23);
-        if (caretVisible) {
-            int tw = newMessageText.isEmpty() ? 0 : g.getFontMetrics().stringWidth(newMessageText);
-            g.setColor(DashboardTheme.BRAND_PURPLE);
-            g.drawLine(msgInputX + 12 + tw + 2, msgInputY + 10, msgInputX + 12 + tw + 2, msgInputY + 28);
-        }
-
-        // Send Button
-        msgSendBtnX = msgInputX + msgInputW + 10;
-        msgSendBtnY = curY;
-        msgSendBtnW = 70;
-        msgSendBtnH = 38;
-
-        RoundRectangle2D sendBtn = new RoundRectangle2D.Float(msgSendBtnX, msgSendBtnY, msgSendBtnW, msgSendBtnH, 8, 8);
-        g.setColor(msgSendHovered ? DashboardTheme.BRAND_PURPLE_HOVER : DashboardTheme.BRAND_PURPLE);
-        g.fill(sendBtn);
-        g.setFont(DashboardTheme.FONT_BOLD_12);
-        g.setColor(Color.WHITE);
-        g.drawString("Send", msgSendBtnX + (msgSendBtnW - g.getFontMetrics().stringWidth("Send")) / 2, msgSendBtnY + 23);
-    }
-
     public void publishProjectFromForm(StudentDashboard dashboard) {
         String title = newProjTitle.trim().isEmpty() ? "AI Study Assistant" : newProjTitle.trim();
         String desc = newProjDesc.trim().isEmpty() ? "Collaborative student project building automated review tools." : newProjDesc.trim();
@@ -1111,22 +1038,7 @@ public class DashboardModals {
             }
         }
 
-        // 7. MESSAGES
-        if (activeModal == StudentDashboard.ActiveModal.MESSAGES) {
-            if (mx >= msgInputX && mx <= msgInputX + msgInputW && my >= msgInputY && my <= msgInputY + msgInputH) {
-                return true;
-            }
-            if (mx >= msgSendBtnX && mx <= msgSendBtnX + msgSendBtnW && my >= msgSendBtnY && my <= msgSendBtnY + msgSendBtnH) {
-                if (!newMessageText.trim().isEmpty()) {
-                    dashboard.getChatHistory().add("Alex Morgan: " + newMessageText.trim());
-                    newMessageText = "";
-                    dashboard.showToast("Message sent to team channel!");
-                    return true;
-                }
-            }
-        }
-
-        // 8. Outside click closes modal immediately
+        // 7. Outside click closes modal immediately
         if (mx < activeModalX || mx > activeModalX + activeModalW || my < activeModalY || my > activeModalY + activeModalH) {
             closeModal();
             return true;
@@ -1218,14 +1130,6 @@ public class DashboardModals {
             return modalCloseHovered || tasksDoneHovered || changed;
         }
 
-        if (activeModal == StudentDashboard.ActiveModal.MESSAGES) {
-            boolean prevSend = msgSendHovered;
-            msgSendHovered = (mx >= msgSendBtnX && mx <= msgSendBtnX + msgSendBtnW &&
-                    my >= msgSendBtnY && my <= msgSendBtnY + msgSendBtnH);
-            if (msgSendHovered != prevSend) changed = true;
-            return modalCloseHovered || msgSendHovered || changed;
-        }
-
         return modalCloseHovered || changed;
     }
 
@@ -1315,27 +1219,6 @@ public class DashboardModals {
                 }
                 caretBlinkTimer = 0f;
                 caretVisible = true;
-                return true;
-            }
-        }
-
-        // Typing into Messages Modal
-        if (activeModal == StudentDashboard.ActiveModal.MESSAGES) {
-            if (e.getKeyCode() == KeyEvent.VK_BACK_SPACE) {
-                if (newMessageText.length() > 0) {
-                    newMessageText = newMessageText.substring(0, newMessageText.length() - 1);
-                }
-                return true;
-            }
-            if (e.getKeyCode() == KeyEvent.VK_ENTER && !newMessageText.trim().isEmpty()) {
-                dashboard.getChatHistory().add("Alex Morgan: " + newMessageText.trim());
-                newMessageText = "";
-                dashboard.showToast("Message sent to team channel!");
-                return true;
-            }
-            char c = e.getKeyChar();
-            if (c >= 32 && c <= 126 && newMessageText.length() < 60) {
-                newMessageText += c;
                 return true;
             }
         }
