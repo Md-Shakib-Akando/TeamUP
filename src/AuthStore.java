@@ -87,7 +87,7 @@ public class AuthStore {
     }
 
     private static void seedDefaultUsers() {
-        createUserRecord("Alex Rivera", "alex@university.edu", "Developer", "teamup123".toCharArray());
+        createUserRecord("Alex Rivera", "alex@university.edu", "Student", "teamup123".toCharArray());
         createUserRecord("Jordan Lee", "admin@teamup.edu", "Admin", "admin123".toCharArray());
     }
 
@@ -113,7 +113,7 @@ public class AuthStore {
             return new AuthResult(false, "Password must be at least 6 characters.", null);
         }
 
-        String cleanRole = (role == null || role.trim().isEmpty()) ? "Developer" : role.trim();
+        String cleanRole = (role == null || role.trim().isEmpty()) ? "Student" : role.trim();
         if (cleanRole.length() > 64) cleanRole = cleanRole.substring(0, 64);
 
         synchronized (LOCK) {

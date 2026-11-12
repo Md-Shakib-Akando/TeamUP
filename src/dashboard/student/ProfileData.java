@@ -123,14 +123,14 @@ public class ProfileData {
                 "Campus eco-navigation mapping and carbon tracking tool for sustainable student commutes.",
                 "Active · Milestone 2",
                 new ArrayList<String>(Arrays.asList("React", "Maps API", "Node.js")),
-                4, 6, Theme.ACCENT_MINT
+                4, 6, Theme.BRAND_PINK
         ));
         projects.add(new ProfileProject(
                 "StudySync", "Core Contributor",
                 "Collaborative study session scheduling and whiteboard sharing platform for research groups.",
                 "Completed · Q3",
                 new ArrayList<String>(Arrays.asList("TypeScript", "PostgreSQL", "WebSockets")),
-                3, 5, Theme.ACCENT_VIOLET
+                3, 5, Theme.BRAND_PINK
         ));
 
         // Skills

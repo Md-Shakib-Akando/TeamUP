@@ -66,11 +66,7 @@ public class DashboardOverview {
         // 2. Profile Completion Banner Card
         int bannerH = 72;
         RoundRectangle2D bannerShape = new RoundRectangle2D.Float(startX + padX, curY, contentW, bannerH, 14, 14);
-        GradientPaint bannerGrad = new GradientPaint(
-                startX + padX, curY, new Color(0xFF, 0xF5, 0xF8),
-                startX + padX + contentW, curY, new Color(0xFD, 0xEE, 0xF4)
-        );
-        g.setPaint(bannerGrad);
+        g.setColor(new Color(0xFD, 0xEE, 0xF4)); // single accent tint, no gradient
         g.fill(bannerShape);
         g.setColor(new Color(0xFC, 0xD6, 0xE6));
         g.setStroke(new BasicStroke(1.2f));

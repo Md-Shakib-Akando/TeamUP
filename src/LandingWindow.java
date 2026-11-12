@@ -109,10 +109,8 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
         list.add(new Features());
         list.add(new MatchDemo());
         list.add(new Audience());
-        list.add(new Compare(listener));
         list.add(new NumbersStrip());
         list.add(new Faq(listener));
-        list.add(new Cta());
         list.add(new Footer(listener));
         return list;
     }
@@ -216,7 +214,7 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
             if (width <= 0 || height <= 0) return;
 
             if (showAdminDashboard) {
-                Fx.background(g2, width, height, 0f);
+                ThemedGraphics.paintCanvas(g2, width, height);
                 ThemedGraphics tg = new ThemedGraphics(g2);
                 adminDashboard.paint(tg, width, height);
             } else {
@@ -225,7 +223,7 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
                 // Once the blurred backdrop fully covers the screen, skip the live scene
                 if (!modal.coversScene()) {
                     if (showDashboard) {
-                        Fx.background(g2, width, height, 0f);
+                        ThemedGraphics.paintCanvas(g2, width, height);
                         ThemedGraphics tg = new ThemedGraphics(g2);
                         dashboard.paint(tg, width, height);
                     } else {
@@ -293,11 +291,11 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
             Draw.setQualityHints(sg);
             sg.scale(sw / (double) w, sh / (double) h);
             if (showDashboard) {
-                Fx.background(sg, w, h, 0f);
+                ThemedGraphics.paintCanvas(sg, w, h);
                 ThemedGraphics tg = new ThemedGraphics(sg);
                 dashboard.paint(tg, w, h);
             } else if (showAdminDashboard) {
-                Fx.background(sg, w, h, 0f);
+                ThemedGraphics.paintCanvas(sg, w, h);
                 ThemedGraphics tg = new ThemedGraphics(sg);
                 adminDashboard.paint(tg, w, h);
             } else {
@@ -736,7 +734,6 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
 
     private boolean hasFocusedInput(Section s) {
         return (s instanceof Hero && ((Hero) s).hasFocus())
-                || (s instanceof Cta && ((Cta) s).hasFocus())
                 || (s instanceof MatchDemo && ((MatchDemo) s).hasFocus())
                 || (s instanceof Audience && ((Audience) s).hasFocus());
     }

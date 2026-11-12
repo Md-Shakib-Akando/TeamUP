@@ -37,8 +37,8 @@ public class TestAuthStore {
         assertCond("Designer".equals(regOk.user.role), "Role should match");
 
         // Verify password is NOT stored in plaintext in data/users.csv
-        Path usersCsv = Path.of("data", "users.csv");
-        String csvContent = Files.readString(usersCsv);
+        Path usersCsv = Paths.get("data", "users.csv");
+        String csvContent = new String(Files.readAllBytes(usersCsv), java.nio.charset.StandardCharsets.UTF_8);
         assertCond(csvContent.contains(testEmail), "Registered email must be persisted in data/users.csv");
         assertCond(!csvContent.contains("passWord99"), "Plaintext password must NEVER appear in data/users.csv");
 

@@ -54,7 +54,6 @@ public class NavBar implements Section {
         links.add(new Item("features", "Features"));
         links.add(new Item("how-it-works", "How it works"));
         links.add(new Item("demo", "Live demo"));
-        links.add(new Item("compare", "Compare"));
         links.add(new Item("faq", "FAQ"));
     }
 
@@ -148,14 +147,7 @@ public class NavBar implements Section {
         n.setFont(Fx.bold(14));
         FontMetrics fm = n.getFontMetrics();
 
-        if (!tiny) {
-            int lw = fm.stringWidth("Log in") + 28;
-            loginR.setBounds(right - lw, cy - 20, lw, 40);
-            paintTextButton(n, loginR, "Log in", loginH);
-            right = loginR.x - 4;
-        } else {
-            loginR.setBounds(-100, -100, 0, 0);
-        }
+        loginR.setBounds(-100, -100, 0, 0);
 
         if (compact) {
             burgerR.setBounds(right - 40, cy - 20, 40, 40);
@@ -341,11 +333,9 @@ public class NavBar implements Section {
         paintMenuRow(n, adminR, "Admin panel", adminH);
         cy += rowH;
         if (tiny) {
-            int bw = (w - 32) / 2;
-            loginR.setBounds(x + 12, cy + 6, bw, 44);
-            startR.setBounds(x + 20 + bw, cy + 6, bw, 44);
-            Fx.ghostButton(n, loginR.x, loginR.y, bw, 44, "Log in", loginH ? 1 : 0, false);
-            Fx.primaryButton(n, startR.x, startR.y, bw, 44, "Get started", startHov.getValue(), 0f, false);
+            loginR.setBounds(-100, -100, 0, 0);
+            startR.setBounds(x + 12, cy + 6, w - 24, 44);
+            Fx.primaryButton(n, startR.x, startR.y, w - 24, 44, "Get started", startHov.getValue(), 0f, false);
         }
         n.dispose();
     }

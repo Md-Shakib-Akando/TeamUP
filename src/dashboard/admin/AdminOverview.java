@@ -442,6 +442,12 @@ public class AdminOverview {
     }
 
     private void paintElevatedKpiCard(Graphics2D g, int cx, int cy, int cw, int ch, String title, String val, String badge, String subtext, Color accent, Color tint, int type) {
+        // One accent per card set: brand for the indicator line, green only for an upward trend.
+        boolean upTrend = badge.startsWith("↑");
+        tint = upTrend ? AdminTheme.STATUS_GREEN_BG : AdminTheme.STATUS_GRAY_BG;
+        Color badgeText = upTrend ? AdminTheme.STATUS_GREEN_TEXT : AdminTheme.TEXT_MUTED;
+        accent = AdminTheme.BRAND_PRIMARY;
+
         RoundRectangle2D card = new RoundRectangle2D.Float(cx, cy, cw, ch, 14, 14);
         g.setColor(Color.WHITE);
         g.fill(card);
@@ -467,7 +473,7 @@ public class AdminOverview {
         RoundRectangle2D bpill = new RoundRectangle2D.Float(bx, by, bw, 20, 10, 10);
         g.setColor(tint);
         g.fill(bpill);
-        g.setColor(accent);
+        g.setColor(badgeText);
         g.drawString(badge, bx + 7, by + 14);
 
         // Big value
@@ -694,7 +700,7 @@ public class AdminOverview {
 
         paintPipelineRow(g, pipeX, curY + 4, pipeW, "Delivered", completed + " projects", "96.2% on-time", new Color(0x10, 0xB9, 0x81));
         paintPipelineRow(g, pipeX, curY + 34, pipeW, "Active Sprints", active + " in-flight", "286 active", AdminTheme.BRAND_PRIMARY);
-        paintPipelineRow(g, pipeX, curY + 64, pipeW, "Recruiting", recruiting + " open teams", "92 recruiting", AdminTheme.BRAND_SECONDARY);
+        paintPipelineRow(g, pipeX, curY + 64, pipeW, "Recruiting", recruiting + " open teams", "92 recruiting", AdminTheme.CHART_MUTED);
         paintPipelineRow(g, pipeX, curY + 94, pipeW, "In Review", review + " in review", "8 pending", AdminTheme.BRAND_AMBER);
 
         // Segmented Progress Bar
@@ -724,7 +730,7 @@ public class AdminOverview {
         g.fillRoundRect(barCurX, segY, aW, segH, 4, 4);
         barCurX += aW;
 
-        g.setColor(AdminTheme.BRAND_SECONDARY);
+        g.setColor(AdminTheme.CHART_MUTED);
         g.fillRoundRect(barCurX, segY, rW, segH, 4, 4);
         barCurX += rW;
 
@@ -785,13 +791,7 @@ public class AdminOverview {
         int rowH = 44;
         int maxUsers = 1400;
 
-        Color[] barColors = {
-                AdminTheme.BRAND_PRIMARY,
-                AdminTheme.BRAND_SECONDARY,
-                new Color(0x10, 0xB9, 0x81),
-                AdminTheme.BRAND_ACCENT,
-                AdminTheme.BRAND_AMBER
-        };
+        Color[] barColors = { AdminTheme.BRAND_PRIMARY }; // single series: one colour
 
         for (int i = 0; i < Math.min(5, allSkills.size()); i++) {
             AdminDataStore.SkillModel skill = allSkills.get(i);
@@ -921,7 +921,7 @@ public class AdminOverview {
         g.fill(b1);
 
         RoundRectangle2D b2 = new RoundRectangle2D.Float(gridX + Math.round(barW * 0.68f), barY, Math.round(barW * 0.24f), barH, 4, 4);
-        g.setColor(AdminTheme.BRAND_SECONDARY); // 24% recruiting
+        g.setColor(AdminTheme.CHART_MUTED); // 24% recruiting
         g.fill(b2);
 
         RoundRectangle2D b3 = new RoundRectangle2D.Float(gridX + Math.round(barW * 0.92f), barY, Math.round(barW * 0.08f), barH, 4, 4);
@@ -939,6 +939,7 @@ public class AdminOverview {
     }
 
     private void paintMicroTile(Graphics2D g, int tx, int ty, int tw, int th, String title, String val, String sub, Color c) {
+        c = AdminTheme.BRAND_PRIMARY; // uniform accent stripe across tiles
         RoundRectangle2D tile = new RoundRectangle2D.Float(tx, ty, tw, th, 8, 8);
         g.setColor(new Color(0xF8, 0xFA, 0xFC));
         g.fill(tile);
@@ -963,6 +964,7 @@ public class AdminOverview {
     }
 
     private void paintMicroTileCompact(Graphics2D g, int tx, int ty, int tw, int th, String title, String val, Color c) {
+        c = AdminTheme.BRAND_PRIMARY; // uniform accent stripe across tiles
         RoundRectangle2D tile = new RoundRectangle2D.Float(tx, ty, tw, th, 8, 8);
         g.setColor(new Color(0xF8, 0xFA, 0xFC));
         g.fill(tile);

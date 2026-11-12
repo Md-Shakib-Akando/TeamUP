@@ -641,20 +641,20 @@ public class DashboardTeammates {
             skX += sw + 6;
         }
 
-        // Match Highlight Box (Light green/cyan background)
+        // Match Highlight Box (neutral inset)
         int matchBoxY = cy + 116;
         int matchBoxH = 58;
         int matchBoxW = cw - 36;
         RoundRectangle2D mBox = new RoundRectangle2D.Float(cx + 18, matchBoxY, matchBoxW, matchBoxH, 8, 8);
-        g.setColor(new Color(0xEC, 0xFD, 0xF5)); // Soft mint tint
+        g.setColor(new Color(0xF1, 0xF5, 0xF9)); // Neutral inset (no extra hue inside the card)
         g.fill(mBox);
 
         g.setFont(DashboardTheme.FONT_BOLD_11);
-        g.setColor(new Color(0x06, 0x5F, 0x46)); // Deep green
+        g.setColor(DashboardTheme.TEXT_DARK);
         g.drawString(tm.matchPct, cx + 28, matchBoxY + 18);
 
         g.setFont(DashboardTheme.FONT_REG_11);
-        g.setColor(new Color(0x04, 0x78, 0x57));
+        g.setColor(DashboardTheme.TEXT_MUTED);
         FontMetrics mfm = g.getFontMetrics();
         List<String> matchLines = Draw.wrapText(tm.matchDesc, mfm, matchBoxW - 20);
         int mLineY = matchBoxY + 34;
@@ -958,9 +958,9 @@ public class DashboardTeammates {
         // Match description box
         curY += 42;
         RoundRectangle2D mBox = new RoundRectangle2D.Float(mx + 28, curY, mw - 56, 50, 8, 8);
-        g.setColor(new Color(0xEC, 0xFD, 0xF5));
+        g.setColor(new Color(0xF1, 0xF5, 0xF9));
         g.fill(mBox);
-        g.setColor(new Color(0x04, 0x78, 0x57));
+        g.setColor(DashboardTheme.TEXT_DARK);
         g.setFont(DashboardTheme.FONT_BOLD_11);
         g.drawString("✓ " + tm.matchPct, mx + 40, curY + 20);
         g.setFont(DashboardTheme.FONT_REG_11);

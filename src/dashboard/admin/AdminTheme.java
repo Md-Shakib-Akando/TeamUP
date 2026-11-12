@@ -38,6 +38,7 @@ public class AdminTheme {
     public static final Color CHART_BAR_DARK  = BRAND_SECONDARY;              // #8B5CF6 Violet created bars
     public static final Color CHART_BAR_TEAL  = BRAND_ACCENT;                 // #22D3EE Cyan completed bars
     public static final Color CHART_GRID      = new Color(0xF1, 0xF5, 0xF9); // Subtle grid lines
+    public static final Color CHART_MUTED     = new Color(0x94, 0xA3, 0xB8); // Neutral slate for secondary series
 
     // =========================================================================
     // Status Pill Colors
