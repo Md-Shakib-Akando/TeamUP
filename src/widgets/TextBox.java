@@ -24,6 +24,7 @@ public class TextBox {
     private boolean caretVisible = true;
     private int selStart = -1;
     private int selEnd = -1;
+    private FontMetrics lastFm = null;
 
     public TextBox(String placeholder) {
         this.placeholder = placeholder;
@@ -102,6 +103,7 @@ public class TextBox {
         // Font and metrics
         g.setFont(Fx.body(15.5f));
         FontMetrics fm = g.getFontMetrics();
+        lastFm = fm;
         int padX = bare ? 2 : 16;
         int textY = y + (height - fm.getHeight()) / 2 + fm.getAscent();
 
@@ -178,6 +180,39 @@ public class TextBox {
         return mx >= x && mx <= x + width && my >= y && my <= y + height;
     }
 
+    public int getCaretPosFromX(int mx) {
+        String rText = getRenderText();
+        if (rText == null || rText.isEmpty()) return 0;
+
+        int padX = bare ? 2 : 16;
+        int startX = x + padX;
+        if (mx <= startX) return 0;
+
+        FontMetrics fm = lastFm;
+        if (fm == null) {
+            java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(1, 1, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g = img.createGraphics();
+            fm = g.getFontMetrics(Fx.body(15.5f));
+            lastFm = fm;
+            g.dispose();
+        }
+
+        int len = rText.length();
+        int totalWidth = fm.stringWidth(rText);
+        if (mx >= startX + totalWidth) return len;
+
+        int prevX = startX;
+        for (int i = 1; i <= len; i++) {
+            int curX = startX + fm.stringWidth(rText.substring(0, i));
+            int mid = (prevX + curX) / 2;
+            if (mx < mid) {
+                return i - 1;
+            }
+            prevX = curX;
+        }
+        return len;
+    }
+
     public boolean onMouseDown(int mx, int my) {
         if (contains(mx, my)) {
             // Check if eye icon clicked
@@ -189,6 +224,7 @@ public class TextBox {
             caretTimer = 0f;
             caretVisible = true;
             clearSelection();
+            caretPos = getCaretPosFromX(mx);
             return true;
         } else {
             focused = false;
@@ -200,8 +236,27 @@ public class TextBox {
     public boolean onKey(KeyEvent e) {
         if (!focused) return false;
 
+        // Ignore KEY_TYPED and KEY_RELEASED to prevent duplicate character input
+        if (e.getID() == KeyEvent.KEY_TYPED || e.getID() == KeyEvent.KEY_RELEASED) {
+            return false;
+        }
+
         int code = e.getKeyCode();
         char ch = e.getKeyChar();
+
+        // Ignore modifier keys, lock keys, action keys, and undefined character codes (e.g. Shift, Caps Lock, Alt, Ctrl)
+        if (code == KeyEvent.VK_SHIFT || code == KeyEvent.VK_CAPS_LOCK
+                || code == KeyEvent.VK_CONTROL || code == KeyEvent.VK_ALT
+                || code == KeyEvent.VK_ALT_GRAPH || code == KeyEvent.VK_WINDOWS
+                || code == KeyEvent.VK_META || code == KeyEvent.VK_CONTEXT_MENU
+                || code == KeyEvent.VK_PRINTSCREEN || code == KeyEvent.VK_SCROLL_LOCK
+                || code == KeyEvent.VK_PAUSE || code == KeyEvent.VK_NUM_LOCK
+                || code == KeyEvent.VK_INSERT || code == KeyEvent.VK_TAB
+                || code == KeyEvent.VK_ENTER || code == KeyEvent.VK_ESCAPE
+                || e.isActionKey()
+                || ch == KeyEvent.CHAR_UNDEFINED || ch == (char) 0xFFFF || (int) ch == 65535) {
+            return false;
+        }
 
         if (e.isControlDown()) {
             if (code == KeyEvent.VK_A) {
@@ -272,7 +327,8 @@ public class TextBox {
             return true;
         }
 
-        if (ch >= 32 && ch != 127) {
+        // Only insert valid printable characters (ASCII 32..126 or non-control Unicode)
+        if ((ch >= 32 && ch <= 126) || (ch > 127 && !Character.isISOControl(ch))) {
             deleteSelection();
             text.insert(caretPos, ch);
             caretPos++;
