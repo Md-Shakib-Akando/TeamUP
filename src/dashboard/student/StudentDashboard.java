@@ -207,10 +207,22 @@ public class StudentDashboard {
     private boolean editProfileHovered = false;
     private final Rectangle shareProfileBtnBox = new Rectangle();
     private boolean shareProfileHovered = false;
+    private final Rectangle profileStatusBadgeBox = new Rectangle();
+    private boolean profileStatusBadgeHovered = false;
+    private final Rectangle profileContactBox = new Rectangle();
+    private boolean profileContactHovered = false;
+    private final Rectangle[] profileStatBounds = new Rectangle[4];
+    private int hoveredProfileStatIndex = -1;
     private final Rectangle[] profileTabBounds = new Rectangle[4];
     private int hoveredProfileTab = -1;
     private final List<Rectangle> profileSkillBounds = new ArrayList<Rectangle>();
     private final List<Rectangle> profileProjectBounds = new ArrayList<Rectangle>();
+    private final Rectangle profileAddProjectBtnBox = new Rectangle();
+    private boolean profileAddProjectHovered = false;
+    private final Rectangle profileAddSkillBtnBox = new Rectangle();
+    private boolean profileAddSkillHovered = false;
+    private final Rectangle profileRequestReviewBtnBox = new Rectangle();
+    private boolean profileRequestReviewHovered = false;
 
     // =========================================================================
     // HITBOXES - SETTINGS (4 TABS)
@@ -282,6 +294,39 @@ public class StudentDashboard {
     private boolean reviewAppsBtnHovered = false;
     private final List<Rectangle> memberCardBounds = new ArrayList<Rectangle>();
     private final List<Rectangle> requestItemBounds = new ArrayList<Rectangle>();
+    private final Rectangle[] kpiCardBounds = new Rectangle[4];
+    private final Rectangle[] taskSummaryBounds = new Rectangle[4];
+    private final List<Rectangle> milestoneItemBounds = new ArrayList<Rectangle>();
+
+    // Tab 1: Members hitboxes
+    private final Rectangle tabInviteMemberBtnBox = new Rectangle();
+    private boolean tabInviteMemberHovered = false;
+    private final Rectangle inviteTeammateSlotBox = new Rectangle();
+    private boolean inviteTeammateSlotHovered = false;
+    private final List<Rectangle> memberTabProfileBtns = new ArrayList<Rectangle>();
+    private final List<Rectangle> memberTabRemoveBtns = new ArrayList<Rectangle>();
+
+    // Tab 2: Tasks hitboxes
+    private final Rectangle tabAddTaskBtnBox = new Rectangle();
+    private boolean tabAddTaskHovered = false;
+    private final Rectangle tabOpenModalBtnBox = new Rectangle();
+    private boolean tabOpenModalHovered = false;
+    private final List<Rectangle> taskCardBounds = new ArrayList<Rectangle>();
+    private final List<Rectangle> taskAdvanceBtns = new ArrayList<Rectangle>();
+
+    // Tab 3: Files hitboxes
+    private final Rectangle tabUploadFileBtnBox = new Rectangle();
+    private boolean tabUploadFileHovered = false;
+    private final List<Rectangle> fileRowBounds = new ArrayList<Rectangle>();
+    private final List<Rectangle> fileDownloadBtns = new ArrayList<Rectangle>();
+    private final List<Rectangle> filePreviewBtns = new ArrayList<Rectangle>();
+    private final List<Rectangle> fileDeleteBtns = new ArrayList<Rectangle>();
+
+    // Tab 4: Requests hitboxes
+    private final Rectangle tabPostRoleBtnBox = new Rectangle();
+    private boolean tabPostRoleHovered = false;
+    private final List<Rectangle> reqAcceptBtns = new ArrayList<Rectangle>();
+    private final List<Rectangle> reqDeclineBtns = new ArrayList<Rectangle>();
 
     // =========================================================================
     // EXACT LANDING PAGE COLOR SYSTEM (THEME.JAVA TOKENS)
@@ -325,6 +370,7 @@ public class StudentDashboard {
         for (int i = 0; i < teamTabBounds.length; i++) teamTabBounds[i] = new Rectangle(0, 0, 0, 0);
         for (int i = 0; i < settingsTabBounds.length; i++) settingsTabBounds[i] = new Rectangle(0, 0, 0, 0);
         for (int i = 0; i < profileTabBounds.length; i++) profileTabBounds[i] = new Rectangle(0, 0, 0, 0);
+        for (int i = 0; i < profileStatBounds.length; i++) profileStatBounds[i] = new Rectangle(0, 0, 0, 0);
 
         this.sidebar = new DashboardSidebar();
         this.header = new DashboardHeader();
@@ -391,6 +437,10 @@ public class StudentDashboard {
     public void showToast(String message) {
         this.toastMessage = message;
         this.toastTimer = 3.2f;
+    }
+
+    public String getToastMessage() {
+        return toastMessage;
     }
 
     public void openModal(ActiveModal modal) {
@@ -576,6 +626,9 @@ public class StudentDashboard {
 
         profileSkillBounds.clear();
         profileProjectBounds.clear();
+        profileAddProjectBtnBox.setBounds(0, 0, 0, 0);
+        profileAddSkillBtnBox.setBounds(0, 0, 0, 0);
+        profileRequestReviewBtnBox.setBounds(0, 0, 0, 0);
 
         // Breadcrumb
         g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
@@ -644,14 +697,20 @@ public class StudentDashboard {
         int nameW = g.getFontMetrics(new Font(Font.SANS_SERIF, Font.BOLD, 20)).stringWidth(profileData.name);
         g.drawString(profileData.handle, textX + nameW + 10, infoY + 20);
 
-        // Status Badge Pill (Mint tint with green text)
-        int stW = 236;
+        // Status Badge Pill (Mint tint with green text - clickable to cycle availability)
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 10));
+        int stTextW = g.getFontMetrics().stringWidth("● " + profileData.availabilityStatus);
+        int stW = Math.max(220, stTextW + 24);
         int stH = 22;
-        int stX = textX + nameW + 80;
+        int stX = textX + nameW + 18;
         int stY = infoY + 5;
+        profileStatusBadgeBox.setBounds(stX, stY, stW, stH);
         RoundRectangle2D stShape = new RoundRectangle2D.Float(stX, stY, stW, stH, stH, stH);
-        g.setColor(SUCCESS_BG);
+        g.setColor(profileStatusBadgeHovered ? new Color(0xCC, 0xF5, 0xE1) : SUCCESS_BG);
         g.fill(stShape);
+        g.setColor(SUCCESS_BORDER);
+        g.setStroke(new BasicStroke(1.0f));
+        g.draw(stShape);
         g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 10));
         g.setColor(SUCCESS_GREEN);
         g.drawString("● " + profileData.availabilityStatus, stX + 10, stY + 15);
@@ -671,13 +730,16 @@ public class StudentDashboard {
         g.setColor(TEXT_DARK);
         g.drawString(profileData.bio, startX + padX + 24, curY + 146);
 
-        // Contact info line
+        // Contact info line (clickable)
         g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
-        g.setColor(TEXT_MUTED);
-        g.drawString(
-                profileData.location + "   ·   " + profileData.email + "   ·   " + profileData.github + "   ·   "
-                        + profileData.portfolio,
-                startX + padX + 24, curY + 172);
+        String contactStr = profileData.location + "   ·   " + profileData.email + "   ·   " + profileData.github + "   ·   "
+                + profileData.portfolio;
+        int contactW = g.getFontMetrics().stringWidth(contactStr);
+        int contactX = startX + padX + 24;
+        int contactY = curY + 158;
+        profileContactBox.setBounds(contactX, contactY, contactW, 20);
+        g.setColor(profileContactHovered ? BRAND_ACCENT : TEXT_MUTED);
+        g.drawString(contactStr, contactX, curY + 172);
 
         curY += heroH + 18;
 
@@ -686,12 +748,19 @@ public class StudentDashboard {
         int statW = (contentW - statGap * 3) / 4;
         int statH = 92;
 
+        profileStatBounds[0].setBounds(startX + padX, curY, statW, statH);
         paintProfileStatCard(g, startX + padX, curY, statW, statH, "Active Projects",
                 String.valueOf(profileData.activeProjectsCount), "Across 3 collaborative teams", 0);
+
+        profileStatBounds[1].setBounds(startX + padX + (statW + statGap), curY, statW, statH);
         paintProfileStatCard(g, startX + padX + (statW + statGap), curY, statW, statH, "Teammates",
                 String.valueOf(profileData.totalTeammatesCount), "Collaborated with at UW", 1);
+
+        profileStatBounds[2].setBounds(startX + padX + (statW + statGap) * 2, curY, statW, statH);
         paintProfileStatCard(g, startX + padX + (statW + statGap) * 2, curY, statW, statH, "On-Time Completion",
                 profileData.completionRatePercent + "%", "Tasks delivered before deadline", 2);
+
+        profileStatBounds[3].setBounds(startX + padX + (statW + statGap) * 3, curY, statW, statH);
         paintProfileStatCard(g, startX + padX + (statW + statGap) * 3, curY, statW, statH, "Peer Rating",
                 profileData.peerRating + " ★", "From " + profileData.totalReviewsCount + " verified peer reviews", 3);
 
@@ -754,10 +823,11 @@ public class StudentDashboard {
     private void paintProfileStatCard(Graphics2D g, int x, int y, int w, int h, String title, String val, String sub,
             int type) {
         RoundRectangle2D shape = new RoundRectangle2D.Float(x, y, w, h, 12, 12);
-        g.setColor(Color.WHITE);
+        boolean isHov = (hoveredProfileStatIndex == type);
+        g.setColor(isHov ? BG_CANVAS : Color.WHITE);
         g.fill(shape);
-        g.setColor(BORDER_COLOR);
-        g.setStroke(new BasicStroke(1.1f));
+        g.setColor(isHov ? BRAND_ACCENT : BORDER_COLOR);
+        g.setStroke(new BasicStroke(isHov ? 1.4f : 1.1f));
         g.draw(shape);
 
         g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
@@ -775,6 +845,30 @@ public class StudentDashboard {
 
     private int paintProfileProjectsList(Graphics2D g, int x, int y, int w) {
         int curY = y;
+        if (profileData.activeTabIndex == 1) {
+            int topH = 34;
+            int btnW = 124;
+            int btnH = 30;
+            int btnX = x + w - btnW;
+            int btnY = curY;
+            profileAddProjectBtnBox.setBounds(btnX, btnY, btnW, btnH);
+
+            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 15));
+            g.setColor(TEXT_DARK);
+            g.drawString("All Projects (" + profileData.projects.size() + ")", x, curY + 20);
+
+            RoundRectangle2D addBtn = new RoundRectangle2D.Float(btnX, btnY, btnW, btnH, 8, 8);
+            g.setColor(profileAddProjectHovered ? BRAND_ACCENT_HOVER : BRAND_ACCENT);
+            g.fill(addBtn);
+            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
+            g.setColor(Color.WHITE);
+            g.drawString("+ Create Project", btnX + 14, btnY + 19);
+
+            curY += topH + 12;
+        } else {
+            profileAddProjectBtnBox.setBounds(0, 0, 0, 0);
+        }
+
         for (int i = 0; i < profileData.projects.size(); i++) {
             ProfileData.ProfileProject p = profileData.projects.get(i);
             int cardH = 138;
@@ -916,7 +1010,8 @@ public class StudentDashboard {
     }
 
     private int paintProfileSkillsFull(Graphics2D g, int x, int y, int w) {
-        int cardH = 340;
+        int neededH = 110 + ((profileData.skills.size() + 1) / 2) * 44 + 30;
+        int cardH = Math.max(340, neededH);
         RoundRectangle2D card = new RoundRectangle2D.Float(x, y, w, cardH, 12, 12);
         g.setColor(Color.WHITE);
         g.fill(card);
@@ -927,9 +1022,22 @@ public class StudentDashboard {
         g.setColor(TEXT_DARK);
         g.drawString("Skills Matrix & Peer Endorsements", x + 24, y + 32);
 
+        int btnW = 104;
+        int btnH = 28;
+        int btnX = x + w - btnW - 24;
+        int btnY = y + 18;
+        profileAddSkillBtnBox.setBounds(btnX, btnY, btnW, btnH);
+
+        RoundRectangle2D addSkBtn = new RoundRectangle2D.Float(btnX, btnY, btnW, btnH, 8, 8);
+        g.setColor(profileAddSkillHovered ? BRAND_ACCENT_HOVER : BRAND_ACCENT);
+        g.fill(addSkBtn);
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
+        g.setColor(Color.WHITE);
+        g.drawString("+ Add Skill", btnX + 18, btnY + 18);
+
         g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
         g.setColor(TEXT_MUTED);
-        g.drawString("All skills are verified through team project commits and teammate endorsements.", x + 24, y + 52);
+        g.drawString("All skills are verified through team project commits and teammate endorsements.", x + 24, y + 54);
 
         int curY = y + 80;
         for (int i = 0; i < profileData.skills.size(); i++) {
@@ -963,6 +1071,26 @@ public class StudentDashboard {
 
     private int paintProfileReviewsFull(Graphics2D g, int x, int y, int w) {
         int curY = y;
+        int topH = 34;
+        int btnW = 130;
+        int btnH = 30;
+        int btnX = x + w - btnW;
+        int btnY = curY;
+        profileRequestReviewBtnBox.setBounds(btnX, btnY, btnW, btnH);
+
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 15));
+        g.setColor(TEXT_DARK);
+        g.drawString("Teammate Endorsements & Feedback (" + profileData.reviews.size() + ")", x, curY + 20);
+
+        RoundRectangle2D reqBtn = new RoundRectangle2D.Float(btnX, btnY, btnW, btnH, 8, 8);
+        g.setColor(profileRequestReviewHovered ? BRAND_ACCENT_HOVER : BRAND_ACCENT);
+        g.fill(reqBtn);
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
+        g.setColor(Color.WHITE);
+        g.drawString("+ Request Review", btnX + 14, btnY + 19);
+
+        curY += topH + 14;
+
         for (ProfileData.PeerReview rev : profileData.reviews) {
             int cardH = 110;
             RoundRectangle2D card = new RoundRectangle2D.Float(x, curY, w, cardH, 12, 12);
@@ -1831,7 +1959,7 @@ public class StudentDashboard {
         g.drawString(teamData.subtitle, startX + padX, titleY + 22);
 
         int btnH = 36;
-        teamSettingsBtnW = 136;
+        teamSettingsBtnW = 128;
         teamSettingsBtnH = btnH;
         teamSettingsBtnX = startX + padX + contentW - teamSettingsBtnW;
         teamSettingsBtnY = curY + 4;
@@ -1881,51 +2009,70 @@ public class StudentDashboard {
         g.drawLine(startX + padX, tabY + 28, startX + padX + contentW, tabY + 28);
         curY += 46;
 
-        int kpiGap = 16;
-        int kpiW = (contentW - kpiGap * 3) / 4;
-        int kpiH = 108;
+        if (teamData.activeTabIndex == 0) {
+            int kpiGap = 16;
+            int kpiW = (contentW - kpiGap * 3) / 4;
+            int kpiH = 108;
 
-        paintKpiCard(g, startX + padX, curY, kpiW, kpiH, "Project progress", teamData.progressPercent + "%",
-                teamData.tasksCompleted + " of " + teamData.tasksTotal + " tasks completed", 0);
-        paintKpiCard(g, startX + padX + (kpiW + kpiGap), curY, kpiW, kpiH, "Team members",
-                teamData.currentMembers + " / " + teamData.maxMembers,
-                teamData.openPositions + " open positions", 1);
-        paintKpiCard(g, startX + padX + (kpiW + kpiGap) * 2, curY, kpiW, kpiH, "Next milestone",
-                teamData.nextMilestoneDate, teamData.nextMilestoneSub, 2);
-        paintKpiCard(g, startX + padX + (kpiW + kpiGap) * 3, curY, kpiW, kpiH, "Tasks due soon",
-                String.valueOf(teamData.tasksDueSoon), teamData.tasksDueSoonSub, 3);
+            kpiCardBounds[0] = new Rectangle(startX + padX, curY, kpiW, kpiH);
+            kpiCardBounds[1] = new Rectangle(startX + padX + (kpiW + kpiGap), curY, kpiW, kpiH);
+            kpiCardBounds[2] = new Rectangle(startX + padX + (kpiW + kpiGap) * 2, curY, kpiW, kpiH);
+            kpiCardBounds[3] = new Rectangle(startX + padX + (kpiW + kpiGap) * 3, curY, kpiW, kpiH);
 
-        curY += kpiH + 22;
+            paintKpiCard(g, startX + padX, curY, kpiW, kpiH, "Project progress", teamData.progressPercent + "%",
+                    teamData.tasksCompleted + " of " + teamData.tasksTotal + " tasks completed", 0);
+            paintKpiCard(g, startX + padX + (kpiW + kpiGap), curY, kpiW, kpiH, "Team members",
+                    teamData.currentMembers + " / " + teamData.maxMembers,
+                    teamData.openPositions + " open positions", 1);
+            paintKpiCard(g, startX + padX + (kpiW + kpiGap) * 2, curY, kpiW, kpiH, "Next milestone",
+                    teamData.nextMilestoneDate, teamData.nextMilestoneSub, 2);
+            paintKpiCard(g, startX + padX + (kpiW + kpiGap) * 3, curY, kpiW, kpiH, "Tasks due soon",
+                    String.valueOf(teamData.tasksDueSoon), teamData.tasksDueSoonSub, 3);
 
-        int colGap = 20;
-        int leftColW = Math.round((contentW - colGap) * 0.64f);
-        int rightColW = contentW - leftColW - colGap;
-        int leftX = startX + padX;
-        int rightX = leftX + leftColW + colGap;
+            curY += kpiH + 22;
 
-        int curLeftY = curY;
-        int card1H = 154;
-        paintPeopleMakingItHappen(g, leftX, curLeftY, leftColW, card1H);
-        curLeftY += card1H + 20;
+            int colGap = 20;
+            int leftColW = Math.round((contentW - colGap) * 0.64f);
+            int rightColW = contentW - leftColW - colGap;
+            int leftX = startX + padX;
+            int rightX = leftX + leftColW + colGap;
 
-        int card2H = 196;
-        paintMilestonesCard(g, leftX, curLeftY, leftColW, card2H);
-        curLeftY += card2H + 20;
+            int curLeftY = curY;
+            int card1H = 154;
+            paintPeopleMakingItHappen(g, leftX, curLeftY, leftColW, card1H);
+            curLeftY += card1H + 20;
 
-        int card3H = 126;
-        paintTaskSummaryCard(g, leftX, curLeftY, leftColW, card3H);
-        curLeftY += card3H + 20;
+            int card2H = 196;
+            paintMilestonesCard(g, leftX, curLeftY, leftColW, card2H);
+            curLeftY += card2H + 20;
 
-        int curRightY = curY;
-        int cardR1H = 226;
-        paintRecruitmentRequestsCard(g, rightX, curRightY, rightColW, cardR1H);
-        curRightY += cardR1H + 20;
+            int card3H = 126;
+            paintTaskSummaryCard(g, leftX, curLeftY, leftColW, card3H);
+            curLeftY += card3H + 20;
 
-        int cardR2H = 252;
-        paintTeamActivityCard(g, rightX, curRightY, rightColW, cardR2H);
-        curRightY += cardR2H + 20;
+            int curRightY = curY;
+            int cardR1H = 226;
+            paintRecruitmentRequestsCard(g, rightX, curRightY, rightColW, cardR1H);
+            curRightY += cardR1H + 20;
 
-        totalContentHeight = Math.max(curLeftY, curRightY) - startY + 50;
+            int cardR2H = 252;
+            paintTeamActivityCard(g, rightX, curRightY, rightColW, cardR2H);
+            curRightY += cardR2H + 20;
+
+            totalContentHeight = Math.max(curLeftY, curRightY) - startY + 50;
+        } else if (teamData.activeTabIndex == 1) {
+            int endY = paintMyTeamsMembersTab(g, startX + padX, curY, contentW);
+            totalContentHeight = endY - startY + 50;
+        } else if (teamData.activeTabIndex == 2) {
+            int endY = paintMyTeamsTasksTab(g, startX + padX, curY, contentW);
+            totalContentHeight = endY - startY + 50;
+        } else if (teamData.activeTabIndex == 3) {
+            int endY = paintMyTeamsFilesTab(g, startX + padX, curY, contentW);
+            totalContentHeight = endY - startY + 50;
+        } else {
+            int endY = paintMyTeamsRequestsTab(g, startX + padX, curY, contentW);
+            totalContentHeight = endY - startY + 50;
+        }
     }
 
     private void paintKpiCard(Graphics2D g, int x, int y, int w, int h, String title, String val, String sub,
@@ -2057,7 +2204,9 @@ public class StudentDashboard {
         int itemY = y + 46;
         int rowH = 46;
 
+        milestoneItemBounds.clear();
         for (int i = 0; i < teamData.milestones.size(); i++) {
+            milestoneItemBounds.add(new Rectangle(x + 16, itemY + i * rowH, w - 32, rowH));
             TeamWorkspaceData.MilestoneItem m = teamData.milestones.get(i);
             int rowCenterY = itemY + i * rowH + 20;
 
@@ -2129,6 +2278,11 @@ public class StudentDashboard {
 
         int colW = (w - 40) / 4;
         int statY = y + 46;
+
+        taskSummaryBounds[0] = new Rectangle(x + 20, statY, colW, 60);
+        taskSummaryBounds[1] = new Rectangle(x + 20 + colW, statY, colW, 60);
+        taskSummaryBounds[2] = new Rectangle(x + 20 + colW * 2, statY, colW, 60);
+        taskSummaryBounds[3] = new Rectangle(x + 20 + colW * 3, statY, colW, 60);
 
         paintSummaryColumn(g, x + 20, statY, colW, String.valueOf(teamData.taskSummary.todo), "To Do", TEXT_DARK);
         paintSummaryColumn(g, x + 20 + colW, statY, colW, String.valueOf(teamData.taskSummary.inProgress),
@@ -2307,11 +2461,531 @@ public class StudentDashboard {
         g.drawLine(cx + r, cy, cx + r + 2, cy);
     }
 
-    private void drawMessageBubbleIcon(Graphics2D g, int x, int y, int size, Color c) {
+    private void drawFileIcon(Graphics2D g, int x, int y, int size, Color c) {
         g.setColor(c);
         g.setStroke(new BasicStroke(1.4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-        g.drawRoundRect(x + 1, y + 1, size - 2, size - 4, 4, 4);
-        g.drawLine(x + 4, y + size - 3, x + 2, y + size);
+        g.drawRoundRect(x + 2, y + 1, size - 4, size - 2, 3, 3);
+        g.drawLine(x + 5, y + 6, x + size - 5, y + 6);
+        g.drawLine(x + 5, y + 10, x + size - 5, y + 10);
+    }
+
+    private int paintMyTeamsMembersTab(Graphics2D g, int x, int y, int w) {
+        memberTabProfileBtns.clear();
+        memberTabRemoveBtns.clear();
+
+        int curY = y;
+
+        // Top Action Bar
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 18));
+        g.setColor(TEXT_DARK);
+        g.drawString("Team Members (" + teamData.members.size() + " of " + teamData.maxMembers + ")", x, curY + 22);
+
+        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
+        g.setColor(TEXT_MUTED);
+        g.drawString("Collaborate with your project team, assign permissions, and invite new students.", x, curY + 42);
+
+        // "+ Invite Member" Button
+        int invW = 136;
+        int invH = 34;
+        tabInviteMemberBtnBox.setBounds(x + w - invW, curY + 12, invW, invH);
+        RoundRectangle2D invShape = new RoundRectangle2D.Float(tabInviteMemberBtnBox.x, tabInviteMemberBtnBox.y, invW, invH, 8, 8);
+        g.setColor(tabInviteMemberHovered ? BRAND_ACCENT_HOVER : BRAND_ACCENT);
+        g.fill(invShape);
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+        g.setColor(Color.WHITE);
+        g.drawString("+ Invite Member", tabInviteMemberBtnBox.x + 18, tabInviteMemberBtnBox.y + 22);
+
+        curY += 60;
+
+        // Grid of member cards (2 cards per row)
+        int gap = 16;
+        int cardW = (w - gap) / 2;
+        int cardH = 132;
+
+        for (int i = 0; i < teamData.members.size(); i++) {
+            TeamWorkspaceData.TeamMember m = teamData.members.get(i);
+            int col = i % 2;
+            int row = i / 2;
+            int cx = x + col * (cardW + gap);
+            int cy = curY + row * (cardH + gap);
+
+            RoundRectangle2D cardShape = new RoundRectangle2D.Float(cx, cy, cardW, cardH, 12, 12);
+            g.setColor(Color.WHITE);
+            g.fill(cardShape);
+            g.setColor(BORDER_COLOR);
+            g.draw(cardShape);
+
+            // Avatar
+            drawAvatar(g, cx + 38, cy + 38, 20, m.initials, m.avatarBg, m.avatarFg);
+
+            // Name
+            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
+            g.setColor(TEXT_DARK);
+            g.drawString(m.name, cx + 70, cy + 32);
+
+            // Role
+            g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
+            g.setColor(TEXT_MUTED);
+            g.drawString(m.role, cx + 70, cy + 50);
+
+            // Badge ("You" or "Member" or "Lead")
+            boolean isYou = "You".equalsIgnoreCase(m.badge);
+            int badgeW = isYou ? 42 : 58;
+            int badgeH = 20;
+            int bx = cx + cardW - badgeW - 16;
+            int by = cy + 18;
+            RoundRectangle2D bShape = new RoundRectangle2D.Float(bx, by, badgeW, badgeH, 6, 6);
+            g.setColor(isYou ? BRAND_TINT_BG : BG_CANVAS);
+            g.fill(bShape);
+            g.setColor(isYou ? BRAND_TINT_BORDER : BORDER_COLOR);
+            g.draw(bShape);
+            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 10));
+            g.setColor(isYou ? BRAND_ACCENT : TEXT_MUTED);
+            int tw = g.getFontMetrics().stringWidth(m.badge);
+            g.drawString(m.badge, bx + (badgeW - tw) / 2, by + 14);
+
+            // Action Buttons at bottom of card
+            int btnY = cy + 82;
+            int btnH2 = 28;
+
+            // [View Profile] Button
+            int profW = 96;
+            Rectangle profBox = new Rectangle(cx + 18, btnY, profW, btnH2);
+            memberTabProfileBtns.add(profBox);
+            g.setColor(BG_CANVAS);
+            g.fill(new RoundRectangle2D.Float(profBox.x, profBox.y, profBox.width, profBox.height, 6, 6));
+            g.setColor(BORDER_COLOR);
+            g.draw(new RoundRectangle2D.Float(profBox.x, profBox.y, profBox.width, profBox.height, 6, 6));
+            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
+            g.setColor(TEXT_DARK);
+            g.drawString("View Profile", profBox.x + 16, profBox.y + 18);
+
+            // [Remove] Button (only for non-You members)
+            if (!isYou) {
+                int remW = 68;
+                Rectangle remBox = new Rectangle(cx + cardW - remW - 16, btnY, remW, btnH2);
+                memberTabRemoveBtns.add(remBox);
+                g.setColor(new Color(0xFF, 0xF1, 0xF0));
+                g.fill(new RoundRectangle2D.Float(remBox.x, remBox.y, remBox.width, remBox.height, 6, 6));
+                g.setColor(new Color(0xFF, 0xCC, 0xC7));
+                g.draw(new RoundRectangle2D.Float(remBox.x, remBox.y, remBox.width, remBox.height, 6, 6));
+                g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
+                g.setColor(new Color(0xCF, 0x13, 0x22));
+                g.drawString("Remove", remBox.x + 12, remBox.y + 18);
+            } else {
+                memberTabRemoveBtns.add(new Rectangle());
+            }
+        }
+
+        // Dashed "+ Invite Teammate" Slot
+        int totalMembers = teamData.members.size();
+        int slotCol = totalMembers % 2;
+        int slotRow = totalMembers / 2;
+        int slotX = x + slotCol * (cardW + gap);
+        int slotY = curY + slotRow * (cardH + gap);
+        inviteTeammateSlotBox.setBounds(slotX, slotY, cardW, cardH);
+
+        RoundRectangle2D slotShape = new RoundRectangle2D.Float(slotX, slotY, cardW, cardH, 12, 12);
+        g.setColor(inviteTeammateSlotHovered ? BG_CANVAS : Color.WHITE);
+        g.fill(slotShape);
+        Stroke oldStroke = g.getStroke();
+        g.setStroke(new BasicStroke(1.2f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10.0f, new float[]{6.0f, 4.0f}, 0.0f));
+        g.setColor(BRAND_TINT_BORDER);
+        g.draw(slotShape);
+        g.setStroke(oldStroke);
+
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 22));
+        g.setColor(BRAND_ACCENT);
+        g.drawString("+", slotX + cardW / 2 - 6, slotY + 54);
+
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 13));
+        g.setColor(TEXT_DARK);
+        String sText = "Invite another teammate";
+        int stw = g.getFontMetrics().stringWidth(sText);
+        g.drawString(sText, slotX + (cardW - stw) / 2, slotY + 80);
+
+        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
+        g.setColor(TEXT_MUTED);
+        String subText = (teamData.maxMembers - totalMembers) + " open spots remaining";
+        int subw = g.getFontMetrics().stringWidth(subText);
+        g.drawString(subText, slotX + (cardW - subw) / 2, slotY + 98);
+
+        int rows = (totalMembers + 1 + 1) / 2;
+        return curY + rows * (cardH + gap) + 30;
+    }
+
+    private int paintMyTeamsTasksTab(Graphics2D g, int x, int y, int w) {
+        taskCardBounds.clear();
+        taskAdvanceBtns.clear();
+
+        int curY = y;
+
+        // Top Action Bar
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 18));
+        g.setColor(TEXT_DARK);
+        g.drawString("Sprint Tasks & Kanban Board (" + teamData.tasksTotal + " tasks)", x, curY + 22);
+
+        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
+        g.setColor(TEXT_MUTED);
+        g.drawString("Click any task card or status arrow to advance it to the next workflow state.", x, curY + 42);
+
+        // [Open Modal Board] Button
+        int openW = 142;
+        int btnH = 34;
+        tabOpenModalBtnBox.setBounds(x + w - openW - 128, curY + 12, openW, btnH);
+        RoundRectangle2D omShape = new RoundRectangle2D.Float(tabOpenModalBtnBox.x, tabOpenModalBtnBox.y, openW, btnH, 8, 8);
+        g.setColor(tabOpenModalHovered ? BG_CANVAS : Color.WHITE);
+        g.fill(omShape);
+        g.setColor(BORDER_COLOR);
+        g.draw(omShape);
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+        g.setColor(TEXT_DARK);
+        g.drawString("Interactive Modal ↗", tabOpenModalBtnBox.x + 14, tabOpenModalBtnBox.y + 22);
+
+        // [+ Add Task] Button
+        int addW = 116;
+        tabAddTaskBtnBox.setBounds(x + w - addW, curY + 12, addW, btnH);
+        RoundRectangle2D addShape = new RoundRectangle2D.Float(tabAddTaskBtnBox.x, tabAddTaskBtnBox.y, addW, btnH, 8, 8);
+        g.setColor(tabAddTaskHovered ? BRAND_ACCENT_HOVER : BRAND_ACCENT);
+        g.fill(addShape);
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+        g.setColor(Color.WHITE);
+        g.drawString("+ Add Task", tabAddTaskBtnBox.x + 22, tabAddTaskBtnBox.y + 22);
+
+        curY += 60;
+
+        // 4 Kanban Columns: To Do, In Progress, In Review, Done
+        String[] colTitles = {"To Do (" + teamData.taskSummary.todo + ")",
+                              "In Progress (" + teamData.taskSummary.inProgress + ")",
+                              "In Review (" + teamData.taskSummary.inReview + ")",
+                              "Done (" + teamData.taskSummary.done + ")"};
+        String[] colKeys = {"todo", "in_progress", "in_review", "done"};
+        Color[] colHeaderAccents = {new Color(0x64, 0x74, 0x8B), BRAND_ACCENT, Theme.HIGHLIGHT_WARM, SUCCESS_GREEN};
+
+        int colGap = 14;
+        int colW = (w - colGap * 3) / 4;
+
+        int maxBottomY = curY;
+
+        for (int c = 0; c < 4; c++) {
+            int colX = x + c * (colW + colGap);
+            int colTopY = curY;
+
+            // Column Header
+            RoundRectangle2D colHeader = new RoundRectangle2D.Float(colX, colTopY, colW, 36, 8, 8);
+            g.setColor(Color.WHITE);
+            g.fill(colHeader);
+            g.setColor(BORDER_COLOR);
+            g.draw(colHeader);
+
+            g.setColor(colHeaderAccents[c]);
+            g.fillOval(colX + 12, colTopY + 14, 8, 8);
+
+            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+            g.setColor(TEXT_DARK);
+            g.drawString(colTitles[c], colX + 26, colTopY + 23);
+
+            int itemY = colTopY + 46;
+
+            for (int i = 0; i < teamData.tasks.size(); i++) {
+                TeamWorkspaceData.WorkspaceTask t = teamData.tasks.get(i);
+                if (!colKeys[c].equalsIgnoreCase(t.status)) continue;
+
+                int tCardH = 88;
+                Rectangle tBox = new Rectangle(colX, itemY, colW, tCardH);
+                taskCardBounds.add(tBox);
+
+                RoundRectangle2D tShape = new RoundRectangle2D.Float(tBox.x, tBox.y, tBox.width, tBox.height, 10, 10);
+                g.setColor(Color.WHITE);
+                g.fill(tShape);
+                g.setColor(BORDER_COLOR);
+                g.draw(tShape);
+
+                // Title
+                g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+                g.setColor(TEXT_DARK);
+                String drawTitle = t.title;
+                if (g.getFontMetrics().stringWidth(drawTitle) > colW - 24) {
+                    drawTitle = drawTitle.substring(0, Math.min(20, drawTitle.length())) + "...";
+                }
+                g.drawString(drawTitle, colX + 12, itemY + 22);
+
+                // Assignee & Due
+                drawAvatar(g, colX + 22, itemY + 54, 11, t.assigneeInitials, t.avatarBg, t.avatarFg);
+                g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
+                g.setColor(TEXT_MUTED);
+                g.drawString(t.assignee, colX + 38, itemY + 58);
+
+                // Due badge
+                g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 10));
+                g.setColor("done".equalsIgnoreCase(t.status) ? SUCCESS_GREEN : TEXT_MUTED);
+                g.drawString(t.due, colX + 12, itemY + 76);
+
+                // Status cycle / Advance Action Button
+                int advW = 28;
+                int advH = 22;
+                Rectangle advBox = new Rectangle(colX + colW - advW - 10, itemY + tCardH - advH - 8, advW, advH);
+                taskAdvanceBtns.add(advBox);
+
+                RoundRectangle2D advShape = new RoundRectangle2D.Float(advBox.x, advBox.y, advBox.width, advBox.height, 6, 6);
+                g.setColor(BRAND_TINT_BG);
+                g.fill(advShape);
+                g.setColor(BRAND_TINT_BORDER);
+                g.draw(advShape);
+                g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+                g.setColor(BRAND_ACCENT);
+                String arrow = "done".equalsIgnoreCase(t.status) ? "✓" : "→";
+                g.drawString(arrow, advBox.x + 9, advBox.y + 16);
+
+                itemY += tCardH + 12;
+            }
+
+            maxBottomY = Math.max(maxBottomY, itemY);
+        }
+
+        return maxBottomY + 30;
+    }
+
+    private int paintMyTeamsFilesTab(Graphics2D g, int x, int y, int w) {
+        fileRowBounds.clear();
+        fileDownloadBtns.clear();
+        filePreviewBtns.clear();
+        fileDeleteBtns.clear();
+
+        int curY = y;
+
+        // Top Action Bar
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 18));
+        g.setColor(TEXT_DARK);
+        g.drawString("Workspace Files & Deliverables (" + teamData.files.size() + " files)", x, curY + 22);
+
+        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
+        g.setColor(TEXT_MUTED);
+        g.drawString("Shared Figma wireframes, OpenAPI specifications, architecture docs, and project assets.", x, curY + 42);
+
+        // [+ Upload File] Button
+        int upW = 120;
+        int btnH = 34;
+        tabUploadFileBtnBox.setBounds(x + w - upW, curY + 12, upW, btnH);
+        RoundRectangle2D upShape = new RoundRectangle2D.Float(tabUploadFileBtnBox.x, tabUploadFileBtnBox.y, upW, btnH, 8, 8);
+        g.setColor(tabUploadFileHovered ? BRAND_ACCENT_HOVER : BRAND_ACCENT);
+        g.fill(upShape);
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+        g.setColor(Color.WHITE);
+        g.drawString("+ Upload File", tabUploadFileBtnBox.x + 18, tabUploadFileBtnBox.y + 22);
+
+        curY += 60;
+
+        // Table Card Container
+        int rowH = 58;
+        int totalH = 42 + Math.max(1, teamData.files.size()) * rowH;
+        RoundRectangle2D tableCard = new RoundRectangle2D.Float(x, curY, w, totalH, 12, 12);
+        g.setColor(Color.WHITE);
+        g.fill(tableCard);
+        g.setColor(BORDER_COLOR);
+        g.draw(tableCard);
+
+        // Table Header
+        g.setColor(BG_CANVAS);
+        g.fillRect(x + 1, curY + 1, w - 2, 40);
+        g.setColor(BORDER_COLOR);
+        g.drawLine(x, curY + 41, x + w, curY + 41);
+
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
+        g.setColor(TEXT_MUTED);
+        g.drawString("FILE NAME", x + 24, curY + 26);
+        g.drawString("TYPE", x + 340, curY + 26);
+        g.drawString("SIZE", x + 440, curY + 26);
+        g.drawString("UPLOADED", x + 530, curY + 26);
+        g.drawString("AUTHOR", x + 650, curY + 26);
+        g.drawString("ACTIONS", x + w - 220, curY + 26);
+
+        int itemY = curY + 42;
+
+        for (int i = 0; i < teamData.files.size(); i++) {
+            TeamWorkspaceData.WorkspaceFile f = teamData.files.get(i);
+            int rowCenterY = itemY + rowH / 2;
+
+            fileRowBounds.add(new Rectangle(x, itemY, w, rowH));
+
+            if (i > 0) {
+                g.setColor(BORDER_LIGHT);
+                g.drawLine(x + 16, itemY, x + w - 16, itemY);
+            }
+
+            // File icon + name
+            drawFileIcon(g, x + 24, rowCenterY - 10, 18, BRAND_ACCENT);
+            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 13));
+            g.setColor(TEXT_DARK);
+            g.drawString(f.name, x + 52, rowCenterY + 4);
+
+            // Type
+            g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
+            g.setColor(TEXT_MUTED);
+            g.drawString(f.type, x + 340, rowCenterY + 4);
+
+            // Size
+            g.drawString(f.size, x + 440, rowCenterY + 4);
+
+            // Uploaded
+            g.drawString(f.updatedAgo, x + 530, rowCenterY + 4);
+
+            // Author
+            g.drawString(f.author, x + 650, rowCenterY + 4);
+
+            // Action Buttons: [Download] [Preview] [Delete]
+            int aBtnY = rowCenterY - 14;
+            int aBtnH = 28;
+
+            // Download
+            int dlW = 76;
+            Rectangle dlBox = new Rectangle(x + w - 230, aBtnY, dlW, aBtnH);
+            fileDownloadBtns.add(dlBox);
+            g.setColor(BRAND_TINT_BG);
+            g.fill(new RoundRectangle2D.Float(dlBox.x, dlBox.y, dlBox.width, dlBox.height, 6, 6));
+            g.setColor(BRAND_ACCENT);
+            g.draw(new RoundRectangle2D.Float(dlBox.x, dlBox.y, dlBox.width, dlBox.height, 6, 6));
+            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
+            g.drawString("Download", dlBox.x + 12, dlBox.y + 18);
+
+            // Preview
+            int pvW = 68;
+            Rectangle pvBox = new Rectangle(x + w - 146, aBtnY, pvW, aBtnH);
+            filePreviewBtns.add(pvBox);
+            g.setColor(BG_CANVAS);
+            g.fill(new RoundRectangle2D.Float(pvBox.x, pvBox.y, pvBox.width, pvBox.height, 6, 6));
+            g.setColor(BORDER_COLOR);
+            g.draw(new RoundRectangle2D.Float(pvBox.x, pvBox.y, pvBox.width, pvBox.height, 6, 6));
+            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
+            g.setColor(TEXT_DARK);
+            g.drawString("Preview", pvBox.x + 14, pvBox.y + 18);
+
+            // Delete
+            int delW = 60;
+            Rectangle delBox = new Rectangle(x + w - 70, aBtnY, delW, aBtnH);
+            fileDeleteBtns.add(delBox);
+            g.setColor(new Color(0xFF, 0xF1, 0xF0));
+            g.fill(new RoundRectangle2D.Float(delBox.x, delBox.y, delBox.width, delBox.height, 6, 6));
+            g.setColor(new Color(0xFF, 0xCC, 0xC7));
+            g.draw(new RoundRectangle2D.Float(delBox.x, delBox.y, delBox.width, delBox.height, 6, 6));
+            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
+            g.setColor(new Color(0xCF, 0x13, 0x22));
+            g.drawString("Delete", delBox.x + 12, delBox.y + 18);
+
+            itemY += rowH;
+        }
+
+        return curY + totalH + 30;
+    }
+
+    private int paintMyTeamsRequestsTab(Graphics2D g, int x, int y, int w) {
+        reqAcceptBtns.clear();
+        reqDeclineBtns.clear();
+
+        int curY = y;
+
+        // Top Action Bar
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 18));
+        g.setColor(TEXT_DARK);
+        g.drawString("Candidate Applications & Recruitment (" + teamData.recruitmentRequests.size() + " pending)", x, curY + 22);
+
+        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
+        g.setColor(TEXT_MUTED);
+        g.drawString("Review students requesting to join CampusConnect. Accept to onboard them immediately.", x, curY + 42);
+
+        // [+ Post Open Position] Button
+        int postW = 162;
+        int btnH = 34;
+        tabPostRoleBtnBox.setBounds(x + w - postW, curY + 12, postW, btnH);
+        RoundRectangle2D postShape = new RoundRectangle2D.Float(tabPostRoleBtnBox.x, tabPostRoleBtnBox.y, postW, btnH, 8, 8);
+        g.setColor(tabPostRoleHovered ? BRAND_ACCENT_HOVER : BRAND_ACCENT);
+        g.fill(postShape);
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+        g.setColor(Color.WHITE);
+        g.drawString("+ Post Open Position", tabPostRoleBtnBox.x + 16, tabPostRoleBtnBox.y + 22);
+
+        curY += 60;
+
+        if (teamData.recruitmentRequests.isEmpty()) {
+            RoundRectangle2D emptyCard = new RoundRectangle2D.Float(x, curY, w, 140, 12, 12);
+            g.setColor(Color.WHITE);
+            g.fill(emptyCard);
+            g.setColor(BORDER_COLOR);
+            g.draw(emptyCard);
+
+            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 16));
+            g.setColor(TEXT_DARK);
+            g.drawString("All candidate applications have been reviewed! 🎉", x + 30, curY + 54);
+
+            g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
+            g.setColor(TEXT_MUTED);
+            g.drawString("Post a new role to recruit more talent from the UW student network.", x + 30, curY + 84);
+
+            return curY + 170;
+        }
+
+        int cardH = 118;
+        int gap = 16;
+
+        for (int i = 0; i < teamData.recruitmentRequests.size(); i++) {
+            TeamWorkspaceData.RecruitmentRequest req = teamData.recruitmentRequests.get(i);
+            int cardY = curY + i * (cardH + gap);
+
+            RoundRectangle2D cardShape = new RoundRectangle2D.Float(x, cardY, w, cardH, 12, 12);
+            g.setColor(Color.WHITE);
+            g.fill(cardShape);
+            g.setColor(BORDER_COLOR);
+            g.draw(cardShape);
+
+            // Avatar
+            drawAvatar(g, x + 40, cardY + 40, 20, req.initials, req.avatarBg, req.avatarFg);
+
+            // Name
+            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 15));
+            g.setColor(TEXT_DARK);
+            g.drawString(req.name, x + 76, cardY + 34);
+
+            // Role & Skill
+            g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
+            g.setColor(TEXT_MUTED);
+            g.drawString(req.roleSkill, x + 76, cardY + 54);
+
+            // Note / pitch
+            g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
+            g.setColor(TEXT_LIGHT);
+            String pitch = "Applicant note: 'Excited to contribute to CampusConnect and collaborate with full-stack developers.'";
+            g.drawString(pitch, x + 76, cardY + 76);
+
+            // Action Buttons: [Accept] (Solid Green) [Decline] (Outline)
+            int aBtnY = cardY + cardH / 2 - 16;
+            int aBtnH = 32;
+
+            // [Accept]
+            int accW = 86;
+            Rectangle accBox = new Rectangle(x + w - 184, aBtnY, accW, aBtnH);
+            reqAcceptBtns.add(accBox);
+            RoundRectangle2D accShape = new RoundRectangle2D.Float(accBox.x, accBox.y, accBox.width, accBox.height, 8, 8);
+            g.setColor(SUCCESS_GREEN);
+            g.fill(accShape);
+            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+            g.setColor(Color.WHITE);
+            g.drawString("Accept ✓", accBox.x + 14, accBox.y + 21);
+
+            // [Decline]
+            int decW = 80;
+            Rectangle decBox = new Rectangle(x + w - 90, aBtnY, decW, aBtnH);
+            reqDeclineBtns.add(decBox);
+            RoundRectangle2D decShape = new RoundRectangle2D.Float(decBox.x, decBox.y, decBox.width, decBox.height, 8, 8);
+            g.setColor(BG_CANVAS);
+            g.fill(decShape);
+            g.setColor(BORDER_COLOR);
+            g.draw(decShape);
+            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+            g.setColor(TEXT_MUTED);
+            g.drawString("Decline", decBox.x + 18, decBox.y + 21);
+        }
+
+        return curY + teamData.recruitmentRequests.size() * (cardH + gap) + 30;
     }
 
     // =========================================================================
@@ -2325,6 +2999,9 @@ public class StudentDashboard {
 
         // 2. Active View's High Z-index overlays take priority (Dropdowns & Profile
         // Modals)
+        if (my >= 60 && header != null) {
+            header.setSearchFocused(false);
+        }
         if (activeNav == NavItem.MY_PROJECTS) {
             if (myProjectsView.onClick(mx, my, this))
                 return true;
@@ -2396,11 +3073,64 @@ public class StudentDashboard {
                 listener.openModal("Edit Profile - Alex Morgan",
                         "Update your academic details, availability, headline, and bio.", false);
             }
+            openModal(ActiveModal.COMPLETE_PROFILE);
+            showToast("Opening Edit Profile...");
             return true;
         }
 
         if (shareProfileBtnBox.contains(mx, my)) {
             showToast("Profile link copied: teamup.com/u/alexmorgan");
+            return true;
+        }
+
+        if (profileStatusBadgeBox.contains(mx, my)) {
+            profileData.cycleAvailability();
+            showToast("Status updated: " + profileData.availabilityStatus);
+            return true;
+        }
+
+        if (profileContactBox.contains(mx, my)) {
+            showToast("Contact: " + profileData.email + " | " + profileData.github);
+            return true;
+        }
+
+        for (int i = 0; i < profileStatBounds.length; i++) {
+            if (profileStatBounds[i] != null && profileStatBounds[i].contains(mx, my)) {
+                if (i == 0) {
+                    profileData.activeTabIndex = 1;
+                    targetScrollY = 0f;
+                    showToast("Showing Active Projects (" + profileData.activeProjectsCount + ")");
+                } else if (i == 1) {
+                    setActiveNav(NavItem.FIND_TEAMMATES);
+                    showToast("Explore Teammates at University of Washington");
+                } else if (i == 2) {
+                    setActiveNav(NavItem.MY_TEAMS);
+                    showToast("Opening My Teams tasks & performance");
+                } else if (i == 3) {
+                    profileData.activeTabIndex = 3;
+                    targetScrollY = 0f;
+                    showToast("Showing Peer Ratings & Reviews (" + profileData.totalReviewsCount + ")");
+                }
+                return true;
+            }
+        }
+
+        if (profileData.activeTabIndex == 1 && profileAddProjectBtnBox.contains(mx, my)) {
+            openModal(ActiveModal.CREATE_PROJECT);
+            showToast("Create a new project...");
+            return true;
+        }
+
+        if (profileData.activeTabIndex == 2 && profileAddSkillBtnBox.contains(mx, my)) {
+            String added = profileData.addNextSkill();
+            showToast("Added skill: " + added);
+            return true;
+        }
+
+        if (profileData.activeTabIndex == 3 && profileRequestReviewBtnBox.contains(mx, my)) {
+            profileData.addReview("Sarah Connor", "SC", "Teammate", "DevOps Pipeline",
+                    "Exceptional work on automation pipelines and team collaboration!", 5);
+            showToast("Peer review request sent and recorded!");
             return true;
         }
 
@@ -2464,6 +3194,7 @@ public class StudentDashboard {
                     listener.openModal("Update Account Password",
                             "Enter your current password and choose a secure new password.", false);
                 }
+                showToast("Password reset link sent to " + settingsData.email);
                 return true;
             }
         }
@@ -2499,6 +3230,7 @@ public class StudentDashboard {
                 return true;
             }
             if (cancelPrivacyBtnBox.contains(mx, my)) {
+                settingsData.resetPrivacy();
                 showToast("Privacy changes cancelled.");
                 return true;
             }
@@ -2514,8 +3246,9 @@ public class StudentDashboard {
                 }
             }
             if (addCatBox.contains(mx, my)) {
-                settingsData.addCategory("Mobile Development");
-                showToast("Added 'Mobile Development' category!");
+                settingsData.addNextCategory();
+                String added = settingsData.categories.get(settingsData.categories.size() - 1);
+                showToast("Added '" + added + "' category!");
                 return true;
             }
             if (checkFrontendBox.contains(mx, my)) {
@@ -2567,6 +3300,11 @@ public class StudentDashboard {
                 showToast("Collaboration preferences saved!");
                 return true;
             }
+            if (cancelCollabBtnBox.contains(mx, my)) {
+                settingsData.resetCollabPreferences();
+                showToast("Collaboration preferences reset.");
+                return true;
+            }
         }
 
         if (settingsData.activeTab == SettingsData.SettingsTab.DANGER_ZONE) {
@@ -2575,6 +3313,7 @@ public class StudentDashboard {
                     listener.openModal("Deactivate TeamUp Account",
                             "Take a break without deleting projects. You can reactivate anytime.", false);
                 }
+                showToast("Deactivation confirmation sent to " + settingsData.email);
                 return true;
             }
             if (deleteAccountBtnBox.contains(mx, my)) {
@@ -2583,6 +3322,7 @@ public class StudentDashboard {
                             "Warning: You own '" + settingsData.ownedProject + "'. Transfer ownership before deleting.",
                             true);
                 }
+                showToast("Warning: Please transfer '" + settingsData.ownedProject + "' before deleting account.");
                 return true;
             }
         }
@@ -2590,6 +3330,7 @@ public class StudentDashboard {
     }
 
     private boolean handleMyTeamsClick(int mx, int my) {
+        // 1. Navigation Tabs across the workspace
         for (int i = 0; i < teamData.tabs.size() && i < teamTabBounds.length; i++) {
             if (teamTabBounds[i] != null && teamTabBounds[i].contains(mx, my)) {
                 teamData.activeTabIndex = i;
@@ -2599,6 +3340,7 @@ public class StudentDashboard {
             }
         }
 
+        // 2. Header action buttons
         if (mx >= teamSettingsBtnX && mx <= teamSettingsBtnX + teamSettingsBtnW &&
                 my >= teamSettingsBtnY && my <= teamSettingsBtnY + teamSettingsBtnH) {
             activeNav = NavItem.SETTINGS;
@@ -2606,36 +3348,234 @@ public class StudentDashboard {
             return true;
         }
 
-        if (mx >= inviteMemberBtnX && mx <= inviteMemberBtnX + inviteMemberBtnW &&
-                my >= inviteMemberBtnY && my <= inviteMemberBtnY + inviteMemberBtnH) {
-            if (listener != null) {
-                listener.openModal("Invite Member to CampusConnect", "Enter student email or UW NetID to invite them.",
-                        true);
+        // 3. Tab-specific interactive buttons
+        if (teamData.activeTabIndex == 0) {
+            // TAB 0: OVERVIEW
+            if (mx >= inviteMemberBtnX && mx <= inviteMemberBtnX + inviteMemberBtnW &&
+                    my >= inviteMemberBtnY && my <= inviteMemberBtnY + inviteMemberBtnH) {
+                if (listener != null) {
+                    listener.openModal("Invite Member to CampusConnect", "Enter student email or UW NetID to invite them.",
+                            true);
+                } else {
+                    showToast("Invite member to CampusConnect");
+                }
+                return true;
             }
-            return true;
+
+            if (mx >= viewRoadmapBtnX && mx <= viewRoadmapBtnX + viewRoadmapBtnW &&
+                    my >= viewRoadmapBtnY && my <= viewRoadmapBtnY + viewRoadmapBtnH) {
+                if (listener != null) {
+                    listener.openModal("CampusConnect Q4 Roadmap",
+                            "Milestones:\n• Research & design (100% · Completed Oct 12)\n• MVP development (68% · Due Nov 06)\n• Beta testing & launch (Upcoming · Due Nov 20)",
+                            false);
+                }
+                showToast("CampusConnect Q4 Roadmap: MVP Nov 06, Beta Launch Nov 20.");
+                return true;
+            }
+
+            if (mx >= openBoardBtnX && mx <= openBoardBtnX + openBoardBtnW &&
+                    my >= openBoardBtnY && my <= openBoardBtnY + openBoardBtnH) {
+                teamData.activeTabIndex = 2; // Tasks
+                targetScrollY = 0f;
+                showToast("Opening Sprint Tasks Kanban Board (28 tasks)...");
+                return true;
+            }
+
+            if ((mx >= reviewAllBtnX && mx <= reviewAllBtnX + reviewAllBtnW &&
+                    my >= reviewAllBtnY && my <= reviewAllBtnY + reviewAllBtnH) ||
+                    (mx >= reviewAppsBtnX && mx <= reviewAppsBtnX + reviewAppsBtnW &&
+                            my >= reviewAppsBtnY && my <= reviewAppsBtnY + reviewAppsBtnH)) {
+                teamData.activeTabIndex = 4; // Requests
+                targetScrollY = 0f;
+                showToast("Viewing pending candidate applications...");
+                return true;
+            }
+
+            // Member cards click
+            for (int i = 0; i < memberCardBounds.size() && i < teamData.members.size(); i++) {
+                if (memberCardBounds.get(i).contains(mx, my)) {
+                    TeamWorkspaceData.TeamMember m = teamData.members.get(i);
+                    if ("You".equalsIgnoreCase(m.badge)) {
+                        activeNav = NavItem.MY_PROFILE;
+                        showToast("Opened your profile - Alex Morgan");
+                    } else {
+                        if (listener != null) {
+                            listener.openModal("Profile - " + m.name, "Role: " + m.role + "\nCampusConnect Team Member", false);
+                        }
+                        showToast("Viewing profile of " + m.name);
+                    }
+                    return true;
+                }
+            }
+
+            // Recruitment candidate rows click
+            for (int i = 0; i < requestItemBounds.size() && i < teamData.recruitmentRequests.size(); i++) {
+                if (requestItemBounds.get(i).contains(mx, my)) {
+                    teamData.activeTabIndex = 4; // Requests
+                    targetScrollY = 0f;
+                    showToast("Viewing application from " + teamData.recruitmentRequests.get(i).name);
+                    return true;
+                }
+            }
+
+            // KPI Cards click
+            for (int i = 0; i < kpiCardBounds.length; i++) {
+                if (kpiCardBounds[i] != null && kpiCardBounds[i].contains(mx, my)) {
+                    if (i == 0 || i == 3) {
+                        teamData.activeTabIndex = 2; // Tasks
+                        targetScrollY = 0f;
+                        showToast("Viewing Tasks: " + (i == 0 ? "Project progress" : "Tasks due soon"));
+                    } else if (i == 1) {
+                        teamData.activeTabIndex = 1; // Members
+                        targetScrollY = 0f;
+                        showToast("Viewing Team Members (" + teamData.members.size() + ")");
+                    } else if (i == 2) {
+                        if (listener != null) {
+                            listener.openModal("CampusConnect Q4 Roadmap",
+                                    "Next Milestone: MVP development · Nov 06 (21 days left)", false);
+                        }
+                        showToast("Next milestone: MVP development · Nov 06");
+                    }
+                    return true;
+                }
+            }
+
+            // Task summary columns click
+            for (int i = 0; i < taskSummaryBounds.length; i++) {
+                if (taskSummaryBounds[i] != null && taskSummaryBounds[i].contains(mx, my)) {
+                    teamData.activeTabIndex = 2; // Tasks
+                    targetScrollY = 0f;
+                    showToast("Opening Sprint Tasks Kanban Board...");
+                    return true;
+                }
+            }
+
+            // Milestone items click
+            for (int i = 0; i < milestoneItemBounds.size() && i < teamData.milestones.size(); i++) {
+                if (milestoneItemBounds.get(i).contains(mx, my)) {
+                    TeamWorkspaceData.MilestoneItem m = teamData.milestones.get(i);
+                    showToast("Milestone: " + m.title + " (" + m.progressPercent + "% - " + m.dueInfo + ")");
+                    return true;
+                }
+            }
+        } else if (teamData.activeTabIndex == 1) {
+            // TAB 1: MEMBERS
+            if (tabInviteMemberBtnBox.contains(mx, my) || inviteTeammateSlotBox.contains(mx, my)) {
+                if (listener != null) {
+                    listener.openModal("Invite Member to CampusConnect", "Enter student email or UW NetID to invite them.", true);
+                }
+                showToast("Opening invite member dialog...");
+                return true;
+            }
+
+            for (int i = 0; i < memberTabProfileBtns.size() && i < teamData.members.size(); i++) {
+                if (memberTabProfileBtns.get(i).contains(mx, my)) {
+                    TeamWorkspaceData.TeamMember m = teamData.members.get(i);
+                    if ("You".equalsIgnoreCase(m.badge)) {
+                        activeNav = NavItem.MY_PROFILE;
+                        showToast("Viewing your profile - Alex Morgan");
+                    } else {
+                        if (listener != null) {
+                            listener.openModal("Profile - " + m.name, "Role: " + m.role + "\nCampusConnect Team Member", false);
+                        }
+                        showToast("Viewing profile of " + m.name);
+                    }
+                    return true;
+                }
+            }
+
+            for (int i = 0; i < memberTabRemoveBtns.size() && i < teamData.members.size(); i++) {
+                if (memberTabRemoveBtns.get(i).contains(mx, my)) {
+                    TeamWorkspaceData.TeamMember m = teamData.members.get(i);
+                    String name = m.name;
+                    teamData.removeMember(i);
+                    showToast("Removed " + name + " from CampusConnect team.");
+                    return true;
+                }
+            }
+        } else if (teamData.activeTabIndex == 2) {
+            // TAB 2: TASKS
+            if (tabAddTaskBtnBox.contains(mx, my)) {
+                teamData.addTask("Implement User Feedback Drawer", "Alex Morgan", "AM", Theme.PASTEL_PINK, Theme.BRAND_PINK, "todo", "Today");
+                showToast("Added new task: Implement User Feedback Drawer");
+                return true;
+            }
+
+            if (tabOpenModalBtnBox.contains(mx, my)) {
+                openModal(ActiveModal.ALL_TASKS);
+                showToast("Opened interactive Sprint Tasks modal!");
+                return true;
+            }
+
+            for (int i = 0; i < taskAdvanceBtns.size() && i < teamData.tasks.size(); i++) {
+                if (taskAdvanceBtns.get(i).contains(mx, my) || (i < taskCardBounds.size() && taskCardBounds.get(i).contains(mx, my))) {
+                    TeamWorkspaceData.WorkspaceTask t = teamData.tasks.get(i);
+                    teamData.advanceTaskStatus(t);
+                    showToast("Updated '" + t.title + "' status to: " + t.status.replace('_', ' ').toUpperCase());
+                    return true;
+                }
+            }
+        } else if (teamData.activeTabIndex == 3) {
+            // TAB 3: FILES
+            if (tabUploadFileBtnBox.contains(mx, my)) {
+                teamData.addFile("architecture-diagram-v2.png", "PNG", "3.4 MB", "Alex Morgan");
+                showToast("File uploaded: architecture-diagram-v2.png");
+                return true;
+            }
+
+            for (int i = 0; i < fileDownloadBtns.size() && i < teamData.files.size(); i++) {
+                if (fileDownloadBtns.get(i).contains(mx, my)) {
+                    showToast("Downloading " + teamData.files.get(i).name + "...");
+                    return true;
+                }
+            }
+
+            for (int i = 0; i < filePreviewBtns.size() && i < teamData.files.size(); i++) {
+                if (filePreviewBtns.get(i).contains(mx, my)) {
+                    TeamWorkspaceData.WorkspaceFile f = teamData.files.get(i);
+                    if (listener != null) {
+                        listener.openModal("Preview - " + f.name, "File Type: " + f.type + "\nSize: " + f.size + "\nAuthor: " + f.author, false);
+                    }
+                    showToast("Opening preview: " + f.name);
+                    return true;
+                }
+            }
+
+            for (int i = 0; i < fileDeleteBtns.size() && i < teamData.files.size(); i++) {
+                if (fileDeleteBtns.get(i).contains(mx, my)) {
+                    String fName = teamData.files.get(i).name;
+                    teamData.removeFile(i);
+                    showToast("Deleted " + fName);
+                    return true;
+                }
+            }
+        } else if (teamData.activeTabIndex == 4) {
+            // TAB 4: REQUESTS
+            if (tabPostRoleBtnBox.contains(mx, my)) {
+                teamData.openPositions++;
+                showToast("Posted new position: Mobile Developer (Flutter) · Open spots: " + teamData.openPositions);
+                return true;
+            }
+
+            for (int i = 0; i < reqAcceptBtns.size() && i < teamData.recruitmentRequests.size(); i++) {
+                if (reqAcceptBtns.get(i).contains(mx, my)) {
+                    String name = teamData.recruitmentRequests.get(i).name;
+                    teamData.acceptRequest(i);
+                    showToast("Accepted " + name + " into CampusConnect team! 🎉");
+                    return true;
+                }
+            }
+
+            for (int i = 0; i < reqDeclineBtns.size() && i < teamData.recruitmentRequests.size(); i++) {
+                if (reqDeclineBtns.get(i).contains(mx, my)) {
+                    String name = teamData.recruitmentRequests.get(i).name;
+                    teamData.declineRequest(i);
+                    showToast("Declined application from " + name + ".");
+                    return true;
+                }
+            }
         }
 
-        if (mx >= viewRoadmapBtnX && mx <= viewRoadmapBtnX + viewRoadmapBtnW &&
-                my >= viewRoadmapBtnY && my <= viewRoadmapBtnY + viewRoadmapBtnH) {
-            showToast("CampusConnect Q4 Roadmap: MVP Nov 06, Beta Launch Nov 20.");
-            return true;
-        }
-
-        if (mx >= openBoardBtnX && mx <= openBoardBtnX + openBoardBtnW &&
-                my >= openBoardBtnY && my <= openBoardBtnY + openBoardBtnH) {
-            teamData.activeTabIndex = 2;
-            showToast("Opening Sprint Tasks Kanban Board (28 tasks)...");
-            return true;
-        }
-
-        if ((mx >= reviewAllBtnX && mx <= reviewAllBtnX + reviewAllBtnW &&
-                my >= reviewAllBtnY && my <= reviewAllBtnY + reviewAllBtnH) ||
-                (mx >= reviewAppsBtnX && mx <= reviewAppsBtnX + reviewAppsBtnW &&
-                        my >= reviewAppsBtnY && my <= reviewAppsBtnY + reviewAppsBtnH)) {
-            teamData.activeTabIndex = 4;
-            showToast("Viewing 3 pending candidate applications...");
-            return true;
-        }
         return false;
     }
 
@@ -2687,6 +3627,42 @@ public class StudentDashboard {
         if (shareProfileHovered != pShare)
             changed = true;
 
+        boolean pBadge = profileStatusBadgeHovered;
+        profileStatusBadgeHovered = profileStatusBadgeBox.contains(mx, my);
+        if (profileStatusBadgeHovered != pBadge)
+            changed = true;
+
+        boolean pContact = profileContactHovered;
+        profileContactHovered = profileContactBox.contains(mx, my);
+        if (profileContactHovered != pContact)
+            changed = true;
+
+        boolean pAddProj = profileAddProjectHovered;
+        profileAddProjectHovered = profileAddProjectBtnBox.contains(mx, my);
+        if (profileAddProjectHovered != pAddProj)
+            changed = true;
+
+        boolean pAddSk = profileAddSkillHovered;
+        profileAddSkillHovered = profileAddSkillBtnBox.contains(mx, my);
+        if (profileAddSkillHovered != pAddSk)
+            changed = true;
+
+        boolean pReqRev = profileRequestReviewHovered;
+        profileRequestReviewHovered = profileRequestReviewBtnBox.contains(mx, my);
+        if (profileRequestReviewHovered != pReqRev)
+            changed = true;
+
+        int oldStatHov = hoveredProfileStatIndex;
+        hoveredProfileStatIndex = -1;
+        for (int i = 0; i < profileStatBounds.length; i++) {
+            if (profileStatBounds[i] != null && profileStatBounds[i].contains(mx, my)) {
+                hoveredProfileStatIndex = i;
+                break;
+            }
+        }
+        if (hoveredProfileStatIndex != oldStatHov)
+            changed = true;
+
         int oldTabHov = hoveredProfileTab;
         hoveredProfileTab = -1;
         for (int i = 0; i < profileTabBounds.length; i++) {
@@ -2697,7 +3673,29 @@ public class StudentDashboard {
         }
         if (hoveredProfileTab != oldTabHov)
             changed = true;
-        return changed || editProfileHovered;
+
+        boolean anyInteractiveHovered = editProfileHovered || shareProfileHovered || profileStatusBadgeHovered
+                || profileContactHovered || profileAddProjectHovered || profileAddSkillHovered
+                || profileRequestReviewHovered || (hoveredProfileStatIndex >= 0) || (hoveredProfileTab >= 0);
+
+        if (!anyInteractiveHovered) {
+            for (Rectangle r : profileSkillBounds) {
+                if (r != null && r.contains(mx, my)) {
+                    anyInteractiveHovered = true;
+                    break;
+                }
+            }
+        }
+        if (!anyInteractiveHovered) {
+            for (Rectangle r : profileProjectBounds) {
+                if (r != null && r.contains(mx, my)) {
+                    anyInteractiveHovered = true;
+                    break;
+                }
+            }
+        }
+
+        return changed || anyInteractiveHovered;
     }
 
     private boolean handleSettingsMouseMove(int mx, int my) {
@@ -2712,7 +3710,74 @@ public class StudentDashboard {
         }
         if (hoveredSettingsTab != oldHov)
             changed = true;
-        return changed;
+
+        boolean anyInteractiveHovered = (hoveredSettingsTab >= 0);
+
+        if (settingsData.activeTab == SettingsData.SettingsTab.ACCOUNT) {
+            boolean pSave = saveAccountHovered;
+            saveAccountHovered = saveAccountBtnBox.contains(mx, my);
+            if (saveAccountHovered != pSave) changed = true;
+
+            boolean pCan = cancelAccountHovered;
+            cancelAccountHovered = cancelAccountBtnBox.contains(mx, my);
+            if (cancelAccountHovered != pCan) changed = true;
+
+            boolean pPass = changePassHovered;
+            changePassHovered = changePassBtnBox.contains(mx, my);
+            if (changePassHovered != pPass) changed = true;
+
+            anyInteractiveHovered = anyInteractiveHovered || saveAccountHovered || cancelAccountHovered
+                    || changePassHovered || fullNameBox.contains(mx, my) || usernameBox.contains(mx, my)
+                    || emailBox.contains(mx, my);
+        } else if (settingsData.activeTab == SettingsData.SettingsTab.PROFILE_PRIVACY) {
+            boolean pSave = savePrivacyHovered;
+            savePrivacyHovered = savePrivacyBtnBox.contains(mx, my);
+            if (savePrivacyHovered != pSave) changed = true;
+
+            boolean pCan = cancelPrivacyHovered;
+            cancelPrivacyHovered = cancelPrivacyBtnBox.contains(mx, my);
+            if (cancelPrivacyHovered != pCan) changed = true;
+
+            anyInteractiveHovered = anyInteractiveHovered || savePrivacyHovered || cancelPrivacyHovered
+                    || radioPublicBox.contains(mx, my) || radioTeamBox.contains(mx, my)
+                    || radioPrivateBox.contains(mx, my) || toggleSkillsBox.contains(mx, my)
+                    || toggleActivityBox.contains(mx, my);
+        } else if (settingsData.activeTab == SettingsData.SettingsTab.COLLAB_PREFERENCES) {
+            boolean pSave = saveCollabHovered;
+            saveCollabHovered = saveCollabBtnBox.contains(mx, my);
+            if (saveCollabHovered != pSave) changed = true;
+
+            boolean pCan = cancelCollabHovered;
+            cancelCollabHovered = cancelCollabBtnBox.contains(mx, my);
+            if (cancelCollabHovered != pCan) changed = true;
+
+            boolean chipHov = false;
+            for (Rectangle r : catRemoveBounds) {
+                if (r != null && r.contains(mx, my)) {
+                    chipHov = true;
+                    break;
+                }
+            }
+
+            anyInteractiveHovered = anyInteractiveHovered || saveCollabHovered || cancelCollabHovered
+                    || chipHov || addCatBox.contains(mx, my) || checkFrontendBox.contains(mx, my)
+                    || checkUiBox.contains(mx, my) || checkBackendBox.contains(mx, my)
+                    || checkLeadBox.contains(mx, my) || availDropdown.contains(mx, my)
+                    || commitDropdown.contains(mx, my) || modeRemoteBox.contains(mx, my)
+                    || modeInPersonBox.contains(mx, my) || modeEitherBox.contains(mx, my);
+        } else if (settingsData.activeTab == SettingsData.SettingsTab.DANGER_ZONE) {
+            boolean pDeact = deactivateHovered;
+            deactivateHovered = deactivateBtnBox.contains(mx, my);
+            if (deactivateHovered != pDeact) changed = true;
+
+            boolean pDel = deleteAccountHovered;
+            deleteAccountHovered = deleteAccountBtnBox.contains(mx, my);
+            if (deleteAccountHovered != pDel) changed = true;
+
+            anyInteractiveHovered = anyInteractiveHovered || deactivateHovered || deleteAccountHovered;
+        }
+
+        return changed || anyInteractiveHovered;
     }
 
     private boolean handleMyTeamsMouseMove(int mx, int my) {
@@ -2764,7 +3829,77 @@ public class StudentDashboard {
         if (hoveredTeamTabIndex != oldTabHov)
             changed = true;
 
-        return changed || teamSettingsBtnHovered || inviteMemberBtnHovered;
+        boolean anyActionHov = false;
+        if (teamData.activeTabIndex == 1) {
+            boolean pInv = tabInviteMemberHovered;
+            tabInviteMemberHovered = tabInviteMemberBtnBox.contains(mx, my);
+            boolean pSlot = inviteTeammateSlotHovered;
+            inviteTeammateSlotHovered = inviteTeammateSlotBox.contains(mx, my);
+            if (pInv != tabInviteMemberHovered || pSlot != inviteTeammateSlotHovered)
+                changed = true;
+            for (Rectangle r : memberTabProfileBtns) {
+                if (r.contains(mx, my)) anyActionHov = true;
+            }
+            for (Rectangle r : memberTabRemoveBtns) {
+                if (r.contains(mx, my)) anyActionHov = true;
+            }
+            anyActionHov = anyActionHov || tabInviteMemberHovered || inviteTeammateSlotHovered;
+        } else if (teamData.activeTabIndex == 2) {
+            boolean pAdd = tabAddTaskHovered;
+            tabAddTaskHovered = tabAddTaskBtnBox.contains(mx, my);
+            boolean pOm = tabOpenModalHovered;
+            tabOpenModalHovered = tabOpenModalBtnBox.contains(mx, my);
+            if (pAdd != tabAddTaskHovered || pOm != tabOpenModalHovered)
+                changed = true;
+            for (Rectangle r : taskAdvanceBtns) {
+                if (r.contains(mx, my)) anyActionHov = true;
+            }
+            anyActionHov = anyActionHov || tabAddTaskHovered || tabOpenModalHovered;
+        } else if (teamData.activeTabIndex == 3) {
+            boolean pUp = tabUploadFileHovered;
+            tabUploadFileHovered = tabUploadFileBtnBox.contains(mx, my);
+            if (pUp != tabUploadFileHovered)
+                changed = true;
+            for (Rectangle r : fileDownloadBtns) {
+                if (r.contains(mx, my)) anyActionHov = true;
+            }
+            for (Rectangle r : filePreviewBtns) {
+                if (r.contains(mx, my)) anyActionHov = true;
+            }
+            for (Rectangle r : fileDeleteBtns) {
+                if (r.contains(mx, my)) anyActionHov = true;
+            }
+            anyActionHov = anyActionHov || tabUploadFileHovered;
+        } else if (teamData.activeTabIndex == 4) {
+            boolean pPost = tabPostRoleHovered;
+            tabPostRoleHovered = tabPostRoleBtnBox.contains(mx, my);
+            if (pPost != tabPostRoleHovered)
+                changed = true;
+            for (Rectangle r : reqAcceptBtns) {
+                if (r.contains(mx, my)) anyActionHov = true;
+            }
+            for (Rectangle r : reqDeclineBtns) {
+                if (r.contains(mx, my)) anyActionHov = true;
+            }
+            anyActionHov = anyActionHov || tabPostRoleHovered;
+        } else {
+            for (Rectangle r : memberCardBounds) {
+                if (r.contains(mx, my)) anyActionHov = true;
+            }
+            for (Rectangle r : requestItemBounds) {
+                if (r.contains(mx, my)) anyActionHov = true;
+            }
+            for (Rectangle r : kpiCardBounds) {
+                if (r != null && r.contains(mx, my)) anyActionHov = true;
+            }
+            for (Rectangle r : taskSummaryBounds) {
+                if (r != null && r.contains(mx, my)) anyActionHov = true;
+            }
+            anyActionHov = anyActionHov || inviteMemberBtnHovered || viewRoadmapBtnHovered || openBoardBtnHovered
+                    || reviewAllBtnHovered || reviewAppsBtnHovered;
+        }
+
+        return changed || teamSettingsBtnHovered || (hoveredTeamTabIndex >= 0) || anyActionHov;
     }
 
     public void onMouseWheel(int wheelRotation, int screenH) {
@@ -2861,6 +3996,10 @@ public class StudentDashboard {
         this.activeNav = nav;
         this.targetScrollY = 0f;
         this.scrollY = 0f;
+        if (header != null) {
+            header.setSearchFocused(false);
+            header.closePopups();
+        }
     }
 
     public NavItem getHoveredNav() {
@@ -2994,4 +4133,42 @@ public class StudentDashboard {
     public ProfileData getProfileData() {
         return profileData;
     }
+
+    public DashboardHeader getHeader() {
+        return header;
+    }
+
+    // Profile Hitbox Getters
+    public Rectangle getEditProfileBtnBox() { return editProfileBtnBox; }
+    public Rectangle getShareProfileBtnBox() { return shareProfileBtnBox; }
+    public Rectangle getProfileStatusBadgeBox() { return profileStatusBadgeBox; }
+    public Rectangle getProfileContactBox() { return profileContactBox; }
+    public Rectangle[] getProfileStatBounds() { return profileStatBounds; }
+    public Rectangle[] getProfileTabBounds() { return profileTabBounds; }
+    public Rectangle getProfileAddProjectBtnBox() { return profileAddProjectBtnBox; }
+    public Rectangle getProfileAddSkillBtnBox() { return profileAddSkillBtnBox; }
+    public Rectangle getProfileRequestReviewBtnBox() { return profileRequestReviewBtnBox; }
+
+    // Settings Hitbox Getters
+    public Rectangle[] getSettingsTabBounds() { return settingsTabBounds; }
+    public Rectangle getSaveAccountBtnBox() { return saveAccountBtnBox; }
+    public Rectangle getCancelAccountBtnBox() { return cancelAccountBtnBox; }
+    public Rectangle getChangePassBtnBox() { return changePassBtnBox; }
+    public Rectangle getSavePrivacyBtnBox() { return savePrivacyBtnBox; }
+    public Rectangle getCancelPrivacyBtnBox() { return cancelPrivacyBtnBox; }
+    public Rectangle getSaveCollabBtnBox() { return saveCollabBtnBox; }
+    public Rectangle getCancelCollabBtnBox() { return cancelCollabBtnBox; }
+    public Rectangle getDeactivateBtnBox() { return deactivateBtnBox; }
+    public Rectangle getDeleteAccountBtnBox() { return deleteAccountBtnBox; }
+    public Rectangle getAddCatBox() { return addCatBox; }
+    public Rectangle getAvailDropdown() { return availDropdown; }
+    public Rectangle getCommitDropdown() { return commitDropdown; }
+    public Rectangle getModeRemoteBox() { return modeRemoteBox; }
+    public Rectangle getModeInPersonBox() { return modeInPersonBox; }
+    public Rectangle getModeEitherBox() { return modeEitherBox; }
+    public Rectangle getRadioPublicBox() { return radioPublicBox; }
+    public Rectangle getRadioTeamBox() { return radioTeamBox; }
+    public Rectangle getRadioPrivateBox() { return radioPrivateBox; }
+    public Rectangle getToggleSkillsBox() { return toggleSkillsBox; }
+    public Rectangle getToggleActivityBox() { return toggleActivityBox; }
 }

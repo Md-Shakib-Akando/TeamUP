@@ -1206,4 +1206,8 @@ public class DashboardTeammates {
         this.searchKeyword = kw;
         applyFilters();
     }
+
+    public String getSearchKeyword() {
+        return searchKeyword;
+    }
 }

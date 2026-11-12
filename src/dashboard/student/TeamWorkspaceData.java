@@ -109,6 +109,29 @@ public class TeamWorkspaceData {
         }
     }
 
+    public static class WorkspaceTask {
+        public String id;
+        public String title;
+        public String assignee;
+        public String assigneeInitials;
+        public Color avatarBg;
+        public Color avatarFg;
+        public String status; // "todo", "in_progress", "in_review", "done"
+        public String due;
+
+        public WorkspaceTask(String id, String title, String assignee, String assigneeInitials,
+                             Color avatarBg, Color avatarFg, String status, String due) {
+            this.id = id;
+            this.title = title;
+            this.assignee = assignee;
+            this.assigneeInitials = assigneeInitials;
+            this.avatarBg = avatarBg;
+            this.avatarFg = avatarFg;
+            this.status = status;
+            this.due = due;
+        }
+    }
+
     // Workspace identity & meta
     public String workspaceName = "CampusConnect workspace";
     public String subtitle = "Your team, your progress, your next big thing.";
@@ -139,6 +162,7 @@ public class TeamWorkspaceData {
     public final List<TeamActivity> activities = new ArrayList<TeamActivity>();
     public String syncNotice = "Last team sync: Oct 14 · Next: Oct 21, 4 PM";
     public final List<WorkspaceFile> files = new ArrayList<WorkspaceFile>();
+    public final List<WorkspaceTask> tasks = new ArrayList<WorkspaceTask>();
 
     public TeamWorkspaceData() {
         resetToDefault();
@@ -194,6 +218,86 @@ public class TeamWorkspaceData {
         files.add(new WorkspaceFile("campus-wireframes-v3.fig", "Figma", "14.2 MB", "2 hours ago", "Priya Shah"));
         files.add(new WorkspaceFile("api-specs-rest-v1.yaml", "YAML", "420 KB", "Yesterday", "Daniel Kim"));
         files.add(new WorkspaceFile("prd-campusconnect-final.pdf", "PDF", "2.8 MB", "3 days ago", "Alex Morgan"));
+
+        // Sprint Tasks Kanban
+        tasks.clear();
+        tasks.add(new WorkspaceTask("t1", "Supabase Auth & Session Storage", "Alex Morgan", "AM", Theme.PASTEL_PINK, Theme.BRAND_PINK, "todo", "Today"));
+        tasks.add(new WorkspaceTask("t2", "Campus Map Pin Clustering", "Daniel Kim", "DK", Theme.PASTEL_MINT, Theme.SUCCESS_GREEN, "todo", "Tomorrow"));
+        tasks.add(new WorkspaceTask("t3", "Accessibility Contrast Audit", "Priya Shah", "PS", Theme.PASTEL_VIOLET, Theme.ACCENT_VIOLET, "todo", "Nov 02"));
+
+        tasks.add(new WorkspaceTask("t4", "Event Filter Dropdowns UI", "Sofia Martinez", "SM", Theme.PASTEL_PINK, Theme.BRAND_PINK, "in_progress", "Today"));
+        tasks.add(new WorkspaceTask("t5", "REST API Schema for Events", "Daniel Kim", "DK", Theme.PASTEL_MINT, Theme.SUCCESS_GREEN, "in_progress", "Nov 01"));
+        tasks.add(new WorkspaceTask("t6", "Realtime WebSocket Notifications", "Alex Morgan", "AM", Theme.PASTEL_PINK, Theme.BRAND_PINK, "in_progress", "Nov 04"));
+
+        tasks.add(new WorkspaceTask("t7", "Playwright E2E Test Suite", "Ethan Chen", "EC", Theme.PASTEL_SUNNY, Theme.HIGHLIGHT_WARM, "in_review", "Today"));
+        tasks.add(new WorkspaceTask("t8", "Mobile Responsive Drawer", "Priya Shah", "PS", Theme.PASTEL_VIOLET, Theme.ACCENT_VIOLET, "in_review", "Yesterday"));
+        tasks.add(new WorkspaceTask("t9", "Figma Design Token Export", "Priya Shah", "PS", Theme.PASTEL_VIOLET, Theme.ACCENT_VIOLET, "in_review", "Oct 28"));
+
+        tasks.add(new WorkspaceTask("t10", "Project Scaffold & Build Scripts", "Alex Morgan", "AM", Theme.PASTEL_PINK, Theme.BRAND_PINK, "done", "Completed"));
+        tasks.add(new WorkspaceTask("t11", "Database Schema Migration V1", "Daniel Kim", "DK", Theme.PASTEL_MINT, Theme.SUCCESS_GREEN, "done", "Completed"));
+        tasks.add(new WorkspaceTask("t12", "Landing Page Double Buffering", "Alex Morgan", "AM", Theme.PASTEL_PINK, Theme.BRAND_PINK, "done", "Completed"));
+    }
+
+    public void addTask(String title, String assignee, String initials, Color bg, Color fg, String status, String due) {
+        tasks.add(0, new WorkspaceTask("t" + (tasks.size() + 1), title, assignee, initials, bg, fg, status, due));
+        syncTaskSummary();
+    }
+
+    public void advanceTaskStatus(WorkspaceTask t) {
+        if ("todo".equalsIgnoreCase(t.status)) {
+            t.status = "in_progress";
+        } else if ("in_progress".equalsIgnoreCase(t.status)) {
+            t.status = "in_review";
+        } else if ("in_review".equalsIgnoreCase(t.status)) {
+            t.status = "done";
+        } else {
+            t.status = "todo";
+        }
+        syncTaskSummary();
+    }
+
+    public void syncTaskSummary() {
+        int todo = 0, prog = 0, rev = 0, done = 0;
+        for (WorkspaceTask t : tasks) {
+            if ("todo".equalsIgnoreCase(t.status)) todo++;
+            else if ("in_progress".equalsIgnoreCase(t.status)) prog++;
+            else if ("in_review".equalsIgnoreCase(t.status)) rev++;
+            else if ("done".equalsIgnoreCase(t.status)) done++;
+        }
+        int baseDone = 16;
+        taskSummary = new TaskSummary(todo, prog, rev, done + baseDone);
+        tasksCompleted = done + baseDone;
+        tasksTotal = todo + prog + rev + done + baseDone;
+        updateProgress(tasksCompleted, tasksTotal);
+        tabs.set(2, "Tasks (" + tasksTotal + ")");
+    }
+
+    public void acceptRequest(int index) {
+        if (index >= 0 && index < recruitmentRequests.size()) {
+            RecruitmentRequest r = recruitmentRequests.remove(index);
+            String roleName = r.roleSkill != null && r.roleSkill.contains("·") ? r.roleSkill.split("·")[0].trim() : r.roleSkill;
+            addMember(r.name, roleName, false);
+            pendingRequestsCount = Math.max(0, recruitmentRequests.size());
+            tabs.set(4, "Requests (" + pendingRequestsCount + ")");
+        }
+    }
+
+    public void declineRequest(int index) {
+        if (index >= 0 && index < recruitmentRequests.size()) {
+            recruitmentRequests.remove(index);
+            pendingRequestsCount = Math.max(0, recruitmentRequests.size());
+            tabs.set(4, "Requests (" + pendingRequestsCount + ")");
+        }
+    }
+
+    public void addFile(String name, String type, String size, String author) {
+        files.add(0, new WorkspaceFile(name, type, size, "Just now", author));
+    }
+
+    public void removeFile(int index) {
+        if (index >= 0 && index < files.size()) {
+            files.remove(index);
+        }
     }
 
     public void addMember(String name, String role, boolean isYou) {

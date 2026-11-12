@@ -170,4 +170,65 @@ public class ProfileData {
             s.endorsements += s.userEndorsed ? 1 : -1;
         }
     }
+
+    public void cycleAvailability() {
+        if (availabilityStatus.contains("10–15")) {
+            availabilityStatus = "Available for new teams (15–20 hrs/wk)";
+        } else if (availabilityStatus.contains("15–20")) {
+            availabilityStatus = "Available for new teams (5–10 hrs/wk)";
+        } else if (availabilityStatus.contains("5–10")) {
+            availabilityStatus = "Limited availability (< 5 hrs/wk)";
+        } else if (availabilityStatus.contains("Limited")) {
+            availabilityStatus = "Not looking for new teams";
+        } else {
+            availabilityStatus = "Available for new teams (10–15 hrs/wk)";
+        }
+    }
+
+    public void addSkill(String name, String category) {
+        if (name != null && !name.trim().isEmpty()) {
+            for (ProfileSkill s : skills) {
+                if (s.name.equalsIgnoreCase(name.trim())) {
+                    s.endorsements++;
+                    s.userEndorsed = true;
+                    return;
+                }
+            }
+            skills.add(new ProfileSkill(name.trim(), category, 1, true));
+        }
+    }
+
+    public String addNextSkill() {
+        String[][] pool = {
+            {"Docker", "DevOps"},
+            {"Spring Boot", "Backend"},
+            {"GraphQL", "Full Stack"},
+            {"Kubernetes", "DevOps"},
+            {"Redis", "Database"},
+            {"TypeScript", "Frontend"},
+            {"PostgreSQL", "Database"}
+        };
+        for (String[] entry : pool) {
+            boolean exists = false;
+            for (ProfileSkill s : skills) {
+                if (s.name.equalsIgnoreCase(entry[0])) {
+                    exists = true;
+                    break;
+                }
+            }
+            if (!exists) {
+                skills.add(new ProfileSkill(entry[0], entry[1], 1, true));
+                return entry[0];
+            }
+        }
+        String custom = "Skill #" + (skills.size() + 1);
+        skills.add(new ProfileSkill(custom, "General", 1, true));
+        return custom;
+    }
+
+    public void addReview(String reviewerName, String initials, String role, String project, String feedback, int stars) {
+        reviews.add(0, new PeerReview(reviewerName, initials, role, project, feedback, stars, "Just now", Theme.PASTEL_PINK, Theme.BRAND_PINK));
+        totalReviewsCount = reviews.size();
+        tabs.set(3, "Peer Reviews (" + totalReviewsCount + ")");
+    }
 }
