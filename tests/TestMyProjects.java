@@ -85,11 +85,6 @@ public class TestMyProjects {
         dashboard.onKey(escKey);
         dashboard.paint(g, 1280, 800);
 
-        // 7. Click "Chat" button on first card at (920, 540)
-        boolean chatClicked = dashboard.onClick(920, 540);
-        System.out.println("[Test 11] Click 'Chat' button on card: " + chatClicked + ", activeModal=" + dashboard.getActiveModal());
-        dashboard.closeModal();
-
         System.out.println("\n==================================================");
         System.out.println("ALL MY PROJECTS TESTS PASSED 100%!");
         System.out.println("==================================================");

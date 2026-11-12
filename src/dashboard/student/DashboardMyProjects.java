@@ -92,7 +92,6 @@ public class DashboardMyProjects {
         public int hitX, hitY, hitW, hitH;
         public int manageBtnX, manageBtnY, manageBtnW, manageBtnH;
         public int boardBtnX, boardBtnY, boardBtnW, boardBtnH;
-        public int chatBtnX, chatBtnY, chatBtnW, chatBtnH;
         public int editBtnX, editBtnY, editBtnW, editBtnH;
 
         public MyProjectCard(int id, String title, String category, String description,
@@ -695,23 +694,6 @@ public class DashboardMyProjects {
         g.setFont(DashboardTheme.FONT_BOLD_12);
         g.setColor(DashboardTheme.TEXT_DARK);
         g.drawString("Tasks (" + p.tasks.size() + ")", p.boardBtnX + 16, p.boardBtnY + 21);
-        btnRowX -= 10;
-
-        // "Team Chat" button
-        p.chatBtnW = 90;
-        p.chatBtnH = btnH;
-        btnRowX -= p.chatBtnW;
-        p.chatBtnX = btnRowX;
-        p.chatBtnY = curY - 2;
-
-        RoundRectangle2D cBtn = new RoundRectangle2D.Float(p.chatBtnX, p.chatBtnY, p.chatBtnW, p.chatBtnH, 8, 8);
-        g.setColor(Color.WHITE);
-        g.fill(cBtn);
-        g.setColor(DashboardTheme.BORDER_COLOR);
-        g.draw(cBtn);
-        g.setFont(DashboardTheme.FONT_BOLD_12);
-        g.setColor(DashboardTheme.TEXT_MUTED);
-        g.drawString("Chat", p.chatBtnX + 26, p.chatBtnY + 21);
 
         return cardH;
     }
@@ -1188,12 +1170,6 @@ public class DashboardMyProjects {
                 modalProject = p;
                 activeSubModal = SubModal.PROJECT_BOARD;
                 newTaskTitle = "";
-                return true;
-            }
-
-            // Team Chat
-            if (mx >= p.chatBtnX && mx <= p.chatBtnX + p.chatBtnW && my >= p.chatBtnY && my <= p.chatBtnY + p.chatBtnH) {
-                dashboard.openModal(StudentDashboard.ActiveModal.MESSAGES);
                 return true;
             }
         }
