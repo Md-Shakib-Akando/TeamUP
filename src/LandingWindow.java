@@ -65,6 +65,20 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
         dashboard = new StudentDashboard(this);
         adminDashboard = new AdminDashboard(this);
 
+        modal.setAuthListener(user -> {
+            if (user != null) {
+                if ("Admin".equalsIgnoreCase(user.role)) {
+                    openAdminDashboard();
+                } else {
+                    dashboard.getProfileData().name = user.name;
+                    dashboard.getProfileData().email = user.email;
+                    openDashboard();
+                }
+            } else {
+                openDashboard();
+            }
+        });
+
         sections.addAll(buildSections(this));
 
         // Hero search hands the query to the live matching demo
@@ -414,6 +428,7 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
     public void returnToLanding() {
         this.showDashboard = false;
         this.showAdminDashboard = false;
+        navBar.setLoggedInUser(AuthStore.getCurrentUser());
         this.canvas.requestFocus();
     }
 
@@ -743,19 +758,8 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
 
     @Override
     public void keyTyped(KeyEvent e) {
-        if (modal.visible) {
-            if (modal.onKey(e)) return;
-        }
-        if (showAdminDashboard) {
-            return; // Handled in keyPressed with full keyCode support
-        }
-        if (showDashboard) {
-            if (dashboard.onKey(e)) return;
-            return;
-        }
-        for (Section s : sections) {
-            if (s.onKey(e)) return;
-        }
+        // All keyboard inputs, character insertions, shortcuts, and modal controls
+        // are cleanly and comprehensively processed in keyPressed(KeyEvent) to prevent double input.
     }
 
     // ==================== COMPONENT RESIZING ====================

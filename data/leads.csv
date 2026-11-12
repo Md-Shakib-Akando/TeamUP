@@ -10,3 +10,6 @@ timestamp,email,role,source
 2026-11-04T18:56:06.819435800Z,'+developer@example.com,"'=SUM(1,2)",LandingPage-v1
 2026-11-04T19:19:42.675180400Z,test@teamup.org,Developer,LandingPage-v1
 2026-11-04T19:19:42.681330100Z,'+developer@example.com,"'=SUM(1,2)",LandingPage-v1
+2026-11-12T20:15:41.014838Z,shakibu@gmail.com,Student,LandingPage-v1
+2026-11-12T20:33:21.455988200Z,shakibu@gmail.com,Student,LandingPage-v1
+2026-11-12T20:56:57.055536500Z,jesmin@gmail.com,Student,LandingPage-v1

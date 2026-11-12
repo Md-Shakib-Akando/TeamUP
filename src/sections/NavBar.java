@@ -17,6 +17,7 @@ public class NavBar implements Section {
         void openModal(String title, String message, boolean isRegister);
         void openDashboard();
         default void openAdminDashboard() {}
+        default void returnToLanding() {}
     }
 
     private final NavListener listener;
@@ -41,10 +42,21 @@ public class NavBar implements Section {
 
     // Buttons (screen-space)
     private final Rectangle themeR = new Rectangle(), dashR = new Rectangle(), adminR = new Rectangle(),
-            loginR = new Rectangle(), startR = new Rectangle(), burgerR = new Rectangle(), logoR = new Rectangle();
-    private boolean themeH, dashH, adminH, loginH, startH, burgerH;
+            loginR = new Rectangle(), startR = new Rectangle(), profileR = new Rectangle(),
+            burgerR = new Rectangle(), logoR = new Rectangle();
+    private boolean themeH, dashH, adminH, loginH, startH, profileH, burgerH;
     private final Elastic startHov = new Elastic(0f, 260f, 20f);
+    private final Elastic profileHov = new Elastic(0f, 260f, 20f);
     private final Rectangle menuR = new Rectangle();
+    private AuthStore.UserRecord loggedInUser = null;
+
+    // Profile Dropdown Popover
+    private boolean profileMenuOpen = false;
+    private final Elastic profileMenuAnim = new Elastic(0f, 260f, 24f);
+    private final Rectangle profileDropR = new Rectangle();
+    private final Rectangle dropDashR = new Rectangle();
+    private final Rectangle dropLogoutR = new Rectangle();
+    private boolean dropDashH = false, dropLogoutH = false;
 
     private float scrolled = 0f; // 0..1 how "docked" the nav looks
     private float lastViewportY = 0f;
@@ -57,12 +69,21 @@ public class NavBar implements Section {
         links.add(new Item("faq", "FAQ"));
     }
 
+    public void setLoggedInUser(AuthStore.UserRecord user) {
+        this.loggedInUser = user;
+    }
+
+    public AuthStore.UserRecord getLoggedInUser() {
+        return loggedInUser != null ? loggedInUser : AuthStore.getCurrentUser();
+    }
+
     public void setActiveSection(String id) { this.activeSection = id; }
 
-    /** True if (x,y) falls on the nav pill or its open menu. */
+    /** True if (x,y) falls on the nav pill, its open menu, or profile dropdown. */
     public boolean captures(int x, int y, int width) {
         if (y <= getHeight(width)) return true;
-        return menuOpen && menuR.contains(x, y);
+        if (menuOpen && menuR.contains(x, y)) return true;
+        return profileMenuOpen && profileDropR.contains(x, y);
     }
 
     @Override public String getId() { return "nav"; }
@@ -75,6 +96,10 @@ public class NavBar implements Section {
         menuAnim.update(dt);
         startHov.setTarget(startH ? 1f : 0f);
         startHov.update(dt);
+        profileHov.setTarget(profileH ? 1f : 0f);
+        profileHov.update(dt);
+        profileMenuAnim.setTarget(profileMenuOpen ? 1f : 0f);
+        profileMenuAnim.update(dt);
 
         Item target = null;
         for (Item i : links) if (i.hovered) target = i;
@@ -134,14 +159,26 @@ public class NavBar implements Section {
 
         int right = px + pw - 10;
 
-        // Primary CTA
-        int sw = tiny ? 0 : 128, sh = 40;
-        if (!tiny) {
-            startR.setBounds(right - sw, cy - sh / 2, sw, sh);
-            Fx.primaryButton(n, startR.x, startR.y, sw, sh, "Get started", startHov.getValue(), 0f, false);
-            right = startR.x - 8;
-        } else {
+        // Primary CTA or Profile Icon (when logged in)
+        AuthStore.UserRecord curUser = getLoggedInUser();
+        boolean loggedIn = (curUser != null);
+
+        if (loggedIn) {
             startR.setBounds(-100, -100, 0, 0);
+            int pwSize = 40, phSize = 40;
+            profileR.setBounds(right - pwSize, cy - phSize / 2, pwSize, phSize);
+            paintProfileBadge(n, profileR, curUser, profileHov.getValue());
+            right = profileR.x - 10;
+        } else {
+            profileR.setBounds(-100, -100, 0, 0);
+            int sw = tiny ? 0 : 128, sh = 40;
+            if (!tiny) {
+                startR.setBounds(right - sw, cy - sh / 2, sw, sh);
+                Fx.primaryButton(n, startR.x, startR.y, sw, sh, "Get started", startHov.getValue(), 0f, false);
+                right = startR.x - 8;
+            } else {
+                startR.setBounds(-100, -100, 0, 0);
+            }
         }
 
         n.setFont(Fx.bold(14));
@@ -226,6 +263,15 @@ public class NavBar implements Section {
         float m = menuAnim.getValue();
         if (compact && m > 0.01f) paintMenu(g, px, py + ph + 8, pw, m, tiny);
         else menuR.setBounds(-100, -100, 0, 0);
+
+        float pm = profileMenuAnim.getValue();
+        if (pm > 0.01f && getLoggedInUser() != null) {
+            paintProfileDropdown(g, py + ph + 8, pm);
+        } else {
+            profileDropR.setBounds(-100, -100, 0, 0);
+            dropDashR.setBounds(-100, -100, 0, 0);
+            dropLogoutR.setBounds(-100, -100, 0, 0);
+        }
     }
 
     private void paintTextButton(Graphics2D g, Rectangle r, String label, boolean hover) {
@@ -291,12 +337,136 @@ public class NavBar implements Section {
         t.dispose();
     }
 
+    private void paintProfileBadge(Graphics2D g, Rectangle r, AuthStore.UserRecord user, float hov) {
+        Graphics2D p = (Graphics2D) g.create();
+        Draw.setQualityHints(p);
+
+        int cx = r.x + r.width / 2;
+        int cy = r.y + r.height / 2;
+        int rad = r.width / 2;
+
+        // Soft glow on hover
+        if (hov > 0.01f) {
+            Fx.glow(p, cx, cy, rad + 8, Fx.PINK, 0.5f * hov);
+        }
+
+        // Outer gradient ring
+        RoundRectangle2D.Float circle = Fx.rr(r.x, r.y, r.width, r.height, r.width);
+        p.setPaint(new GradientPaint(r.x, r.y, Fx.PINK, r.x + r.width, r.y + r.height, Fx.VIOLET));
+        p.fill(circle);
+
+        // Inner avatar surface
+        int pad = 2;
+        RoundRectangle2D.Float inner = Fx.rr(r.x + pad, r.y + pad, r.width - pad * 2, r.height - pad * 2, r.width);
+        p.setColor(Fx.dark() ? new Color(0x18, 0x14, 0x2E) : new Color(0xF4, 0xF1, 0xFD));
+        p.fill(inner);
+
+        // Initials
+        String initials = getInitials(user != null ? user.name : "U");
+        p.setFont(Fx.bold(13));
+        p.setColor(Fx.dark() ? Color.WHITE : new Color(0x20, 0x12, 0x48));
+        Fx.textCenter(p, initials, cx, cy + 1);
+
+        // Online dot indicator
+        int dotX = r.x + r.width - 11;
+        int dotY = r.y + r.height - 11;
+        int dotR = 8;
+        p.setColor(Fx.dark() ? new Color(0x0B, 0x0B, 0x1A) : Color.WHITE);
+        p.fill(new java.awt.geom.Ellipse2D.Float(dotX - 1, dotY - 1, dotR + 2, dotR + 2));
+        p.setColor(new Color(0x10, 0xB9, 0x81));
+        p.fill(new java.awt.geom.Ellipse2D.Float(dotX, dotY, dotR, dotR));
+
+        p.dispose();
+    }
+
+    private String getInitials(String name) {
+        if (name == null || name.trim().isEmpty()) return "U";
+        String[] parts = name.trim().split("\\s+");
+        if (parts.length >= 2 && !parts[0].isEmpty() && !parts[1].isEmpty()) {
+            return (parts[0].substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
+        }
+        return name.trim().substring(0, Math.min(2, name.trim().length())).toUpperCase();
+    }
+
+    private void paintProfileDropdown(Graphics2D g, int dropY, float anim) {
+        AuthStore.UserRecord user = getLoggedInUser();
+        if (user == null) return;
+
+        Graphics2D d = (Graphics2D) g.create();
+        Draw.setQualityHints(d);
+        Fx.fadeBy(d, anim);
+        d.translate(0, -(1f - anim) * 10f);
+
+        int dw = 220;
+        int dh = 150;
+        int dx = profileR.x + profileR.width - dw;
+        if (dx < 10) dx = 10;
+        int dy = dropY;
+
+        profileDropR.setBounds(dx, dy, dw, dh);
+
+        // Glass popover card background & border
+        Fx.softShadow(d, dx, dy, dw, dh, 14, Fx.dark() ? 0.6f : 0.2f, 16);
+        d.setColor(Fx.dark() ? new Color(0x13, 0x11, 0x24, 248) : new Color(255, 255, 255, 250));
+        d.fill(Fx.rr(dx, dy, dw, dh, 14));
+        d.setColor(Fx.border());
+        d.setStroke(new BasicStroke(1f));
+        d.draw(Fx.rr(dx, dy, dw, dh, 14));
+
+        // User info header
+        int cy = dy + 20;
+        d.setFont(Fx.bold(13.5f));
+        d.setColor(Fx.text());
+        String nameStr = (user.name != null && !user.name.isEmpty()) ? user.name : "User";
+        if (nameStr.length() > 22) nameStr = nameStr.substring(0, 20) + "…";
+        d.drawString(nameStr, dx + 14, cy);
+
+        cy += 16;
+        d.setFont(Fx.body(11f));
+        d.setColor(Fx.text3());
+        String roleStr = (user.role != null ? user.role : "Student") + " · " + (user.email != null ? user.email : "");
+        if (roleStr.length() > 28) roleStr = roleStr.substring(0, 26) + "…";
+        d.drawString(roleStr, dx + 14, cy);
+
+        cy += 12;
+        d.setColor(Fx.border());
+        d.drawLine(dx + 12, cy, dx + dw - 12, cy);
+
+        // Row 1: Go to Dashboard
+        cy += 6;
+        int rowH = 36;
+        dropDashR.setBounds(dx + 8, cy, dw - 16, rowH);
+        if (dropDashH) {
+            d.setColor(Fx.subtle());
+            d.fill(Fx.rr(dropDashR.x, dropDashR.y, dropDashR.width, dropDashR.height, 8));
+        }
+        d.setFont(Fx.bold(13f));
+        d.setColor(dropDashH ? Fx.text() : Fx.text2());
+        d.drawString("Open Dashboard", dropDashR.x + 10, dropDashR.y + 23);
+        Fx.arrow(d, dropDashR.x + dropDashR.width - 16, dropDashR.y + 23, 9, Fx.text3(), 1.5f);
+
+        // Row 2: Log Out
+        cy += rowH + 2;
+        dropLogoutR.setBounds(dx + 8, cy, dw - 16, rowH);
+        if (dropLogoutH) {
+            d.setColor(Fx.a(Fx.RED, Fx.dark() ? 35 : 20));
+            d.fill(Fx.rr(dropLogoutR.x, dropLogoutR.y, dropLogoutR.width, dropLogoutR.height, 8));
+        }
+        d.setFont(Fx.bold(13f));
+        d.setColor(dropLogoutH ? Fx.RED : Fx.a(Fx.RED, 220));
+        d.drawString("Log Out", dropLogoutR.x + 10, dropLogoutR.y + 23);
+        Fx.arrow(d, dropLogoutR.x + dropLogoutR.width - 16, dropLogoutR.y + 23, 9, Fx.RED, 1.5f);
+
+        d.dispose();
+    }
+
     private void paintMenu(Graphics2D g, int x, int y, int w, float m, boolean tiny) {
         Graphics2D n = (Graphics2D) g.create();
         Draw.setQualityHints(n);
         int rowH = 46;
-        int rows = links.size() + 2;
-        int h = 16 + rows * rowH + (tiny ? 62 : 0) + 8;
+        AuthStore.UserRecord menuUser = getLoggedInUser();
+        int rows = links.size() + 2 + (menuUser != null ? 2 : 0);
+        int h = 16 + rows * rowH + (tiny && menuUser == null ? 62 : 0) + 8;
         menuR.setBounds(x, y, w, h);
         Fx.fadeBy(n, m);
         n.translate(0, -(1 - m) * 12);
@@ -332,7 +502,42 @@ public class NavBar implements Section {
         adminR.setBounds(x + 10, cy, w - 20, rowH - 4);
         paintMenuRow(n, adminR, "Admin panel", adminH);
         cy += rowH;
-        if (tiny) {
+        if (menuUser != null) {
+            startR.setBounds(-100, -100, 0, 0);
+            loginR.setBounds(-100, -100, 0, 0);
+            int profH = 42;
+            profileR.setBounds(x + 10, cy, w - 20, profH);
+            if (profileH) {
+                n.setColor(Fx.subtle());
+                n.fill(Fx.rr(profileR.x, profileR.y, profileR.width, profileR.height, 12));
+            }
+            int avX = profileR.x + 10, avY = profileR.y + (profH - 28) / 2;
+            n.setPaint(new GradientPaint(avX, avY, Fx.PINK, avX + 28, avY + 28, Fx.VIOLET));
+            n.fill(new java.awt.geom.Ellipse2D.Float(avX, avY, 28, 28));
+            n.setFont(Fx.bold(11));
+            n.setColor(Color.WHITE);
+            Fx.textCenter(n, getInitials(menuUser.name), avX + 14, avY + 14);
+
+            n.setFont(Fx.bold(14));
+            n.setColor(Fx.text());
+            String displayName = (menuUser.name != null && !menuUser.name.isEmpty()) ? menuUser.name : "Profile";
+            Fx.textMid(n, displayName, avX + 38, profileR.y + profH / 2f);
+            Fx.arrow(n, profileR.x + profileR.width - 26, profileR.y + profH / 2f, 11, Fx.text3(), 1.6f);
+
+            // Log Out row in mobile drawer
+            cy += profH + 6;
+            dropLogoutR.setBounds(x + 10, cy, w - 20, profH);
+            if (dropLogoutH) {
+                n.setColor(Fx.a(Fx.RED, Fx.dark() ? 35 : 20));
+                n.fill(Fx.rr(dropLogoutR.x, dropLogoutR.y, dropLogoutR.width, dropLogoutR.height, 12));
+            }
+            n.setFont(Fx.bold(14));
+            n.setColor(Fx.RED);
+            Fx.textMid(n, "Log Out", x + 24, dropLogoutR.y + profH / 2f);
+            Fx.arrow(n, dropLogoutR.x + dropLogoutR.width - 26, dropLogoutR.y + profH / 2f, 11, Fx.RED, 1.6f);
+        } else if (tiny) {
+            profileR.setBounds(-100, -100, 0, 0);
+            dropLogoutR.setBounds(-100, -100, 0, 0);
             loginR.setBounds(-100, -100, 0, 0);
             startR.setBounds(x + 12, cy + 6, w - 24, 44);
             Fx.primaryButton(n, startR.x, startR.y, w - 24, 44, "Get started", startHov.getValue(), 0f, false);
@@ -365,6 +570,44 @@ public class NavBar implements Section {
                     "Enter your credentials to access your projects, messages, and saved teams.", false);
             return true;
         }
+        // 1. Profile Dropdown & Mobile Menu logout/dashboard actions
+        if (profileMenuOpen || menuOpen) {
+            if (dropDashR.contains(mx, my)) {
+                profileMenuOpen = false;
+                menuOpen = false;
+                if (listener != null) {
+                    AuthStore.UserRecord u = getLoggedInUser();
+                    if (u != null && "Admin".equalsIgnoreCase(u.role)) {
+                        listener.openAdminDashboard();
+                    } else {
+                        listener.openDashboard();
+                    }
+                }
+                return true;
+            }
+            if (dropLogoutR.contains(mx, my)) {
+                profileMenuOpen = false;
+                menuOpen = false;
+                AuthStore.logout();
+                setLoggedInUser(null);
+                if (listener != null) listener.returnToLanding();
+                return true;
+            }
+            if (profileMenuOpen && profileDropR.contains(mx, my)) {
+                return true; // Click inside dropdown body
+            }
+        }
+
+        // 2. Profile Avatar Badge click -> toggles dropdown
+        if (profileR.contains(mx, my)) {
+            profileMenuOpen = !profileMenuOpen;
+            return true;
+        }
+
+        // Close profile menu if clicking outside
+        if (profileMenuOpen) {
+            profileMenuOpen = false;
+        }
         if (startR.contains(mx, my)) {
             menuOpen = false;
             if (listener != null) listener.openModal("Create your TeamUp Account",
@@ -395,8 +638,11 @@ public class NavBar implements Section {
         adminH = adminR.contains(mx, my);
         loginH = loginR.contains(mx, my);
         startH = startR.contains(mx, my);
+        profileH = profileR.contains(mx, my);
+        dropDashH = (profileMenuOpen || menuOpen) && dropDashR.contains(mx, my);
+        dropLogoutH = (profileMenuOpen || menuOpen) && dropLogoutR.contains(mx, my);
         burgerH = burgerR.contains(mx, my);
-        boolean hand = themeH || dashH || adminH || loginH || startH || burgerH || logoR.contains(mx, my);
+        boolean hand = themeH || dashH || adminH || loginH || startH || profileH || dropDashH || dropLogoutH || burgerH || logoR.contains(mx, my);
         for (Item i : links) {
             i.hovered = i.w > 0 && Fx.inside(mx, my, i.x, i.y, i.w, i.h);
             hand |= i.hovered;

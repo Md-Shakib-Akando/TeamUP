@@ -59,6 +59,18 @@ public class Modal {
     private boolean backdropDirty = true;
     private float frostedTheme = -1f;
 
+    public interface AuthListener {
+        void onAuthSuccess(AuthStore.UserRecord user);
+    }
+
+    private AuthListener authListener;
+    private AuthStore.UserRecord pendingUser = null;
+    private float successTransitionTimer = 0f;
+
+    public void setAuthListener(AuthListener listener) {
+        this.authListener = listener;
+    }
+
     public Modal() {
         nameInput = new TextBox("Alex Rivera");
         emailInput = new TextBox("name@university.edu");
@@ -78,6 +90,8 @@ public class Modal {
         this.visible = true;
         this.feedbackMessage = "";
         this.isSuccess = false;
+        this.pendingUser = null;
+        this.successTransitionTimer = 0f;
         this.backdropDirty = true;
         this.openT = 0f;
         tabSlide.setValue(isRegister ? 1f : 0f);
@@ -151,6 +165,19 @@ public class Modal {
         submitHov.update(dt);
         heightAnim.setTarget(contentHeight());
         heightAnim.update(dt);
+
+        if (visible && isSuccess && pendingUser != null) {
+            successTransitionTimer += dt;
+            if (successTransitionTimer >= 0.75f) {
+                AuthStore.UserRecord u = pendingUser;
+                pendingUser = null;
+                successTransitionTimer = 0f;
+                hide();
+                if (authListener != null) {
+                    authListener.onAuthSuccess(u);
+                }
+            }
+        }
     }
 
     private void clearErrors() {
@@ -202,6 +229,8 @@ public class Modal {
             if (res.success) {
                 LeadStore.saveLead(email, roleSelect.getSelected());
                 setFeedback(res.message, true);
+                this.pendingUser = res.user;
+                this.successTransitionTimer = 0f;
             } else {
                 emailInput.hasError = true;
                 setFeedback(res.message, false);
@@ -210,6 +239,8 @@ public class Modal {
             AuthStore.AuthResult res = AuthStore.login(email, pass);
             if (res.success) {
                 setFeedback(res.message, true);
+                this.pendingUser = res.user;
+                this.successTransitionTimer = 0f;
             } else {
                 if (res.message.toLowerCase().contains("password")) passInput.hasError = true;
                 else emailInput.hasError = true;
