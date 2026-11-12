@@ -141,5 +141,34 @@ public class SettingsData {
             preferredCommitment = "1–3 months";
         }
     }
+
+    public void addNextCategory() {
+        String[] pool = {"Mobile Development", "Cloud Computing", "AI & Machine Learning", "Cybersecurity", "Game Development", "DevOps & CI/CD", "Blockchain"};
+        for (String cat : pool) {
+            if (!categories.contains(cat)) {
+                categories.add(cat);
+                return;
+            }
+        }
+        categories.add("Category #" + (categories.size() + 1));
+    }
+
+    public void resetCollabPreferences() {
+        categories.clear();
+        categories.addAll(Arrays.asList("Web Development", "Sustainability", "AI & Machine Learning"));
+        roleFrontendDev = true;
+        roleUiDev = true;
+        roleBackendDev = false;
+        roleProjectLead = false;
+        weeklyAvailability = "10–15 hours per week";
+        preferredCommitment = "1–3 months";
+        collabMode = CollabMode.REMOTE;
+    }
+
+    public void resetPrivacy() {
+        visibility = ProfileVisibility.PUBLIC;
+        showSkills = true;
+        showActivity = true;
+    }
 }
 

@@ -750,8 +750,7 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
             return; // Handled in keyPressed with full keyCode support
         }
         if (showDashboard) {
-            if (dashboard.onKey(e)) return;
-            return;
+            return; // Handled in keyPressed with full keyCode and keyChar support
         }
         for (Section s : sections) {
             if (s.onKey(e)) return;

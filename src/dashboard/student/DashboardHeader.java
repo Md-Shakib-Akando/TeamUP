@@ -22,10 +22,6 @@ public class DashboardHeader {
     private boolean userMenuOpen = false;
     private int avatarBtnX, avatarBtnY, avatarBtnSize = 34;
 
-    // Top "+ Create project" button state
-    private int topCreateBtnX, topCreateBtnY, topCreateBtnW, topCreateBtnH;
-    private boolean topCreateBtnHovered = false;
-
     public void paint(Graphics2D g, int x, int y, int w, int h, StudentDashboard dashboard) {
         g.setColor(DashboardTheme.SIDEBAR_BG);
         g.fillRect(x, y, w, h);
@@ -47,7 +43,7 @@ public class DashboardHeader {
         // Search Pill Input
         searchX = curX;
         searchY = y + 12;
-        searchW = Math.min(320, w - 460);
+        searchW = Math.min(360, w - 300);
         searchH = 36;
         RoundRectangle2D searchPill = new RoundRectangle2D.Float(searchX, searchY, searchW, searchH, searchH, searchH);
         g.setColor(searchFocused ? Color.WHITE : new Color(0xF8, 0xFA, 0xFC));
@@ -101,23 +97,6 @@ public class DashboardHeader {
         // Purple notification dot
         g.setColor(DashboardTheme.BRAND_PURPLE);
         g.fillOval(iconX + 11, iconY - 1, 6, 6);
-
-        // "+ Create project" Ghost Pill Button
-        rightX -= 140;
-        topCreateBtnX = rightX;
-        topCreateBtnY = y + 13;
-        topCreateBtnW = 126;
-        topCreateBtnH = 34;
-        RoundRectangle2D topBtnShape = new RoundRectangle2D.Float(topCreateBtnX, topCreateBtnY, topCreateBtnW, topCreateBtnH, topCreateBtnH, topCreateBtnH);
-        g.setColor(topCreateBtnHovered ? new Color(0xF1, 0xF5, 0xF9) : Color.WHITE);
-        g.fill(topBtnShape);
-        g.setColor(DashboardTheme.BORDER_COLOR);
-        g.setStroke(new BasicStroke(1.2f));
-        g.draw(topBtnShape);
-
-        g.setFont(DashboardTheme.FONT_BOLD_12);
-        g.setColor(DashboardTheme.TEXT_DARK);
-        g.drawString("+ Create project", topCreateBtnX + 14, topCreateBtnY + 21);
 
         // Notification dropdown if open
         if (notifOpen) {
@@ -236,24 +215,14 @@ public class DashboardHeader {
 
         // Search bar focus
         searchFocused = (mx >= searchX && mx <= searchX + searchW && my >= searchY && my <= searchY + searchH);
-
-        // Top "+ Create project" button
-        if (mx >= topCreateBtnX && mx <= topCreateBtnX + topCreateBtnW &&
-                my >= topCreateBtnY && my <= topCreateBtnY + topCreateBtnH) {
-            dashboard.openModal(StudentDashboard.ActiveModal.CREATE_PROJECT);
-            return true;
-        }
-
-        return false;
+        return searchFocused;
     }
 
     public boolean onMouseMove(int mx, int my) {
-        boolean changed = false;
-        boolean p3 = topCreateBtnHovered;
-        topCreateBtnHovered = (mx >= topCreateBtnX && mx <= topCreateBtnX + topCreateBtnW &&
-                my >= topCreateBtnY && my <= topCreateBtnY + topCreateBtnH);
-        if (topCreateBtnHovered != p3) changed = true;
-        return changed || topCreateBtnHovered;
+        boolean overSearch = (mx >= searchX && mx <= searchX + searchW && my >= searchY && my <= searchY + searchH);
+        boolean overBell = (mx >= bellBtnX && mx <= bellBtnX + bellBtnSize && my >= bellBtnY && my <= bellBtnY + bellBtnSize);
+        boolean overAvatar = (mx >= avatarBtnX && mx <= avatarBtnX + avatarBtnSize && my >= avatarBtnY && my <= avatarBtnY + avatarBtnSize);
+        return overSearch || overBell || overAvatar;
     }
 
     public boolean onKey(KeyEvent e, StudentDashboard dashboard) {
@@ -286,6 +255,15 @@ public class DashboardHeader {
     public void closePopups() {
         notifOpen = false;
         userMenuOpen = false;
+        searchFocused = false;
+    }
+
+    public void setSearchFocused(boolean f) {
+        this.searchFocused = f;
+    }
+
+    public String getSearchText() {
+        return searchText;
     }
 }
 

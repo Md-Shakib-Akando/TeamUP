@@ -1136,5 +1136,9 @@ public class DashboardProjects {
         this.searchKeyword = kw;
         applyFilters();
     }
+
+    public String getSearchKeyword() {
+        return searchKeyword;
+    }
 }
 

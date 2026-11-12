@@ -18,8 +18,8 @@ public class TestDashboardModals {
         dashboard.paint(g, 1280, 800);
         dashboard.update(0.016f);
 
-        // Click top "+ Create Project" button
-        boolean openClicked = dashboard.onClick(1080, 30);
+        // Click Overview "+ Create Project" button
+        boolean openClicked = dashboard.onClick(1120, 100);
         dashboard.paint(g, 1280, 800);
         System.out.println("Test 1: Opening Create Project Modal: " + openClicked + ", activeModal=" + dashboard.getActiveModal());
 
@@ -36,7 +36,7 @@ public class TestDashboardModals {
         Graphics2D gLarge = imgLarge.createGraphics();
         dashboard.paint(gLarge, 1920, 1080);
 
-        boolean openLargeClicked = dashboard.onClick(1720, 30);
+        boolean openLargeClicked = dashboard.onClick(1760, 100);
         dashboard.paint(gLarge, 1920, 1080);
         System.out.println("Open Create Project on 1920x1080: " + openLargeClicked + ", activeModal=" + dashboard.getActiveModal());
 
@@ -49,7 +49,7 @@ public class TestDashboardModals {
         // Test 3: Create Project Form typing and submission
         System.out.println("\nTest 3: Create Project Form typing and submission");
         dashboard.paint(g, 1280, 800);
-        boolean reOpen = dashboard.onClick(1080, 30);
+        boolean reOpen = dashboard.onClick(1120, 100);
         dashboard.paint(g, 1280, 800);
         System.out.println("Re-opened modal: " + reOpen + ", activeModal=" + dashboard.getActiveModal());
 

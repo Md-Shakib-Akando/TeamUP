@@ -1273,5 +1273,9 @@ public class DashboardMyProjects {
 
         return false;
     }
+
+    public String getSearchKeyword() {
+        return searchKeyword;
+    }
 }
 
