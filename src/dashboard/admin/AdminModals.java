@@ -16,7 +16,9 @@ public class AdminModals {
         ALL_REPORTS,
         EDIT_ROLE,
         ADD_CATEGORY,
+        EDIT_CATEGORY,
         ADD_SKILL,
+        EDIT_SKILL,
         USER_DETAILS,
         ADD_USER,
         PROJECT_DETAILS,
@@ -69,8 +71,9 @@ public class AdminModals {
     private int saveRoleBtnX, saveRoleBtnY, saveRoleBtnW = 120, saveRoleBtnH = 36;
     private boolean saveRoleHovered = false;
 
-    // Add Category / Skill State
+    // Add / Edit Category & Skill State
     private String inputName = "";
+    private String editingOriginalName = "";
     private int newItemInputX, newItemInputY, newItemInputW, newItemInputH = 38;
     private boolean newItemInputFocused = true;
     private int saveNewItemBtnX, saveNewItemBtnY, saveNewItemBtnW = 140, saveNewItemBtnH = 36;
@@ -173,14 +176,34 @@ public class AdminModals {
 
     public void openAddCategory() {
         this.inputName = "";
+        this.editingOriginalName = "";
         this.newItemInputFocused = true;
         this.activeModal = ActiveModal.ADD_CATEGORY;
     }
 
+    public void openEditCategory(String currentName) {
+        this.editingOriginalName = (currentName != null) ? currentName : "";
+        this.inputName = this.editingOriginalName;
+        this.newItemInputFocused = true;
+        this.activeModal = ActiveModal.EDIT_CATEGORY;
+    }
+
     public void openAddSkill() {
         this.inputName = "";
+        this.editingOriginalName = "";
         this.newItemInputFocused = true;
         this.activeModal = ActiveModal.ADD_SKILL;
+    }
+
+    public void openEditSkill(String currentName) {
+        this.editingOriginalName = (currentName != null) ? currentName : "";
+        this.inputName = this.editingOriginalName;
+        this.newItemInputFocused = true;
+        this.activeModal = ActiveModal.EDIT_SKILL;
+    }
+
+    public String getEditingOriginalName() {
+        return editingOriginalName;
     }
 
     public void openUserDetails(AdminDataStore.UserModel user) {
@@ -267,8 +290,14 @@ public class AdminModals {
             case ADD_CATEGORY:
                 paintAddCategoryModal(g, viewW, viewH);
                 break;
+            case EDIT_CATEGORY:
+                paintEditCategoryModal(g, viewW, viewH);
+                break;
             case ADD_SKILL:
                 paintAddSkillModal(g, viewW, viewH);
+                break;
+            case EDIT_SKILL:
+                paintEditSkillModal(g, viewW, viewH);
                 break;
             case USER_DETAILS:
                 if (selectedUser != null)
@@ -627,6 +656,158 @@ public class AdminModals {
                 AdminTheme.BRAND_GREEN_DARK, Color.WHITE);
     }
 
+    private void paintEditCategoryModal(Graphics2D g, int viewW, int viewH) {
+        modalW = Math.min(480, viewW - 40);
+        modalH = 280;
+        modalX = (viewW - modalW) / 2;
+        modalY = (viewH - modalH) / 2;
+
+        RoundRectangle2D box = new RoundRectangle2D.Float(modalX, modalY, modalW, modalH, 16, 16);
+        g.setColor(Color.WHITE);
+        g.fill(box);
+        g.setColor(AdminTheme.BORDER_COLOR);
+        g.setStroke(new BasicStroke(1.2f));
+        g.draw(box);
+
+        paintModalHeader(g, "Edit Project Category");
+
+        int curY = modalY + 84;
+        g.setFont(AdminTheme.FONT_BOLD_11);
+        g.setColor(AdminTheme.TEXT_MAIN);
+        g.drawString("CATEGORY NAME *", modalX + 28, curY);
+
+        newItemInputX = modalX + 28;
+        newItemInputY = curY + 8;
+        newItemInputW = modalW - 56;
+        newItemInputH = 38;
+
+        RoundRectangle2D input = new RoundRectangle2D.Float(newItemInputX, newItemInputY, newItemInputW, newItemInputH, 8, 8);
+        g.setColor(newItemInputFocused ? Color.WHITE : new Color(0xF8, 0xFA, 0xFC));
+        g.fill(input);
+        g.setColor(newItemInputFocused ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.BORDER_COLOR);
+        g.setStroke(new BasicStroke(newItemInputFocused ? 1.6f : 1.0f));
+        g.draw(input);
+
+        g.setFont(AdminTheme.FONT_REGULAR_13);
+        if (inputName.isEmpty()) {
+            g.setColor(AdminTheme.TEXT_LIGHT);
+            g.drawString("Enter category name...", newItemInputX + 12, newItemInputY + 24);
+        } else {
+            g.setColor(AdminTheme.TEXT_MAIN);
+            g.drawString(inputName, newItemInputX + 12, newItemInputY + 24);
+        }
+
+        // Blinking cursor if focused
+        if (newItemInputFocused && (System.currentTimeMillis() % 1000 < 500)) {
+            FontMetrics fm = g.getFontMetrics();
+            int cursorX = newItemInputX + 12 + (inputName.isEmpty() ? 0 : fm.stringWidth(inputName));
+            g.setColor(AdminTheme.BRAND_GREEN_DARK);
+            g.drawLine(cursorX, newItemInputY + 9, cursorX, newItemInputY + 29);
+        }
+
+        // Helper guidance note
+        curY += 56;
+        g.setFont(AdminTheme.FONT_REGULAR_11);
+        g.setColor(AdminTheme.TEXT_MUTED);
+        g.drawString("✓ Renaming category updates discovery tags, search, and active projects.", modalX + 28, curY + 6);
+        g.drawString("✓ Press Enter or click 'Save Changes' to update.", modalX + 28, curY + 22);
+
+        // Bottom Action buttons
+        int btnY = modalY + modalH - 54;
+
+        cancelNewItemBtnW = 96;
+        cancelNewItemBtnH = 36;
+        cancelNewItemBtnX = modalX + 28;
+        cancelNewItemBtnY = btnY;
+        paintModalBtn(g, cancelNewItemBtnX, cancelNewItemBtnY, cancelNewItemBtnW, cancelNewItemBtnH, "Cancel",
+                cancelNewItemHovered ? new Color(0xF1, 0xF5, 0xF9) : Color.WHITE,
+                AdminTheme.BORDER_COLOR, AdminTheme.TEXT_MUTED);
+
+        saveNewItemBtnW = 130;
+        saveNewItemBtnH = 36;
+        saveNewItemBtnX = modalX + modalW - 28 - saveNewItemBtnW;
+        saveNewItemBtnY = btnY;
+        paintModalBtn(g, saveNewItemBtnX, saveNewItemBtnY, saveNewItemBtnW, saveNewItemBtnH, "Save Changes",
+                saveNewItemHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.BRAND_GREEN_DARK,
+                AdminTheme.BRAND_GREEN_DARK, Color.WHITE);
+    }
+
+    private void paintEditSkillModal(Graphics2D g, int viewW, int viewH) {
+        modalW = Math.min(480, viewW - 40);
+        modalH = 280;
+        modalX = (viewW - modalW) / 2;
+        modalY = (viewH - modalH) / 2;
+
+        RoundRectangle2D box = new RoundRectangle2D.Float(modalX, modalY, modalW, modalH, 16, 16);
+        g.setColor(Color.WHITE);
+        g.fill(box);
+        g.setColor(AdminTheme.BORDER_COLOR);
+        g.setStroke(new BasicStroke(1.2f));
+        g.draw(box);
+
+        paintModalHeader(g, "Edit Skill Tag");
+
+        int curY = modalY + 84;
+        g.setFont(AdminTheme.FONT_BOLD_11);
+        g.setColor(AdminTheme.TEXT_MAIN);
+        g.drawString("SKILL NAME *", modalX + 28, curY);
+
+        newItemInputX = modalX + 28;
+        newItemInputY = curY + 8;
+        newItemInputW = modalW - 56;
+        newItemInputH = 38;
+
+        RoundRectangle2D input = new RoundRectangle2D.Float(newItemInputX, newItemInputY, newItemInputW, newItemInputH, 8, 8);
+        g.setColor(newItemInputFocused ? Color.WHITE : new Color(0xF8, 0xFA, 0xFC));
+        g.fill(input);
+        g.setColor(newItemInputFocused ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.BORDER_COLOR);
+        g.setStroke(new BasicStroke(newItemInputFocused ? 1.6f : 1.0f));
+        g.draw(input);
+
+        g.setFont(AdminTheme.FONT_REGULAR_13);
+        if (inputName.isEmpty()) {
+            g.setColor(AdminTheme.TEXT_LIGHT);
+            g.drawString("Enter skill tag name...", newItemInputX + 12, newItemInputY + 24);
+        } else {
+            g.setColor(AdminTheme.TEXT_MAIN);
+            g.drawString(inputName, newItemInputX + 12, newItemInputY + 24);
+        }
+
+        // Blinking cursor if focused
+        if (newItemInputFocused && (System.currentTimeMillis() % 1000 < 500)) {
+            FontMetrics fm = g.getFontMetrics();
+            int cursorX = newItemInputX + 12 + (inputName.isEmpty() ? 0 : fm.stringWidth(inputName));
+            g.setColor(AdminTheme.BRAND_GREEN_DARK);
+            g.drawLine(cursorX, newItemInputY + 9, cursorX, newItemInputY + 29);
+        }
+
+        // Helper guidance note
+        curY += 56;
+        g.setFont(AdminTheme.FONT_REGULAR_11);
+        g.setColor(AdminTheme.TEXT_MUTED);
+        g.drawString("✓ Renaming skill tag updates all student skills, endorsements, and filters.", modalX + 28, curY + 6);
+        g.drawString("✓ Press Enter or click 'Save Changes' to update.", modalX + 28, curY + 22);
+
+        // Bottom Action buttons
+        int btnY = modalY + modalH - 54;
+
+        cancelNewItemBtnW = 96;
+        cancelNewItemBtnH = 36;
+        cancelNewItemBtnX = modalX + 28;
+        cancelNewItemBtnY = btnY;
+        paintModalBtn(g, cancelNewItemBtnX, cancelNewItemBtnY, cancelNewItemBtnW, cancelNewItemBtnH, "Cancel",
+                cancelNewItemHovered ? new Color(0xF1, 0xF5, 0xF9) : Color.WHITE,
+                AdminTheme.BORDER_COLOR, AdminTheme.TEXT_MUTED);
+
+        saveNewItemBtnW = 130;
+        saveNewItemBtnH = 36;
+        saveNewItemBtnX = modalX + modalW - 28 - saveNewItemBtnW;
+        saveNewItemBtnY = btnY;
+        paintModalBtn(g, saveNewItemBtnX, saveNewItemBtnY, saveNewItemBtnW, saveNewItemBtnH, "Save Changes",
+                saveNewItemHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.BRAND_GREEN_DARK,
+                AdminTheme.BRAND_GREEN_DARK, Color.WHITE);
+    }
+
     private void paintAllReportsModal(Graphics2D g, int viewW, int viewH) {
         modalW = Math.min(640, viewW - 40);
         modalH = 460;
@@ -920,20 +1101,18 @@ public class AdminModals {
 
         curY += 66;
 
-        // 3. Platform Role
+        // 3. Platform Role (Only Member and Admin - Moderator removed per request)
         g.setFont(AdminTheme.FONT_BOLD_11);
         g.setColor(AdminTheme.TEXT_MAIN);
         g.drawString("PLATFORM ROLE", modalX + 28, curY);
 
         newUserRoleY = curY + 8;
         newUserMemberBtnX = modalX + 28;
-        newUserModBtnX = newUserMemberBtnX + newUserRoleW + 10;
-        newUserAdminBtnX = newUserModBtnX + newUserRoleW + 10;
+        newUserAdminBtnX = newUserMemberBtnX + newUserRoleW + 12;
+        newUserModBtnX = -9999;
 
         paintRoleOption(g, newUserMemberBtnX, newUserRoleY, newUserRoleW, newUserRoleH, "Member",
                 "Member".equalsIgnoreCase(newUserRole));
-        paintRoleOption(g, newUserModBtnX, newUserRoleY, newUserRoleW, newUserRoleH, "Moderator",
-                "Moderator".equalsIgnoreCase(newUserRole));
         paintRoleOption(g, newUserAdminBtnX, newUserRoleY, newUserRoleW, newUserRoleH, "Admin",
                 "Admin".equalsIgnoreCase(newUserRole));
 
@@ -1798,8 +1977,9 @@ public class AdminModals {
             }
         }
 
-        // Add Category / Skill
-        if (activeModal == ActiveModal.ADD_CATEGORY || activeModal == ActiveModal.ADD_SKILL) {
+        // Add / Edit Category & Skill
+        if (activeModal == ActiveModal.ADD_CATEGORY || activeModal == ActiveModal.ADD_SKILL ||
+                activeModal == ActiveModal.EDIT_CATEGORY || activeModal == ActiveModal.EDIT_SKILL) {
             // Click input box focus
             if (mx >= newItemInputX && mx <= newItemInputX + newItemInputW && my >= newItemInputY
                     && my <= newItemInputY + newItemInputH) {
@@ -1832,6 +2012,24 @@ public class AdminModals {
                     return true;
                 }
             }
+            if (activeModal == ActiveModal.EDIT_CATEGORY) {
+                if (mx >= saveNewItemBtnX && mx <= saveNewItemBtnX + saveNewItemBtnW && my >= saveNewItemBtnY
+                        && my <= saveNewItemBtnY + saveNewItemBtnH) {
+                    String catName = inputName.trim();
+                    if (catName.isEmpty()) {
+                        dashboard.showToast("Please enter a category name");
+                        return true;
+                    }
+                    boolean updated = AdminDataStore.getInstance().updateCategory(editingOriginalName, catName);
+                    if (updated) {
+                        dashboard.showToast("Category updated to '" + catName + "' successfully");
+                        closeModal();
+                    } else {
+                        dashboard.showToast("Category '" + catName + "' already exists!");
+                    }
+                    return true;
+                }
+            }
             if (activeModal == ActiveModal.ADD_SKILL) {
                 if (mx >= saveNewItemBtnX && mx <= saveNewItemBtnX + saveNewItemBtnW && my >= saveNewItemBtnY
                         && my <= saveNewItemBtnY + saveNewItemBtnH) {
@@ -1843,6 +2041,24 @@ public class AdminModals {
                     boolean added = AdminDataStore.getInstance().addSkill(skillName);
                     if (added) {
                         dashboard.showToast("Skill tag '" + skillName + "' added successfully");
+                        closeModal();
+                    } else {
+                        dashboard.showToast("Skill tag '" + skillName + "' already exists!");
+                    }
+                    return true;
+                }
+            }
+            if (activeModal == ActiveModal.EDIT_SKILL) {
+                if (mx >= saveNewItemBtnX && mx <= saveNewItemBtnX + saveNewItemBtnW && my >= saveNewItemBtnY
+                        && my <= saveNewItemBtnY + saveNewItemBtnH) {
+                    String skillName = inputName.trim();
+                    if (skillName.isEmpty()) {
+                        dashboard.showToast("Please enter a skill name");
+                        return true;
+                    }
+                    boolean updated = AdminDataStore.getInstance().updateSkill(editingOriginalName, skillName);
+                    if (updated) {
+                        dashboard.showToast("Skill tag updated to '" + skillName + "' successfully");
                         closeModal();
                     } else {
                         dashboard.showToast("Skill tag '" + skillName + "' already exists!");
@@ -1901,11 +2117,6 @@ public class AdminModals {
             if (mx >= newUserMemberBtnX && mx <= newUserMemberBtnX + newUserRoleW &&
                     my >= newUserRoleY && my <= newUserRoleY + newUserRoleH) {
                 newUserRole = "Member";
-                return true;
-            }
-            if (mx >= newUserModBtnX && mx <= newUserModBtnX + newUserRoleW &&
-                    my >= newUserRoleY && my <= newUserRoleY + newUserRoleH) {
-                newUserRole = "Moderator";
                 return true;
             }
             if (mx >= newUserAdminBtnX && mx <= newUserAdminBtnX + newUserRoleW &&
@@ -2166,7 +2377,8 @@ public class AdminModals {
     }
 
     public boolean onKey(char ch, int keyCode) {
-        if (activeModal == ActiveModal.ADD_CATEGORY || activeModal == ActiveModal.ADD_SKILL) {
+        if (activeModal == ActiveModal.ADD_CATEGORY || activeModal == ActiveModal.ADD_SKILL ||
+                activeModal == ActiveModal.EDIT_CATEGORY || activeModal == ActiveModal.EDIT_SKILL) {
             if (keyCode == java.awt.event.KeyEvent.VK_BACK_SPACE) {
                 if (inputName.length() > 0) {
                     inputName = inputName.substring(0, inputName.length() - 1);
@@ -2180,10 +2392,22 @@ public class AdminModals {
                         AdminDataStore.getInstance().addCategory(catName);
                         closeModal();
                     }
-                } else {
+                } else if (activeModal == ActiveModal.EDIT_CATEGORY) {
+                    String catName = inputName.trim();
+                    if (!catName.isEmpty()) {
+                        AdminDataStore.getInstance().updateCategory(editingOriginalName, catName);
+                        closeModal();
+                    }
+                } else if (activeModal == ActiveModal.ADD_SKILL) {
                     String skillName = inputName.trim();
                     if (!skillName.isEmpty()) {
                         AdminDataStore.getInstance().addSkill(skillName);
+                        closeModal();
+                    }
+                } else if (activeModal == ActiveModal.EDIT_SKILL) {
+                    String skillName = inputName.trim();
+                    if (!skillName.isEmpty()) {
+                        AdminDataStore.getInstance().updateSkill(editingOriginalName, skillName);
                         closeModal();
                     }
                 }
@@ -2431,5 +2655,21 @@ public class AdminModals {
 
     public void setInputName(String inputName) {
         this.inputName = (inputName != null) ? inputName : "";
+    }
+
+    public String getNewUserRole() {
+        return newUserRole;
+    }
+
+    public int getNewUserMemberBtnX() {
+        return newUserMemberBtnX;
+    }
+
+    public int getNewUserAdminBtnX() {
+        return newUserAdminBtnX;
+    }
+
+    public int getNewUserModBtnX() {
+        return newUserModBtnX;
     }
 }
