@@ -22,6 +22,19 @@ public class TestLeadStore {
         assertTrue(r4.success, "Should sanitize and save injection test");
         System.out.println("Test 4 passed (CSV injection guarded): " + r4.message);
 
+        // 5. Strict email structure checks (like abcd@gmail.com)
+        assertTrue(LeadStore.isValidEmail("abcd@gmail.com"), "abcd@gmail.com must be valid");
+        String[] badEmails = {
+                "abcd", "abcd@", "@gmail.com", "abcd@gmail", "abcd@gmail.",
+                "abcd@gmail..com", "abc..def@gmail.com", ".abcd@gmail.com",
+                "abcd.@gmail.com", "abcd@-gmail.com", "abcd@gmail-.com", "abcd@gmail.c", "ab cd@gmail.com"
+        };
+        for (String bad : badEmails) {
+            LeadStore.ValidationResult br = LeadStore.saveLead(bad, "Student");
+            assertFalse(br.success, "Malformed email must be rejected: " + bad);
+        }
+        System.out.println("Test 5 passed (strict email structure validation enforced for all malformed inputs).");
+
         System.out.println("ALL LEAD STORE TESTS PASSED!");
     }
 

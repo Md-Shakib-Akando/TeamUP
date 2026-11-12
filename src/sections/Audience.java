@@ -1,16 +1,28 @@
 import java.awt.*;
+import java.awt.event.KeyEvent;
 import java.awt.geom.Path2D;
 import java.awt.geom.RoundRectangle2D;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /** "Who it's for" — segmented role tabs with a spring indicator and a cross-fading story card. */
 public class Audience extends LpSection {
 
+    private static class UserReview {
+        final String author, roleLabel, text;
+        UserReview(String author, String roleLabel, String text) {
+            this.author = author;
+            this.roleLabel = roleLabel;
+            this.text = text;
+        }
+    }
+
     private static class Role {
         final String name, person, title, initials, benefit, quote;
         final String[] team;
         final Color c1, c2;
+        final List<UserReview> reviews = new ArrayList<>();
         int x, y, w, h;
         boolean hovered;
         Role(String name, String person, String title, String initials, Color c1, Color c2,
@@ -30,6 +42,17 @@ public class Audience extends LpSection {
     private boolean userPicked = false;
     private boolean cardHovered = false;
     private int cardX, cardY, cardW, cardH;
+
+    // ---- "Share your feeling & benefits" input section
+    private final TextBox nameBox = new TextBox("Your name (optional)");
+    private final TextBox reviewBox = new TextBox("Write your feeling & benefits with TeamUp...");
+    private final Dropdown roleDropdown = new Dropdown(Arrays.asList("Students", "Developers", "Freelancers", "Researchers", "Startups"));
+    private final Elastic submitHov = new Elastic(0f, 260f, 20f);
+    private int submitX, submitY, submitW, submitH;
+    private int formX, formY, formW, formH;
+    private boolean submitHovered = false, submitPressed = false, formHovered = false;
+    private String submitStatus = "";
+    private boolean submitSuccess = false;
 
     public Audience() {
         roles.add(new Role("Students", "Rafi Karim", "CS Undergraduate", "RK", Fx.CYAN, Fx.VIOLET,
@@ -72,6 +95,15 @@ public class Audience extends LpSection {
         }
         indX.update(dt);
         indW.update(dt);
+        nameBox.update(dt);
+        reviewBox.update(dt);
+        submitHov.setTarget(submitHovered ? 1f : 0f);
+        submitHov.update(dt);
+    }
+
+    /** True when either review input field holds keyboard focus. */
+    public boolean hasFocus() {
+        return nameBox.focused || reviewBox.focused;
     }
 
     private void select(int i, boolean user) {
@@ -79,6 +111,48 @@ public class Audience extends LpSection {
         sel = i;
         switchT = 0f;
         if (user) userPicked = true;
+        invalidateHeight();
+    }
+
+    private void submitReview() {
+        String text = reviewBox.getText().trim();
+        if (text.isEmpty()) {
+            reviewBox.hasError = true;
+            submitSuccess = false;
+            submitStatus = "Please write your feeling or benefit before sharing.";
+            invalidateHeight();
+            return;
+        }
+
+        String pickedRole = roleDropdown.getSelected();
+        int targetIdx = 0;
+        for (int i = 0; i < roles.size(); i++) {
+            if (roles.get(i).name.equalsIgnoreCase(pickedRole)) {
+                targetIdx = i;
+                break;
+            }
+        }
+        String author = nameBox.getText().trim();
+        if (author.isEmpty()) {
+            author = "Community " + (pickedRole.endsWith("s") ? pickedRole.substring(0, pickedRole.length() - 1) : pickedRole);
+        }
+
+        roles.get(targetIdx).reviews.add(new UserReview(author, pickedRole, text));
+        reviewBox.setText("");
+        nameBox.setText("");
+        reviewBox.hasError = false;
+        reviewBox.focused = false;
+        nameBox.focused = false;
+        roleDropdown.open = false;
+
+        submitSuccess = true;
+        submitStatus = "Review shared! Now visible under " + pickedRole + " in Who it's for ✓";
+        userPicked = true;
+        if (sel != targetIdx) {
+            sel = targetIdx;
+            switchT = 0f;
+        }
+        invalidateHeight();
     }
 
     @Override
@@ -174,9 +248,17 @@ public class Audience extends LpSection {
         }
         int leftH = 40 + 40 + qH + 30 + 48 + 40;
         int rightH = 40 + 22 + bH + 26 + 22 + 3 * 42 + 30;
-        int ch = two ? Math.max(leftH, rightH) : leftH + rightH;
-        if (!measuring) { cardX = cx; cardY = cur; cardW = cw; cardH = ch; }
-        if (measuring) return cur + ch - top + 40;
+        int baseCh = two ? Math.max(leftH, rightH) : leftH + rightH;
+        int reviewsH = r.reviews.isEmpty() ? 0 : layoutAndPaintReviews(g, cx, cur + baseCh, cw, r, true);
+        int ch = baseCh + reviewsH;
+
+        int formTop = cur + ch + 28;
+        int computedFormH = layoutAndPaintShareForm(g, cx, formTop, cw, width, true);
+        if (!measuring) {
+            cardX = cx; cardY = cur; cardW = cw; cardH = ch;
+            formX = cx; formY = formTop; formW = cw; formH = computedFormH;
+        }
+        if (measuring) return formTop + computedFormH - top + 40;
 
         Graphics2D cg = Fx.fade(g, rv.p(0.35f), 36);
         Fx.glowOval(cg, cx + cw * 0.3f, cur + ch / 2f, cw * 0.4f, ch * 0.6f, r.c1, Fx.dark() ? 0.16f : 0.1f);
@@ -245,15 +327,143 @@ public class Audience extends LpSection {
         if (!userPicked) {
             float pr = Fx.clamp(autoT / 6f);
             int dw = 64;
-            float dx = cx + cw - 40 - dw, dy = cur + ch - 22;
+            float dx = cx + cw - 40 - dw, dy = cur + baseCh - 22;
             cg.setColor(Fx.border());
             cg.fill(Fx.rr(dx, dy, dw, 3, 1.5f));
             cg.setPaint(new GradientPaint(dx, 0, Fx.PINK, dx + dw, 0, Fx.VIOLET));
             cg.fill(Fx.rr(dx, dy, dw * pr, 3, 1.5f));
         }
+
+        if (!r.reviews.isEmpty()) {
+            layoutAndPaintReviews(cg, cx, cur + baseCh, cw, r, false);
+        }
         cg.dispose();
 
-        return cur + ch - top + 40;
+        // ---- Share your feeling & benefits input card
+        layoutAndPaintShareForm(g, cx, formTop, cw, width, false);
+
+        return formTop + computedFormH - top + 40;
+    }
+
+    /** Lays out (and optionally paints) user-submitted reviews attached to the active role in Who it's for. */
+    private int layoutAndPaintReviews(Graphics2D g, int cx, int startY, int cw, Role r, boolean measureOnly) {
+        boolean narrow = cw < 700;
+        int padX = narrow ? 24 : 40;
+        int innerW = cw - padX * 2;
+        int y = startY + 20;
+
+        if (!measureOnly) {
+            g.setColor(Fx.border());
+            g.drawLine(cx + 28, startY, cx + cw - 28, startY);
+            g.setFont(Fx.label(11));
+            g.setColor(Fx.ink(r.c1));
+            g.drawString("SHARED FEELINGS & BENEFITS (" + r.reviews.size() + ")", cx + padX, y + 10);
+        }
+        y += 26;
+
+        for (UserReview rev : r.reviews) {
+            int textW = innerW - 36;
+            int bodyH = Fx.paragraphHeight(g, "\"" + rev.text + "\"", Fx.body(13.5f), textW, 1.45f);
+            int boxH = 14 + 22 + 6 + bodyH + 14;
+            if (!measureOnly) {
+                RoundRectangle2D.Float card = Fx.rr(cx + padX, y, innerW, boxH, 14);
+                g.setColor(Fx.subtle());
+                g.fill(card);
+                g.setColor(Fx.a(r.c1, 100));
+                g.draw(card);
+
+                g.setFont(Fx.bold(13));
+                g.setColor(Fx.text());
+                g.drawString(rev.author, cx + padX + 18, y + 27);
+                int nw = g.getFontMetrics().stringWidth(rev.author);
+                Fx.tag(g, rev.roleLabel, cx + padX + 28 + nw, y + 12, r.c1, true);
+
+                Fx.paragraph(g, "\"" + rev.text + "\"", Fx.body(13.5f), Fx.text2(),
+                        cx + padX + 18, y + 40, textW, 1.45f, false);
+            }
+            y += boxH + 10;
+        }
+        return y - startY + 12;
+    }
+
+    /** Lays out (and optionally paints) the "Share your feeling & benefits" review input section. */
+    private int layoutAndPaintShareForm(Graphics2D g, int fx, int fy, int fw, int width, boolean measureOnly) {
+        boolean narrow = fw < 720;
+        int pad = narrow ? 22 : 34;
+        int innerW = fw - pad * 2;
+        int cy = fy + pad;
+
+        String title = "Share your feeling & benefits";
+        String sub = "Tell students & builders how TeamUp helps your workflow — choose your role and publish straight to Who it's for.";
+        int subH = Fx.paragraphHeight(g, sub, Fx.body(14f), innerW, 1.45f);
+        int headerH = 18 + 30 + subH + 20;
+
+        int rowH = 46;
+        int inputsH = narrow ? (rowH * 4 + 10 * 3) : (rowH * 2 + 12);
+        int statusH = submitStatus.isEmpty() ? 0 : 28;
+        int totalH = pad + headerH + inputsH + statusH + pad;
+        if (measureOnly) return totalH;
+
+        Graphics2D fg = Fx.fade(g, rv.p(0.45f), 28);
+        Fx.glowOval(fg, fx + fw * 0.7f, fy + totalH / 2f, fw * 0.45f, totalH * 0.7f, Fx.PINK, Fx.dark() ? 0.14f : 0.08f);
+        Fx.card(fg, fx, fy, fw, totalH, 24, formHovered ? 0.45f : 0.16f, Fx.PINK);
+
+        int lx = fx + pad;
+        fg.setFont(Fx.label(11));
+        fg.setColor(Fx.ink(Fx.PINK));
+        fg.drawString("COMMUNITY VOICE", lx, cy + 10);
+        cy += 22;
+
+        fg.setFont(Fx.heading(width < 700 ? 19 : 23));
+        fg.setColor(Fx.text());
+        fg.drawString(title, lx, cy + 20);
+        cy += 28;
+
+        cy = Fx.paragraph(fg, sub, Fx.body(14f), Fx.text2(), lx, cy, innerW, 1.45f, false);
+        cy += 18;
+
+        if (!narrow) {
+            int gap = 12;
+            int dropW = Math.min(220, Math.round(innerW * 0.34f));
+            int nameW = innerW - dropW - gap;
+            nameBox.setBounds(lx, cy, nameW, rowH);
+            roleDropdown.setBounds(lx + nameW + gap, cy, dropW, rowH);
+
+            int row2Y = cy + rowH + 12;
+            int btnW = Math.min(190, Math.round(innerW * 0.28f));
+            int revW = innerW - btnW - gap;
+            reviewBox.setBounds(lx, row2Y, revW, rowH);
+            submitX = lx + revW + gap;
+            submitY = row2Y;
+            submitW = btnW;
+            submitH = rowH;
+            cy = row2Y + rowH;
+        } else {
+            nameBox.setBounds(lx, cy, innerW, rowH);
+            cy += rowH + 10;
+            roleDropdown.setBounds(lx, cy, innerW, rowH);
+            cy += rowH + 10;
+            reviewBox.setBounds(lx, cy, innerW, rowH);
+            cy += rowH + 10;
+            submitX = lx; submitY = cy; submitW = innerW; submitH = rowH;
+            cy += rowH;
+        }
+
+        nameBox.paint(fg);
+        reviewBox.paint(fg);
+        Fx.primaryButton(fg, submitX, submitY, submitW, submitH, "Share Review", submitHov.getValue(), submitPressed ? 1f : 0f, true);
+
+        if (!submitStatus.isEmpty()) {
+            cy += 14;
+            fg.setFont(Fx.bold(13));
+            fg.setColor(submitSuccess ? Fx.ink(Fx.MINT) : Fx.ink(Fx.ORANGE));
+            fg.drawString(submitStatus, lx + 2, cy + 10);
+        }
+
+        // Paint dropdown last so popup menu renders cleanly on top of inputs/buttons
+        roleDropdown.paint(fg);
+        fg.dispose();
+        return totalH;
     }
 
     private void paintQuoteMark(Graphics2D g, float x, float y, Role r) {
@@ -274,7 +484,47 @@ public class Audience extends LpSection {
     }
 
     @Override
+    public boolean onMouseDown(int mx, int my) {
+        if (roleDropdown.contains(mx, my)) return true;
+        boolean b1 = nameBox.onMouseDown(mx, my);
+        boolean b2 = reviewBox.onMouseDown(mx, my);
+        if (Fx.inside(mx, my, submitX, submitY, submitW, submitH)) {
+            submitPressed = true;
+            return true;
+        }
+        return b1 || b2;
+    }
+
+    @Override
+    public boolean onMouseUp(int mx, int my) {
+        submitPressed = false;
+        return false;
+    }
+
+    @Override
     public boolean onClick(int mx, int my) {
+        if (roleDropdown.open) {
+            roleDropdown.onClick(mx, my);
+            return true;
+        }
+        if (roleDropdown.onClick(mx, my)) {
+            nameBox.focused = false;
+            reviewBox.focused = false;
+            return true;
+        }
+        if (nameBox.onMouseDown(mx, my)) {
+            reviewBox.focused = false;
+            return true;
+        }
+        if (reviewBox.onMouseDown(mx, my)) {
+            nameBox.focused = false;
+            submitStatus = "";
+            return true;
+        }
+        if (Fx.inside(mx, my, submitX, submitY, submitW, submitH)) {
+            submitReview();
+            return true;
+        }
         for (int i = 0; i < roles.size(); i++) {
             Role r = roles.get(i);
             if (Fx.inside(mx, my, r.x, r.y, r.w, r.h)) { select(i, true); return true; }
@@ -285,11 +535,46 @@ public class Audience extends LpSection {
     @Override
     public boolean onMouseMove(int mx, int my) {
         boolean hand = false;
+        if (roleDropdown.open) {
+            roleDropdown.onMouseMove(mx, my);
+            hand = roleDropdown.contains(mx, my);
+        } else {
+            hand |= roleDropdown.contains(mx, my);
+        }
         for (Role r : roles) {
             r.hovered = Fx.inside(mx, my, r.x, r.y, r.w, r.h);
             hand |= r.hovered;
         }
         cardHovered = Fx.inside(mx, my, cardX, cardY, cardW, cardH);
+        formHovered = Fx.inside(mx, my, formX, formY, formW, formH);
+        submitHovered = Fx.inside(mx, my, submitX, submitY, submitW, submitH);
+        hand |= submitHovered || nameBox.contains(mx, my) || reviewBox.contains(mx, my);
         return hand;
+    }
+
+    @Override
+    public boolean onKey(KeyEvent e) {
+        if (!nameBox.focused && !reviewBox.focused) return false;
+        TextBox active = reviewBox.focused ? reviewBox : nameBox;
+        if (e.getID() == KeyEvent.KEY_PRESSED) {
+            if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+                submitReview();
+                return true;
+            }
+            if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+                nameBox.focused = false;
+                reviewBox.focused = false;
+                roleDropdown.open = false;
+                return true;
+            }
+            if (e.getKeyChar() == KeyEvent.CHAR_UNDEFINED || Character.isISOControl(e.getKeyChar()) || e.isControlDown()) {
+                return active.onKey(e);
+            }
+            return true;
+        }
+        if (e.getID() == KeyEvent.KEY_TYPED) {
+            return active.onKey(e);
+        }
+        return false;
     }
 }

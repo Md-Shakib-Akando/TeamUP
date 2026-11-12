@@ -735,7 +735,10 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
     }
 
     private boolean hasFocusedInput(Section s) {
-        return (s instanceof Hero && ((Hero) s).hasFocus()) || (s instanceof Cta && ((Cta) s).hasFocus());
+        return (s instanceof Hero && ((Hero) s).hasFocus())
+                || (s instanceof Cta && ((Cta) s).hasFocus())
+                || (s instanceof MatchDemo && ((MatchDemo) s).hasFocus())
+                || (s instanceof Audience && ((Audience) s).hasFocus());
     }
 
     @Override

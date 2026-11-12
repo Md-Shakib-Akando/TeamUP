@@ -200,11 +200,24 @@ public class Modal {
                 setFeedback("Please accept the Terms to continue.", false);
                 return;
             }
-            LeadStore.ValidationResult res = LeadStore.saveLead(email, roleSelect.getSelected());
-            if (res.success) setFeedback("Welcome to TeamUp! Account created successfully.", true);
-            else setFeedback(res.message, false);
+            AuthStore.AuthResult res = AuthStore.register(
+                    nameInput.getText().trim(), email, pass, roleSelect.getSelected());
+            if (res.success) {
+                LeadStore.saveLead(email, roleSelect.getSelected());
+                setFeedback(res.message, true);
+            } else {
+                emailInput.hasError = true;
+                setFeedback(res.message, false);
+            }
         } else {
-            setFeedback("Welcome back! Login authenticated.", true);
+            AuthStore.AuthResult res = AuthStore.login(email, pass);
+            if (res.success) {
+                setFeedback(res.message, true);
+            } else {
+                if (res.message.toLowerCase().contains("password")) passInput.hasError = true;
+                else emailInput.hasError = true;
+                setFeedback(res.message, false);
+            }
         }
     }
 

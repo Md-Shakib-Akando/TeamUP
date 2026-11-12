@@ -26,7 +26,6 @@ public class Compare extends LpSection {
     // View Modes
     public enum ViewMode {
         MATRIX("Reality Matrix"),
-        BENCHMARKS("Before & After"),
         SIMULATOR("Success Simulator");
 
         public final String label;
@@ -68,28 +67,7 @@ public class Compare extends LpSection {
         }
     }
 
-    public static class TransformationCard {
-        final String title;
-        final String subtitle;
-        final String oldWayPain;
-        final String teamUpSolution;
-        final String impactMetric;
-        final Color accent;
-        int x, y, w, h;
-        boolean hovered = false;
-
-        TransformationCard(String t, String sub, String oldPain, String tuSolution, String impact, Color acc) {
-            this.title = t;
-            this.subtitle = sub;
-            this.oldWayPain = oldPain;
-            this.teamUpSolution = tuSolution;
-            this.impactMetric = impact;
-            this.accent = acc;
-        }
-    }
-
     private final List<Row> allRows = new ArrayList<>();
-    private final List<TransformationCard> transformationCards = new ArrayList<>();
     private final String[] cols = {"TeamUp", "WhatsApp/Discord", "Course Spreadsheets", "Devpost"};
     private final String[] colSubs = {"Smart Workspace", "Chaotic Chat Groups", "Manual Forms", "Submission Only"};
 
@@ -191,40 +169,6 @@ public class Compare extends LpSection {
                 "A unified single pane of glass for all team activities, eliminating scattered Notion docs and outdated Google Sheets",
                 true, false, false, true
         ));
-
-        // Initialize Before & After Transformation Cards
-        transformationCards.add(new TransformationCard(
-                "Team Formation & Matching",
-                "From random guessing to algorithmic harmony",
-                "2-3 weeks wasted pitching strangers on WhatsApp or begging in class; 50% chance of ending up with incompatible skillsets.",
-                "Match with compatible, verified students in under 24 hours based on complementary tech stacks and timezone overlap.",
-                "14x Faster Team Assembly",
-                Fx.PINK
-        ));
-        transformationCards.add(new TransformationCard(
-                "Accountability & Ghosting",
-                "From deadline panic to mutual trust",
-                "Team members disappear 48 hours before final submission, forcing one person to pull an all-nighter doing everyone's work.",
-                "Milestone check-ins and verified peer reviews ensure mutual accountability from sprint start to final showcase.",
-                "96% Ghosting Reduction",
-                Fx.VIOLET
-        ));
-        transformationCards.add(new TransformationCard(
-                "Daily Workflow & Tasks",
-                "From fragmented chaos to one unified hub",
-                "Links scattered across WhatsApp, Trello, Google Drive, and Zoom; important updates get lost in endless chat noise.",
-                "Integrated agile Kanban board, team channels, milestone checklists, and shared repo links in one place.",
-                "Zero Extra Subscriptions",
-                Fx.CYAN
-        ));
-        transformationCards.add(new TransformationCard(
-                "Career Proof & Recognition",
-                "From an invisible grade to an undeniable portfolio",
-                "You build a project, get an internal course letter grade, but have no verifiable evidence of your teamwork for recruiters.",
-                "Verified collaboration credentials and teammate testimonials you can share directly on LinkedIn and your resume.",
-                "100% Verifiable Credentials",
-                Fx.PINK
-        ));
     }
 
     @Override
@@ -258,15 +202,13 @@ public class Compare extends LpSection {
         tableX = tx;
         tableW = tw;
 
-        // Render View Switcher (Matrix / Before & After / Simulator)
+        // Render View Switcher (Matrix / Simulator)
         cur = renderViewSwitcher(g, tx, cur, tw, width);
         cur += 24;
 
         // Render Active View
         if (activeMode == ViewMode.MATRIX) {
             cur = renderMatrixView(g, tx, cur, tw, width);
-        } else if (activeMode == ViewMode.BENCHMARKS) {
-            cur = renderBeforeAfterView(g, tx, cur, tw, width);
         } else {
             cur = renderSimulatorView(g, tx, cur, tw, width);
         }
@@ -283,7 +225,7 @@ public class Compare extends LpSection {
         ViewMode[] modes = ViewMode.values();
         int tabCount = modes.length;
         int tabH = 40;
-        int totalTabsW = Math.min(tw, width < 700 ? tw : 540);
+        int totalTabsW = Math.min(tw, width < 700 ? tw : 400);
         int tabW = totalTabsW / tabCount;
         int startX = tx + (tw - totalTabsW) / 2;
 
@@ -582,90 +524,7 @@ public class Compare extends LpSection {
     }
 
     // =========================================================================
-    // 3. BEFORE & AFTER TRANSFORMATION CARDS
-    // =========================================================================
-
-    private int renderBeforeAfterView(Graphics2D g, int tx, int cur, int tw, int width) {
-        boolean narrow = width < 760;
-        int cardGap = 16;
-        int cols = narrow ? 1 : 2;
-        int cardW = (tw - (cols - 1) * cardGap) / cols;
-        int cardH = narrow ? 260 : 250;
-
-        for (int i = 0; i < transformationCards.size(); i++) {
-            TransformationCard tc = transformationCards.get(i);
-            int col = i % cols;
-            int row = i / cols;
-            int cx = tx + col * (cardW + cardGap);
-            int cy = cur + row * (cardH + cardGap);
-
-            tc.x = cx;
-            tc.y = cy;
-            tc.w = cardW;
-            tc.h = cardH;
-
-            if (!measuring) {
-                Graphics2D bg = Fx.fade(g, rv.p(0.2f + i * 0.1f), 30);
-                Fx.card(bg, cx, cy, cardW, cardH, 20, tc.hovered ? 0.35f : 0.12f, tc.accent);
-
-                // Impact Metric Tag
-                Fx.tag(bg, tc.impactMetric, cx + cardW - 124, cy + 20, tc.accent, true);
-
-                // Title & Subtitle
-                bg.setFont(Fx.heading(narrow ? 16 : 18));
-                bg.setColor(Fx.text());
-                bg.drawString(tc.title, cx + 22, cy + 34);
-
-                bg.setFont(Fx.body(12));
-                bg.setColor(Fx.text3());
-                bg.drawString(tc.subtitle, cx + 22, cy + 52);
-
-                // The Old Way Box (Red/Muted Tint)
-                int oldBoxY = cy + 68;
-                int boxW = cardW - 44;
-                int boxH = 68;
-                RoundRectangle2D.Float oldBox = Fx.rr(cx + 22, oldBoxY, boxW, boxH, 12);
-                bg.setColor(Fx.a(new Color(0xEF, 0x44, 0x44), Fx.dark() ? 25 : 16));
-                bg.fill(oldBox);
-                bg.setColor(Fx.a(new Color(0xEF, 0x44, 0x44), Fx.dark() ? 65 : 75));
-                bg.setStroke(new BasicStroke(1f));
-                bg.draw(oldBox);
-
-                bg.setFont(Fx.bold(11));
-                bg.setColor(new Color(0xEF, 0x44, 0x44));
-                bg.drawString("✕ THE OLD WAY (CHAOS):", cx + 34, oldBoxY + 20);
-
-                bg.setFont(Fx.body(11));
-                bg.setColor(Fx.text2());
-                bg.drawString(tc.oldWayPain, cx + 34, oldBoxY + 42);
-
-                // The TeamUp Way Box (Green/Pink Tint)
-                int newBoxY = oldBoxY + boxH + 10;
-                RoundRectangle2D.Float newBox = Fx.rr(cx + 22, newBoxY, boxW, boxH + 8, 12);
-                bg.setColor(Fx.a(Fx.PINK, Fx.dark() ? 28 : 20));
-                bg.fill(newBox);
-                bg.setColor(Fx.a(Fx.PINK, Fx.dark() ? 80 : 90));
-                bg.setStroke(new BasicStroke(1.2f));
-                bg.draw(newBox);
-
-                bg.setFont(Fx.bold(11));
-                bg.setColor(Fx.PINK);
-                bg.drawString("✓ WITH TEAMUP (PURPOSE-BUILT):", cx + 34, newBoxY + 20);
-
-                bg.setFont(Fx.body(11));
-                bg.setColor(Fx.text());
-                bg.drawString(tc.teamUpSolution, cx + 34, newBoxY + 44);
-
-                bg.dispose();
-            }
-        }
-
-        int totalRows = (int) Math.ceil(transformationCards.size() / (double) cols);
-        return cur + totalRows * (cardH + cardGap);
-    }
-
-    // =========================================================================
-    // 4. PROJECT SUCCESS SIMULATOR VIEW
+    // 3. PROJECT SUCCESS SIMULATOR VIEW
     // =========================================================================
 
     private int renderSimulatorView(Graphics2D g, int tx, int cur, int tw, int width) {
@@ -881,12 +740,6 @@ public class Compare extends LpSection {
         for (Row r : allRows) {
             r.hovered = Fx.inside(mx, my, r.x, r.y, r.w, r.h);
             hand |= r.hovered;
-        }
-
-        // Transformation cards hover
-        for (TransformationCard tc : transformationCards) {
-            tc.hovered = Fx.inside(mx, my, tc.x, tc.y, tc.w, tc.h);
-            hand |= tc.hovered;
         }
 
         // Project buttons hover
