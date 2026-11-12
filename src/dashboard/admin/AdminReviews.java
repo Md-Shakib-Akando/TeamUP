@@ -135,9 +135,6 @@ public class AdminReviews {
     private int addReviewBtnX, addReviewBtnY, addReviewBtnW = 120, addReviewBtnH = 36;
     private boolean addReviewHovered = false;
 
-    private int exportBtnX, exportBtnY, exportBtnW = 126, exportBtnH = 36;
-    private boolean exportHovered = false;
-
     // Pagination
     private int currentPage = 1;
     private final int pageSize = 6;
@@ -221,33 +218,10 @@ public class AdminReviews {
         int btnY = wrap ? y + 68 : y + 8;
         int rightX = x + w;
 
-        // "Export feedback" Button
-        exportBtnW = 126;
-        exportBtnH = 36;
-        exportBtnX = rightX - exportBtnW;
-        exportBtnY = btnY;
-        RoundRectangle2D expBox = new RoundRectangle2D.Float(exportBtnX, exportBtnY, exportBtnW, exportBtnH, 8, 8);
-        g.setColor(exportHovered ? new Color(0xF8, 0xFA, 0xFC) : Color.WHITE);
-        g.fill(expBox);
-        g.setColor(AdminTheme.BORDER_COLOR);
-        g.setStroke(new BasicStroke(1.2f));
-        g.draw(expBox);
-
-        // Download icon
-        g.setColor(AdminTheme.TEXT_MUTED);
-        g.drawRect(exportBtnX + 12, exportBtnY + 13, 11, 9);
-        g.drawLine(exportBtnX + 17, exportBtnY + 9, exportBtnX + 17, exportBtnY + 16);
-        g.drawLine(exportBtnX + 14, exportBtnY + 13, exportBtnX + 17, exportBtnY + 16);
-        g.drawLine(exportBtnX + 20, exportBtnY + 13, exportBtnX + 17, exportBtnY + 16);
-
-        g.setFont(AdminTheme.FONT_BOLD_11);
-        g.setColor(AdminTheme.TEXT_DARK);
-        g.drawString("Export feedback", exportBtnX + 29, exportBtnY + 22);
-
         // "+ Add review" Button (Primary Forest Green)
         addReviewBtnW = 120;
         addReviewBtnH = 36;
-        addReviewBtnX = exportBtnX - 12 - addReviewBtnW;
+        addReviewBtnX = rightX - addReviewBtnW;
         addReviewBtnY = btnY;
         RoundRectangle2D addBox = new RoundRectangle2D.Float(addReviewBtnX, addReviewBtnY, addReviewBtnW, addReviewBtnH,
                 8, 8);
@@ -1059,12 +1033,6 @@ public class AdminReviews {
         }
 
         // 2. Header Buttons
-        if (mx >= exportBtnX && mx <= exportBtnX + exportBtnW && my >= exportBtnY && my <= exportBtnY + exportBtnH) {
-            String path = AdminDataStore.getInstance().exportReviewsToCsv();
-            dashboard.showToast("Exported feedback registry to " + new java.io.File(path).getName());
-            return true;
-        }
-
         if (mx >= addReviewBtnX && mx <= addReviewBtnX + addReviewBtnW && my >= addReviewBtnY
                 && my <= addReviewBtnY + addReviewBtnH) {
             dashboard.openAddReviewModal();
@@ -1203,12 +1171,6 @@ public class AdminReviews {
 
     public boolean onMouseMove(int mx, int my) {
         boolean changed = false;
-
-        boolean p1 = exportHovered;
-        exportHovered = (mx >= exportBtnX && mx <= exportBtnX + exportBtnW && my >= exportBtnY
-                && my <= exportBtnY + exportBtnH);
-        if (exportHovered != p1)
-            changed = true;
 
         boolean p2 = addReviewHovered;
         addReviewHovered = (mx >= addReviewBtnX && mx <= addReviewBtnX + addReviewBtnW && my >= addReviewBtnY

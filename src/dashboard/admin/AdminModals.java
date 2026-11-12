@@ -1,9 +1,11 @@
+
 import java.awt.*;
 import java.awt.geom.RoundRectangle2D;
 
 /**
  * Handles interactive dialog modals for TeamUp Admin Dashboard.
- * Includes Moderation Review Modal, Edit User Role Modal, Add Category/Skill Modal, and Instant 0ms Dismissal.
+ * Includes Moderation Review Modal, Edit User Role Modal, Add Category/Skill
+ * Modal, and Instant 0ms Dismissal.
  * Pure core Java - zero third-party dependencies.
  */
 public class AdminModals {
@@ -69,8 +71,12 @@ public class AdminModals {
 
     // Add Category / Skill State
     private String inputName = "";
-    private int saveNewItemBtnX, saveNewItemBtnY, saveNewItemBtnW = 120, saveNewItemBtnH = 36;
+    private int newItemInputX, newItemInputY, newItemInputW, newItemInputH = 38;
+    private boolean newItemInputFocused = true;
+    private int saveNewItemBtnX, saveNewItemBtnY, saveNewItemBtnW = 140, saveNewItemBtnH = 36;
+    private int cancelNewItemBtnX, cancelNewItemBtnY, cancelNewItemBtnW = 96, cancelNewItemBtnH = 36;
     private boolean saveNewItemHovered = false;
+    private boolean cancelNewItemHovered = false;
 
     // User Details State
     private AdminDataStore.UserModel selectedUser = null;
@@ -112,6 +118,7 @@ public class AdminModals {
         public String name;
         public int x, y, w, h;
     }
+
     private final java.util.List<CatChoiceBox> addProjCatBoxes = new java.util.ArrayList<>();
     private String newProjectName = "";
     private String newProjectCategory = "Web Development";
@@ -128,7 +135,8 @@ public class AdminModals {
     private int newProjectOwnerInputX, newProjectOwnerInputY, newProjectOwnerInputW, newProjectOwnerInputH = 34;
     private int newProjectSizeInputX, newProjectSizeInputY, newProjectSizeInputW, newProjectSizeInputH = 34;
     private int newProjectDescInputX, newProjectDescInputY, newProjectDescInputW, newProjectDescInputH = 46;
-    private int addProjStatusActiveX, addProjStatusRecruitingX, addProjStatusReviewX, addProjStatusY, addProjStatusW = 94, addProjStatusH = 28;
+    private int addProjStatusActiveX, addProjStatusRecruitingX, addProjStatusReviewX, addProjStatusY,
+            addProjStatusW = 94, addProjStatusH = 28;
 
     // Modal card bounds
     private int modalX, modalY, modalW, modalH;
@@ -144,7 +152,9 @@ public class AdminModals {
     private boolean warnHovered = false;
     private boolean suspendHovered = false;
 
-    public ActiveModal getActiveModal() { return activeModal; }
+    public ActiveModal getActiveModal() {
+        return activeModal;
+    }
 
     public void openReview(AdminOverview.ModerationItem item) {
         this.currentItem = item;
@@ -163,11 +173,13 @@ public class AdminModals {
 
     public void openAddCategory() {
         this.inputName = "";
+        this.newItemInputFocused = true;
         this.activeModal = ActiveModal.ADD_CATEGORY;
     }
 
     public void openAddSkill() {
         this.inputName = "";
+        this.newItemInputFocused = true;
         this.activeModal = ActiveModal.ADD_SKILL;
     }
 
@@ -234,7 +246,8 @@ public class AdminModals {
     }
 
     public void paint(Graphics2D g, int viewW, int viewH) {
-        if (activeModal == ActiveModal.NONE) return;
+        if (activeModal == ActiveModal.NONE)
+            return;
 
         // Dark translucent backdrop
         g.setColor(new Color(15, 23, 42, 140));
@@ -242,7 +255,8 @@ public class AdminModals {
 
         switch (activeModal) {
             case REVIEW_REPORT:
-                if (currentItem != null) paintReviewModal(g, viewW, viewH);
+                if (currentItem != null)
+                    paintReviewModal(g, viewW, viewH);
                 break;
             case ALL_REPORTS:
                 paintAllReportsModal(g, viewW, viewH);
@@ -257,19 +271,22 @@ public class AdminModals {
                 paintAddSkillModal(g, viewW, viewH);
                 break;
             case USER_DETAILS:
-                if (selectedUser != null) paintUserDetailsModal(g, viewW, viewH);
+                if (selectedUser != null)
+                    paintUserDetailsModal(g, viewW, viewH);
                 break;
             case ADD_USER:
                 paintAddUserModal(g, viewW, viewH);
                 break;
             case PROJECT_DETAILS:
-                if (selectedProject != null) paintProjectDetailsModal(g, viewW, viewH);
+                if (selectedProject != null)
+                    paintProjectDetailsModal(g, viewW, viewH);
                 break;
             case ADD_PROJECT:
                 paintAddProjectModal(g, viewW, viewH);
                 break;
             case REVIEW_DETAILS:
-                if (selectedReview != null) paintReviewDetailsModal(g, viewW, viewH);
+                if (selectedReview != null)
+                    paintReviewDetailsModal(g, viewW, viewH);
                 break;
             case ADD_REVIEW:
                 paintAddReviewModal(g, viewW, viewH);
@@ -341,7 +358,8 @@ public class AdminModals {
         curY += 20;
         g.setFont(AdminTheme.FONT_REGULAR_12);
         g.setColor(AdminTheme.TEXT_MUTED);
-        g.drawString("Reported for policy violation or spam invite. Current status: " + currentItem.status + ".", modalX + 28, curY);
+        g.drawString("Reported for policy violation or spam invite. Current status: " + currentItem.status + ".",
+                modalX + 28, curY);
 
         // Action Buttons at bottom
         int btnY = modalY + modalH - 58;
@@ -349,7 +367,8 @@ public class AdminModals {
         // 1. Dismiss button
         dismissBtnX = modalX + 28;
         dismissBtnY = btnY;
-        RoundRectangle2D disShape = new RoundRectangle2D.Float(dismissBtnX, dismissBtnY, dismissBtnW, dismissBtnH, 8, 8);
+        RoundRectangle2D disShape = new RoundRectangle2D.Float(dismissBtnX, dismissBtnY, dismissBtnW, dismissBtnH, 8,
+                8);
         g.setColor(dismissHovered ? new Color(0xF1, 0xF5, 0xF9) : Color.WHITE);
         g.fill(disShape);
         g.setColor(AdminTheme.BORDER_COLOR);
@@ -373,7 +392,8 @@ public class AdminModals {
         // 3. Suspend button
         suspendBtnX = warnBtnX + warnBtnW + 12;
         suspendBtnY = btnY;
-        RoundRectangle2D susShape = new RoundRectangle2D.Float(suspendBtnX, suspendBtnY, suspendBtnW, suspendBtnH, 8, 8);
+        RoundRectangle2D susShape = new RoundRectangle2D.Float(suspendBtnX, suspendBtnY, suspendBtnW, suspendBtnH, 8,
+                8);
         g.setColor(suspendHovered ? new Color(0xDC, 0x26, 0x26) : AdminTheme.STATUS_RED_TEXT);
         g.fill(susShape);
         g.setFont(AdminTheme.FONT_BOLD_12);
@@ -410,14 +430,17 @@ public class AdminModals {
         roleModBtnX = roleMemberBtnX + roleChoiceW + 12;
         roleAdminBtnX = roleModBtnX + roleChoiceW + 12;
 
-        paintRoleOption(g, roleMemberBtnX, roleChoiceY, roleChoiceW, roleChoiceH, "Member", "Member".equals(selectedRole));
-        paintRoleOption(g, roleModBtnX, roleChoiceY, roleChoiceW, roleChoiceH, "Moderator", "Moderator".equals(selectedRole));
+        paintRoleOption(g, roleMemberBtnX, roleChoiceY, roleChoiceW, roleChoiceH, "Member",
+                "Member".equals(selectedRole));
+        paintRoleOption(g, roleModBtnX, roleChoiceY, roleChoiceW, roleChoiceH, "Moderator",
+                "Moderator".equals(selectedRole));
         paintRoleOption(g, roleAdminBtnX, roleChoiceY, roleChoiceW, roleChoiceH, "Admin", "Admin".equals(selectedRole));
 
         // Save Button
         saveRoleBtnX = modalX + modalW - saveRoleBtnW - 28;
         saveRoleBtnY = modalY + modalH - 56;
-        RoundRectangle2D sBtn = new RoundRectangle2D.Float(saveRoleBtnX, saveRoleBtnY, saveRoleBtnW, saveRoleBtnH, 8, 8);
+        RoundRectangle2D sBtn = new RoundRectangle2D.Float(saveRoleBtnX, saveRoleBtnY, saveRoleBtnW, saveRoleBtnH, 8,
+                8);
         g.setColor(saveRoleHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.BRAND_GREEN_DARK);
         g.fill(sBtn);
         g.setFont(AdminTheme.FONT_BOLD_12);
@@ -449,8 +472,8 @@ public class AdminModals {
     }
 
     private void paintAddCategoryModal(Graphics2D g, int viewW, int viewH) {
-        modalW = Math.min(460, viewW - 40);
-        modalH = 260;
+        modalW = Math.min(480, viewW - 40);
+        modalH = 280;
         modalX = (viewW - modalW) / 2;
         modalY = (viewH - modalH) / 2;
 
@@ -463,35 +486,72 @@ public class AdminModals {
 
         paintModalHeader(g, "Add Project Category");
 
-        int curY = modalY + 90;
-        g.setFont(AdminTheme.FONT_BOLD_12);
+        int curY = modalY + 84;
+        g.setFont(AdminTheme.FONT_BOLD_11);
         g.setColor(AdminTheme.TEXT_MAIN);
-        g.drawString("CATEGORY NAME", modalX + 28, curY);
+        g.drawString("CATEGORY NAME *", modalX + 28, curY);
 
-        RoundRectangle2D input = new RoundRectangle2D.Float(modalX + 28, curY + 10, modalW - 56, 36, 8, 8);
-        g.setColor(AdminTheme.BG_CANVAS);
+        newItemInputX = modalX + 28;
+        newItemInputY = curY + 8;
+        newItemInputW = modalW - 56;
+        newItemInputH = 38;
+
+        RoundRectangle2D input = new RoundRectangle2D.Float(newItemInputX, newItemInputY, newItemInputW, newItemInputH,
+                8, 8);
+        g.setColor(newItemInputFocused ? Color.WHITE : new Color(0xF8, 0xFA, 0xFC));
         g.fill(input);
-        g.setColor(AdminTheme.BORDER_COLOR);
+        g.setColor(newItemInputFocused ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.BORDER_COLOR);
+        g.setStroke(new BasicStroke(newItemInputFocused ? 1.6f : 1.0f));
         g.draw(input);
 
         g.setFont(AdminTheme.FONT_REGULAR_13);
-        g.setColor(AdminTheme.TEXT_MAIN);
-        g.drawString(inputName.isEmpty() ? "e.g. Mobile Apps, Bioengineering..." : inputName, modalX + 40, curY + 34);
+        if (inputName.isEmpty()) {
+            g.setColor(AdminTheme.TEXT_LIGHT);
+            g.drawString("e.g. Mobile Apps, Bioengineering, FinTech...", newItemInputX + 12, newItemInputY + 24);
+        } else {
+            g.setColor(AdminTheme.TEXT_MAIN);
+            g.drawString(inputName, newItemInputX + 12, newItemInputY + 24);
+        }
 
-        // Save
-        saveNewItemBtnX = modalX + modalW - saveNewItemBtnW - 28;
-        saveNewItemBtnY = modalY + modalH - 56;
-        RoundRectangle2D sBtn = new RoundRectangle2D.Float(saveNewItemBtnX, saveNewItemBtnY, saveNewItemBtnW, saveNewItemBtnH, 8, 8);
-        g.setColor(saveNewItemHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.BRAND_GREEN_DARK);
-        g.fill(sBtn);
-        g.setFont(AdminTheme.FONT_BOLD_12);
-        g.setColor(Color.WHITE);
-        g.drawString("Create Category", saveNewItemBtnX + 14, saveNewItemBtnY + 22);
+        // Blinking cursor if focused
+        if (newItemInputFocused && (System.currentTimeMillis() % 1000 < 500)) {
+            FontMetrics fm = g.getFontMetrics();
+            int cursorX = newItemInputX + 12 + (inputName.isEmpty() ? 0 : fm.stringWidth(inputName));
+            g.setColor(AdminTheme.BRAND_GREEN_DARK);
+            g.drawLine(cursorX, newItemInputY + 9, cursorX, newItemInputY + 29);
+        }
+
+        // Helper guidance note
+        curY += 56;
+        g.setFont(AdminTheme.FONT_REGULAR_11);
+        g.setColor(AdminTheme.TEXT_MUTED);
+        g.drawString("✓ New category will be active immediately for student projects and filters.", modalX + 28,
+                curY + 6);
+        g.drawString("✓ Press Enter or click 'Create Category' to save.", modalX + 28, curY + 22);
+
+        // Bottom Action buttons
+        int btnY = modalY + modalH - 54;
+
+        cancelNewItemBtnW = 96;
+        cancelNewItemBtnH = 36;
+        cancelNewItemBtnX = modalX + 28;
+        cancelNewItemBtnY = btnY;
+        paintModalBtn(g, cancelNewItemBtnX, cancelNewItemBtnY, cancelNewItemBtnW, cancelNewItemBtnH, "Cancel",
+                cancelNewItemHovered ? new Color(0xF1, 0xF5, 0xF9) : Color.WHITE,
+                AdminTheme.BORDER_COLOR, AdminTheme.TEXT_MUTED);
+
+        saveNewItemBtnW = 140;
+        saveNewItemBtnH = 36;
+        saveNewItemBtnX = modalX + modalW - 28 - saveNewItemBtnW;
+        saveNewItemBtnY = btnY;
+        paintModalBtn(g, saveNewItemBtnX, saveNewItemBtnY, saveNewItemBtnW, saveNewItemBtnH, "Create Category",
+                saveNewItemHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.BRAND_GREEN_DARK,
+                AdminTheme.BRAND_GREEN_DARK, Color.WHITE);
     }
 
     private void paintAddSkillModal(Graphics2D g, int viewW, int viewH) {
-        modalW = Math.min(460, viewW - 40);
-        modalH = 260;
+        modalW = Math.min(480, viewW - 40);
+        modalH = 280;
         modalX = (viewW - modalW) / 2;
         modalY = (viewH - modalH) / 2;
 
@@ -504,30 +564,67 @@ public class AdminModals {
 
         paintModalHeader(g, "Add Skill Tag");
 
-        int curY = modalY + 90;
-        g.setFont(AdminTheme.FONT_BOLD_12);
+        int curY = modalY + 84;
+        g.setFont(AdminTheme.FONT_BOLD_11);
         g.setColor(AdminTheme.TEXT_MAIN);
-        g.drawString("SKILL NAME", modalX + 28, curY);
+        g.drawString("SKILL NAME *", modalX + 28, curY);
 
-        RoundRectangle2D input = new RoundRectangle2D.Float(modalX + 28, curY + 10, modalW - 56, 36, 8, 8);
-        g.setColor(AdminTheme.BG_CANVAS);
+        newItemInputX = modalX + 28;
+        newItemInputY = curY + 8;
+        newItemInputW = modalW - 56;
+        newItemInputH = 38;
+
+        RoundRectangle2D input = new RoundRectangle2D.Float(newItemInputX, newItemInputY, newItemInputW, newItemInputH,
+                8, 8);
+        g.setColor(newItemInputFocused ? Color.WHITE : new Color(0xF8, 0xFA, 0xFC));
         g.fill(input);
-        g.setColor(AdminTheme.BORDER_COLOR);
+        g.setColor(newItemInputFocused ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.BORDER_COLOR);
+        g.setStroke(new BasicStroke(newItemInputFocused ? 1.6f : 1.0f));
         g.draw(input);
 
         g.setFont(AdminTheme.FONT_REGULAR_13);
-        g.setColor(AdminTheme.TEXT_MAIN);
-        g.drawString(inputName.isEmpty() ? "e.g. Python, Figma, Docker..." : inputName, modalX + 40, curY + 34);
+        if (inputName.isEmpty()) {
+            g.setColor(AdminTheme.TEXT_LIGHT);
+            g.drawString("e.g. Python, Figma, Docker, PyTorch...", newItemInputX + 12, newItemInputY + 24);
+        } else {
+            g.setColor(AdminTheme.TEXT_MAIN);
+            g.drawString(inputName, newItemInputX + 12, newItemInputY + 24);
+        }
 
-        // Save
-        saveNewItemBtnX = modalX + modalW - saveNewItemBtnW - 28;
-        saveNewItemBtnY = modalY + modalH - 56;
-        RoundRectangle2D sBtn = new RoundRectangle2D.Float(saveNewItemBtnX, saveNewItemBtnY, saveNewItemBtnW, saveNewItemBtnH, 8, 8);
-        g.setColor(saveNewItemHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.BRAND_GREEN_DARK);
-        g.fill(sBtn);
-        g.setFont(AdminTheme.FONT_BOLD_12);
-        g.setColor(Color.WHITE);
-        g.drawString("Create Skill", saveNewItemBtnX + 24, saveNewItemBtnY + 22);
+        // Blinking cursor if focused
+        if (newItemInputFocused && (System.currentTimeMillis() % 1000 < 500)) {
+            FontMetrics fm = g.getFontMetrics();
+            int cursorX = newItemInputX + 12 + (inputName.isEmpty() ? 0 : fm.stringWidth(inputName));
+            g.setColor(AdminTheme.BRAND_GREEN_DARK);
+            g.drawLine(cursorX, newItemInputY + 9, cursorX, newItemInputY + 29);
+        }
+
+        // Helper guidance note
+        curY += 56;
+        g.setFont(AdminTheme.FONT_REGULAR_11);
+        g.setColor(AdminTheme.TEXT_MUTED);
+        g.drawString("✓ Skill will be immediately available for student profiles and team matching.", modalX + 28,
+                curY + 6);
+        g.drawString("✓ Press Enter or click 'Create Skill' to save.", modalX + 28, curY + 22);
+
+        // Bottom Action buttons
+        int btnY = modalY + modalH - 54;
+
+        cancelNewItemBtnW = 96;
+        cancelNewItemBtnH = 36;
+        cancelNewItemBtnX = modalX + 28;
+        cancelNewItemBtnY = btnY;
+        paintModalBtn(g, cancelNewItemBtnX, cancelNewItemBtnY, cancelNewItemBtnW, cancelNewItemBtnH, "Cancel",
+                cancelNewItemHovered ? new Color(0xF1, 0xF5, 0xF9) : Color.WHITE,
+                AdminTheme.BORDER_COLOR, AdminTheme.TEXT_MUTED);
+
+        saveNewItemBtnW = 126;
+        saveNewItemBtnH = 36;
+        saveNewItemBtnX = modalX + modalW - 28 - saveNewItemBtnW;
+        saveNewItemBtnY = btnY;
+        paintModalBtn(g, saveNewItemBtnX, saveNewItemBtnY, saveNewItemBtnW, saveNewItemBtnH, "Create Skill",
+                saveNewItemHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.BRAND_GREEN_DARK,
+                AdminTheme.BRAND_GREEN_DARK, Color.WHITE);
     }
 
     private void paintAllReportsModal(Graphics2D g, int viewW, int viewH) {
@@ -628,7 +725,8 @@ public class AdminModals {
         g.drawString(selectedUser.status, badgeRight + 10, curY + 43);
 
         // Role pill
-        int roleW = "Admin".equalsIgnoreCase(selectedUser.role) ? 54 : ("Moderator".equalsIgnoreCase(selectedUser.role) ? 72 : 60);
+        int roleW = "Admin".equalsIgnoreCase(selectedUser.role) ? 54
+                : ("Moderator".equalsIgnoreCase(selectedUser.role) ? 72 : 60);
         badgeRight -= (roleW + 8);
         RoundRectangle2D rPill = new RoundRectangle2D.Float(badgeRight, curY + 28, roleW, 22, 11, 11);
         g.setColor(new Color(0xE0, 0xF2, 0xFE));
@@ -653,7 +751,8 @@ public class AdminModals {
         // Card 3: University
         paintDetailMiniCard(g, modalX + 24, curY, cardW, cardH, "ORGANIZATION", "University of Washington");
         // Card 4: Trust
-        paintDetailMiniCard(g, modalX + 24 + cardW + 14, curY, cardW, cardH, "SECURITY ACCESS", "✓ Verified NetID · 2FA Active");
+        paintDetailMiniCard(g, modalX + 24 + cardW + 14, curY, cardW, cardH, "SECURITY ACCESS",
+                "✓ Verified NetID · 2FA Active");
 
         curY += cardH + 14;
 
@@ -666,7 +765,8 @@ public class AdminModals {
 
         g.setFont(AdminTheme.FONT_REGULAR_11);
         g.setColor(AdminTheme.TEXT_MUTED);
-        g.drawString("Engagement: 3 Projects Active · 28 Sprint Tasks Completed · 0 Policy Flags", modalX + 38, curY + 25);
+        g.drawString("Engagement: 3 Projects Active · 28 Sprint Tasks Completed · 0 Policy Flags", modalX + 38,
+                curY + 25);
 
         // Bottom Action buttons
         int btnY = modalY + modalH - 56;
@@ -677,13 +777,16 @@ public class AdminModals {
         userModalSuspendBtnX = curBtnX;
         userModalSuspendBtnY = btnY;
         userModalSuspendBtnW = isActive ? 130 : 140;
-        RoundRectangle2D susB = new RoundRectangle2D.Float(userModalSuspendBtnX, userModalSuspendBtnY, userModalSuspendBtnW, userModalSuspendBtnH, 8, 8);
-        g.setColor(userModalSuspendHovered ? (isActive ? new Color(0xFE, 0xE2, 0xE2) : new Color(0xDC, 0xFC, 0xE7)) : Color.WHITE);
+        RoundRectangle2D susB = new RoundRectangle2D.Float(userModalSuspendBtnX, userModalSuspendBtnY,
+                userModalSuspendBtnW, userModalSuspendBtnH, 8, 8);
+        g.setColor(userModalSuspendHovered ? (isActive ? new Color(0xFE, 0xE2, 0xE2) : new Color(0xDC, 0xFC, 0xE7))
+                : Color.WHITE);
         g.fill(susB);
         g.setColor(isActive ? new Color(0xEF, 0x44, 0x44) : AdminTheme.BRAND_GREEN_DARK);
         g.draw(susB);
         g.setFont(AdminTheme.FONT_BOLD_11);
-        g.drawString(isActive ? "Suspend User" : "Reactivate User", userModalSuspendBtnX + 16, userModalSuspendBtnY + 22);
+        g.drawString(isActive ? "Suspend User" : "Reactivate User", userModalSuspendBtnX + 16,
+                userModalSuspendBtnY + 22);
 
         curBtnX += userModalSuspendBtnW + btnSpacing;
 
@@ -691,7 +794,8 @@ public class AdminModals {
         userModalRoleBtnX = curBtnX;
         userModalRoleBtnY = btnY;
         userModalRoleBtnW = 100;
-        RoundRectangle2D rolB = new RoundRectangle2D.Float(userModalRoleBtnX, userModalRoleBtnY, userModalRoleBtnW, userModalRoleBtnH, 8, 8);
+        RoundRectangle2D rolB = new RoundRectangle2D.Float(userModalRoleBtnX, userModalRoleBtnY, userModalRoleBtnW,
+                userModalRoleBtnH, 8, 8);
         g.setColor(userModalRoleHovered ? new Color(0xF1, 0xF5, 0xF9) : Color.WHITE);
         g.fill(rolB);
         g.setColor(AdminTheme.BORDER_COLOR);
@@ -706,7 +810,8 @@ public class AdminModals {
         userModalDeleteBtnX = curBtnX;
         userModalDeleteBtnY = btnY;
         userModalDeleteBtnW = 100;
-        RoundRectangle2D delB = new RoundRectangle2D.Float(userModalDeleteBtnX, userModalDeleteBtnY, userModalDeleteBtnW, userModalDeleteBtnH, 8, 8);
+        RoundRectangle2D delB = new RoundRectangle2D.Float(userModalDeleteBtnX, userModalDeleteBtnY,
+                userModalDeleteBtnW, userModalDeleteBtnH, 8, 8);
         g.setColor(userModalDeleteHovered ? new Color(0xFE, 0xF2, 0xF2) : Color.WHITE);
         g.fill(delB);
         g.setColor(new Color(0xFC, 0xA5, 0xA5));
@@ -718,7 +823,8 @@ public class AdminModals {
         // Close on far right
         userModalCloseBtnX = modalX + modalW - 24 - userModalCloseBtnW;
         userModalCloseBtnY = btnY;
-        RoundRectangle2D clsB = new RoundRectangle2D.Float(userModalCloseBtnX, userModalCloseBtnY, userModalCloseBtnW, userModalCloseBtnH, 8, 8);
+        RoundRectangle2D clsB = new RoundRectangle2D.Float(userModalCloseBtnX, userModalCloseBtnY, userModalCloseBtnW,
+                userModalCloseBtnH, 8, 8);
         g.setColor(userModalCloseHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.BRAND_GREEN_DARK);
         g.fill(clsB);
         g.setFont(AdminTheme.FONT_BOLD_11);
@@ -767,7 +873,8 @@ public class AdminModals {
         newUserNameInputX = modalX + 28;
         newUserNameInputY = curY + 8;
         newUserNameInputW = modalW - 56;
-        RoundRectangle2D nameInput = new RoundRectangle2D.Float(newUserNameInputX, newUserNameInputY, newUserNameInputW, newUserNameInputH, 8, 8);
+        RoundRectangle2D nameInput = new RoundRectangle2D.Float(newUserNameInputX, newUserNameInputY, newUserNameInputW,
+                newUserNameInputH, 8, 8);
         g.setColor(activeUserField == 0 ? Color.WHITE : new Color(0xF8, 0xFA, 0xFC));
         g.fill(nameInput);
         g.setColor(activeUserField == 0 ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.BORDER_COLOR);
@@ -780,7 +887,8 @@ public class AdminModals {
             g.drawString("e.g. Maya Lin", newUserNameInputX + 12, newUserNameInputY + 23);
         } else {
             g.setColor(AdminTheme.TEXT_MAIN);
-            g.drawString(newUserName + (activeUserField == 0 && (System.currentTimeMillis() % 1000 < 500) ? "|" : ""), newUserNameInputX + 12, newUserNameInputY + 23);
+            g.drawString(newUserName + (activeUserField == 0 && (System.currentTimeMillis() % 1000 < 500) ? "|" : ""),
+                    newUserNameInputX + 12, newUserNameInputY + 23);
         }
 
         curY += 66;
@@ -793,7 +901,8 @@ public class AdminModals {
         newUserEmailInputX = modalX + 28;
         newUserEmailInputY = curY + 8;
         newUserEmailInputW = modalW - 56;
-        RoundRectangle2D emailInput = new RoundRectangle2D.Float(newUserEmailInputX, newUserEmailInputY, newUserEmailInputW, newUserEmailInputH, 8, 8);
+        RoundRectangle2D emailInput = new RoundRectangle2D.Float(newUserEmailInputX, newUserEmailInputY,
+                newUserEmailInputW, newUserEmailInputH, 8, 8);
         g.setColor(activeUserField == 1 ? Color.WHITE : new Color(0xF8, 0xFA, 0xFC));
         g.fill(emailInput);
         g.setColor(activeUserField == 1 ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.BORDER_COLOR);
@@ -805,7 +914,8 @@ public class AdminModals {
             g.drawString("e.g. maya.lin@uw.edu", newUserEmailInputX + 12, newUserEmailInputY + 23);
         } else {
             g.setColor(AdminTheme.TEXT_MAIN);
-            g.drawString(newUserEmail + (activeUserField == 1 && (System.currentTimeMillis() % 1000 < 500) ? "|" : ""), newUserEmailInputX + 12, newUserEmailInputY + 23);
+            g.drawString(newUserEmail + (activeUserField == 1 && (System.currentTimeMillis() % 1000 < 500) ? "|" : ""),
+                    newUserEmailInputX + 12, newUserEmailInputY + 23);
         }
 
         curY += 66;
@@ -820,9 +930,12 @@ public class AdminModals {
         newUserModBtnX = newUserMemberBtnX + newUserRoleW + 10;
         newUserAdminBtnX = newUserModBtnX + newUserRoleW + 10;
 
-        paintRoleOption(g, newUserMemberBtnX, newUserRoleY, newUserRoleW, newUserRoleH, "Member", "Member".equalsIgnoreCase(newUserRole));
-        paintRoleOption(g, newUserModBtnX, newUserRoleY, newUserRoleW, newUserRoleH, "Moderator", "Moderator".equalsIgnoreCase(newUserRole));
-        paintRoleOption(g, newUserAdminBtnX, newUserRoleY, newUserRoleW, newUserRoleH, "Admin", "Admin".equalsIgnoreCase(newUserRole));
+        paintRoleOption(g, newUserMemberBtnX, newUserRoleY, newUserRoleW, newUserRoleH, "Member",
+                "Member".equalsIgnoreCase(newUserRole));
+        paintRoleOption(g, newUserModBtnX, newUserRoleY, newUserRoleW, newUserRoleH, "Moderator",
+                "Moderator".equalsIgnoreCase(newUserRole));
+        paintRoleOption(g, newUserAdminBtnX, newUserRoleY, newUserRoleW, newUserRoleH, "Admin",
+                "Admin".equalsIgnoreCase(newUserRole));
 
         // Bottom buttons
         int btnY = modalY + modalH - 56;
@@ -830,7 +943,8 @@ public class AdminModals {
         // Cancel button
         cancelNewUserBtnX = modalX + 28;
         cancelNewUserBtnY = btnY;
-        RoundRectangle2D cBtn = new RoundRectangle2D.Float(cancelNewUserBtnX, cancelNewUserBtnY, cancelNewUserBtnW, cancelNewUserBtnH, 8, 8);
+        RoundRectangle2D cBtn = new RoundRectangle2D.Float(cancelNewUserBtnX, cancelNewUserBtnY, cancelNewUserBtnW,
+                cancelNewUserBtnH, 8, 8);
         g.setColor(cancelNewUserHovered ? new Color(0xF1, 0xF5, 0xF9) : Color.WHITE);
         g.fill(cBtn);
         g.setColor(AdminTheme.BORDER_COLOR);
@@ -842,7 +956,8 @@ public class AdminModals {
         // Create Member button
         saveNewUserBtnX = modalX + modalW - 28 - saveNewUserBtnW;
         saveNewUserBtnY = btnY;
-        RoundRectangle2D sBtn = new RoundRectangle2D.Float(saveNewUserBtnX, saveNewUserBtnY, saveNewUserBtnW, saveNewUserBtnH, 8, 8);
+        RoundRectangle2D sBtn = new RoundRectangle2D.Float(saveNewUserBtnX, saveNewUserBtnY, saveNewUserBtnW,
+                saveNewUserBtnH, 8, 8);
         g.setColor(saveNewUserHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.BRAND_GREEN_DARK);
         g.fill(sBtn);
         g.setFont(AdminTheme.FONT_BOLD_11);
@@ -910,7 +1025,8 @@ public class AdminModals {
         }
         g.setFont(AdminTheme.FONT_BOLD_10);
         FontMetrics sfm = g.getFontMetrics();
-        g.drawString(selectedProject.status, statusX + (statusW - sfm.stringWidth(selectedProject.status)) / 2, curY + 20);
+        g.drawString(selectedProject.status, statusX + (statusW - sfm.stringWidth(selectedProject.status)) / 2,
+                curY + 20);
 
         curY += 46;
 
@@ -924,7 +1040,8 @@ public class AdminModals {
         curY += cardH + 10;
 
         paintDetailMiniCard(g, modalX + 28, curY, cardW, cardH, "PROJECT OWNER", selectedProject.owner);
-        paintDetailMiniCard(g, modalX + 28 + cardW + 14, curY, cardW, cardH, "TEAM FILL RATIO", selectedProject.teamSize + " members");
+        paintDetailMiniCard(g, modalX + 28 + cardW + 14, curY, cardW, cardH, "TEAM FILL RATIO",
+                selectedProject.teamSize + " members");
 
         curY += cardH + 12;
 
@@ -941,9 +1058,11 @@ public class AdminModals {
 
         g.setFont(AdminTheme.FONT_REGULAR_12);
         g.setColor(AdminTheme.TEXT_MAIN);
-        String desc = (selectedProject.description == null || selectedProject.description.isEmpty()) ?
-                "No description provided for this project." : selectedProject.description;
-        if (desc.length() > 75) desc = desc.substring(0, 72) + "...";
+        String desc = (selectedProject.description == null || selectedProject.description.isEmpty())
+                ? "No description provided for this project."
+                : selectedProject.description;
+        if (desc.length() > 75)
+            desc = desc.substring(0, 72) + "...";
         g.drawString(desc, modalX + 40, curY + 44);
 
         // Bottom Action buttons
@@ -956,7 +1075,8 @@ public class AdminModals {
             projModalApproveBtnX = curBtnX;
             projModalApproveBtnY = btnY;
             projModalApproveBtnW = 148;
-            RoundRectangle2D appB = new RoundRectangle2D.Float(projModalApproveBtnX, projModalApproveBtnY, projModalApproveBtnW, projModalApproveBtnH, 8, 8);
+            RoundRectangle2D appB = new RoundRectangle2D.Float(projModalApproveBtnX, projModalApproveBtnY,
+                    projModalApproveBtnW, projModalApproveBtnH, 8, 8);
             g.setColor(projModalApproveHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.BRAND_GREEN_DARK);
             g.fill(appB);
             g.setFont(AdminTheme.FONT_BOLD_11);
@@ -970,7 +1090,8 @@ public class AdminModals {
             projModalStatusBtnX = curBtnX;
             projModalStatusBtnY = btnY;
             projModalStatusBtnW = 136;
-            RoundRectangle2D stB = new RoundRectangle2D.Float(projModalStatusBtnX, projModalStatusBtnY, projModalStatusBtnW, projModalStatusBtnH, 8, 8);
+            RoundRectangle2D stB = new RoundRectangle2D.Float(projModalStatusBtnX, projModalStatusBtnY,
+                    projModalStatusBtnW, projModalStatusBtnH, 8, 8);
             g.setColor(projModalStatusHovered ? new Color(0xF1, 0xF5, 0xF9) : Color.WHITE);
             g.fill(stB);
             g.setColor(AdminTheme.BORDER_COLOR);
@@ -987,7 +1108,8 @@ public class AdminModals {
         projModalDeleteBtnX = curBtnX;
         projModalDeleteBtnY = btnY;
         projModalDeleteBtnW = 106;
-        RoundRectangle2D delB = new RoundRectangle2D.Float(projModalDeleteBtnX, projModalDeleteBtnY, projModalDeleteBtnW, projModalDeleteBtnH, 8, 8);
+        RoundRectangle2D delB = new RoundRectangle2D.Float(projModalDeleteBtnX, projModalDeleteBtnY,
+                projModalDeleteBtnW, projModalDeleteBtnH, 8, 8);
         g.setColor(projModalDeleteHovered ? new Color(0xFE, 0xF2, 0xF2) : Color.WHITE);
         g.fill(delB);
         g.setColor(new Color(0xFC, 0xA5, 0xA5));
@@ -999,7 +1121,8 @@ public class AdminModals {
         // Close on far right
         projModalCloseBtnX = modalX + modalW - 28 - projModalCloseBtnW;
         projModalCloseBtnY = btnY;
-        RoundRectangle2D clsB = new RoundRectangle2D.Float(projModalCloseBtnX, projModalCloseBtnY, projModalCloseBtnW, projModalCloseBtnH, 8, 8);
+        RoundRectangle2D clsB = new RoundRectangle2D.Float(projModalCloseBtnX, projModalCloseBtnY, projModalCloseBtnW,
+                projModalCloseBtnH, 8, 8);
         g.setColor(projModalCloseHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.BRAND_GREEN_DARK);
         g.fill(clsB);
         g.setFont(AdminTheme.FONT_BOLD_11);
@@ -1032,7 +1155,8 @@ public class AdminModals {
         newProjectNameInputX = modalX + 28;
         newProjectNameInputY = curY + 6;
         newProjectNameInputW = modalW - 56;
-        RoundRectangle2D nameInput = new RoundRectangle2D.Float(newProjectNameInputX, newProjectNameInputY, newProjectNameInputW, newProjectNameInputH, 8, 8);
+        RoundRectangle2D nameInput = new RoundRectangle2D.Float(newProjectNameInputX, newProjectNameInputY,
+                newProjectNameInputW, newProjectNameInputH, 8, 8);
         g.setColor(activeProjectField == 0 ? Color.WHITE : new Color(0xF8, 0xFA, 0xFC));
         g.fill(nameInput);
         g.setColor(activeProjectField == 0 ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.BORDER_COLOR);
@@ -1044,7 +1168,9 @@ public class AdminModals {
             g.drawString("e.g. Autonomous Campus Delivery Rover", newProjectNameInputX + 12, newProjectNameInputY + 22);
         } else {
             g.setColor(AdminTheme.TEXT_MAIN);
-            g.drawString(newProjectName + (activeProjectField == 0 && (System.currentTimeMillis() % 1000 < 500) ? "|" : ""), newProjectNameInputX + 12, newProjectNameInputY + 22);
+            g.drawString(
+                    newProjectName + (activeProjectField == 0 && (System.currentTimeMillis() % 1000 < 500) ? "|" : ""),
+                    newProjectNameInputX + 12, newProjectNameInputY + 22);
         }
 
         curY += 56;
@@ -1063,7 +1189,8 @@ public class AdminModals {
             g.setFont(AdminTheme.FONT_BOLD_10);
             FontMetrics cfm = g.getFontMetrics();
             int cpW = cfm.stringWidth(c.name) + 18;
-            if (catX + cpW > modalX + modalW - 28) break; // stay within modal
+            if (catX + cpW > modalX + modalW - 28)
+                break; // stay within modal
 
             CatChoiceBox cb = new CatChoiceBox();
             cb.name = c.name;
@@ -1104,7 +1231,8 @@ public class AdminModals {
         newProjectOwnerInputX = modalX + 28;
         newProjectOwnerInputY = curY;
         newProjectOwnerInputW = colW;
-        RoundRectangle2D ownBox = new RoundRectangle2D.Float(newProjectOwnerInputX, newProjectOwnerInputY, newProjectOwnerInputW, newProjectOwnerInputH, 8, 8);
+        RoundRectangle2D ownBox = new RoundRectangle2D.Float(newProjectOwnerInputX, newProjectOwnerInputY,
+                newProjectOwnerInputW, newProjectOwnerInputH, 8, 8);
         g.setColor(activeProjectField == 1 ? Color.WHITE : new Color(0xF8, 0xFA, 0xFC));
         g.fill(ownBox);
         g.setColor(activeProjectField == 1 ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.BORDER_COLOR);
@@ -1112,18 +1240,23 @@ public class AdminModals {
 
         g.setFont(AdminTheme.FONT_REGULAR_13);
         g.setColor(AdminTheme.TEXT_MAIN);
-        g.drawString(newProjectOwner + (activeProjectField == 1 && (System.currentTimeMillis() % 1000 < 500) ? "|" : ""), newProjectOwnerInputX + 12, newProjectOwnerInputY + 22);
+        g.drawString(
+                newProjectOwner + (activeProjectField == 1 && (System.currentTimeMillis() % 1000 < 500) ? "|" : ""),
+                newProjectOwnerInputX + 12, newProjectOwnerInputY + 22);
 
         newProjectSizeInputX = modalX + 28 + colW + 14;
         newProjectSizeInputY = curY;
         newProjectSizeInputW = colW;
-        RoundRectangle2D sizeBox = new RoundRectangle2D.Float(newProjectSizeInputX, newProjectSizeInputY, newProjectSizeInputW, newProjectSizeInputH, 8, 8);
+        RoundRectangle2D sizeBox = new RoundRectangle2D.Float(newProjectSizeInputX, newProjectSizeInputY,
+                newProjectSizeInputW, newProjectSizeInputH, 8, 8);
         g.setColor(activeProjectField == 2 ? Color.WHITE : new Color(0xF8, 0xFA, 0xFC));
         g.fill(sizeBox);
         g.setColor(activeProjectField == 2 ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.BORDER_COLOR);
         g.draw(sizeBox);
 
-        g.drawString(newProjectTeamSize + (activeProjectField == 2 && (System.currentTimeMillis() % 1000 < 500) ? "|" : ""), newProjectSizeInputX + 12, newProjectSizeInputY + 22);
+        g.drawString(
+                newProjectTeamSize + (activeProjectField == 2 && (System.currentTimeMillis() % 1000 < 500) ? "|" : ""),
+                newProjectSizeInputX + 12, newProjectSizeInputY + 22);
 
         curY += 52;
 
@@ -1138,9 +1271,12 @@ public class AdminModals {
         addProjStatusRecruitingX = addProjStatusActiveX + addProjStatusW + 8;
         addProjStatusReviewX = addProjStatusRecruitingX + addProjStatusW + 8;
 
-        paintStatusChoice(g, addProjStatusActiveX, addProjStatusY, addProjStatusW, addProjStatusH, "Active", "Active".equalsIgnoreCase(newProjectStatus));
-        paintStatusChoice(g, addProjStatusRecruitingX, addProjStatusY, addProjStatusW, addProjStatusH, "Recruiting", "Recruiting".equalsIgnoreCase(newProjectStatus));
-        paintStatusChoice(g, addProjStatusReviewX, addProjStatusY, addProjStatusW, addProjStatusH, "Under review", "Under review".equalsIgnoreCase(newProjectStatus));
+        paintStatusChoice(g, addProjStatusActiveX, addProjStatusY, addProjStatusW, addProjStatusH, "Active",
+                "Active".equalsIgnoreCase(newProjectStatus));
+        paintStatusChoice(g, addProjStatusRecruitingX, addProjStatusY, addProjStatusW, addProjStatusH, "Recruiting",
+                "Recruiting".equalsIgnoreCase(newProjectStatus));
+        paintStatusChoice(g, addProjStatusReviewX, addProjStatusY, addProjStatusW, addProjStatusH, "Under review",
+                "Under review".equalsIgnoreCase(newProjectStatus));
 
         curY += 46;
 
@@ -1153,7 +1289,8 @@ public class AdminModals {
         newProjectDescInputX = modalX + 28;
         newProjectDescInputY = curY;
         newProjectDescInputW = modalW - 56;
-        RoundRectangle2D descInput = new RoundRectangle2D.Float(newProjectDescInputX, newProjectDescInputY, newProjectDescInputW, newProjectDescInputH, 8, 8);
+        RoundRectangle2D descInput = new RoundRectangle2D.Float(newProjectDescInputX, newProjectDescInputY,
+                newProjectDescInputW, newProjectDescInputH, 8, 8);
         g.setColor(activeProjectField == 3 ? Color.WHITE : new Color(0xF8, 0xFA, 0xFC));
         g.fill(descInput);
         g.setColor(activeProjectField == 3 ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.BORDER_COLOR);
@@ -1162,10 +1299,13 @@ public class AdminModals {
         g.setFont(AdminTheme.FONT_REGULAR_12);
         if (newProjectDesc.isEmpty() && activeProjectField != 3) {
             g.setColor(AdminTheme.TEXT_LIGHT);
-            g.drawString("Summary of project goals, mission, and required qualifications...", newProjectDescInputX + 12, newProjectDescInputY + 26);
+            g.drawString("Summary of project goals, mission, and required qualifications...", newProjectDescInputX + 12,
+                    newProjectDescInputY + 26);
         } else {
             g.setColor(AdminTheme.TEXT_MAIN);
-            g.drawString(newProjectDesc + (activeProjectField == 3 && (System.currentTimeMillis() % 1000 < 500) ? "|" : ""), newProjectDescInputX + 12, newProjectDescInputY + 26);
+            g.drawString(
+                    newProjectDesc + (activeProjectField == 3 && (System.currentTimeMillis() % 1000 < 500) ? "|" : ""),
+                    newProjectDescInputX + 12, newProjectDescInputY + 26);
         }
 
         // Bottom buttons
@@ -1173,7 +1313,8 @@ public class AdminModals {
 
         cancelNewProjectBtnX = modalX + 28;
         cancelNewProjectBtnY = btnY;
-        RoundRectangle2D cBtn = new RoundRectangle2D.Float(cancelNewProjectBtnX, cancelNewProjectBtnY, cancelNewProjectBtnW, cancelNewProjectBtnH, 8, 8);
+        RoundRectangle2D cBtn = new RoundRectangle2D.Float(cancelNewProjectBtnX, cancelNewProjectBtnY,
+                cancelNewProjectBtnW, cancelNewProjectBtnH, 8, 8);
         g.setColor(cancelNewProjectHovered ? new Color(0xF1, 0xF5, 0xF9) : Color.WHITE);
         g.fill(cBtn);
         g.setColor(AdminTheme.BORDER_COLOR);
@@ -1184,7 +1325,8 @@ public class AdminModals {
 
         saveNewProjectBtnX = modalX + modalW - 28 - saveNewProjectBtnW;
         saveNewProjectBtnY = btnY;
-        RoundRectangle2D svBtn = new RoundRectangle2D.Float(saveNewProjectBtnX, saveNewProjectBtnY, saveNewProjectBtnW, saveNewProjectBtnH, 8, 8);
+        RoundRectangle2D svBtn = new RoundRectangle2D.Float(saveNewProjectBtnX, saveNewProjectBtnY, saveNewProjectBtnW,
+                saveNewProjectBtnH, 8, 8);
         g.setColor(saveNewProjectHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.BRAND_GREEN_DARK);
         g.fill(svBtn);
         g.setFont(AdminTheme.FONT_BOLD_11);
@@ -1194,7 +1336,8 @@ public class AdminModals {
 
     private void paintReviewDetailsModal(Graphics2D g, int viewW, int viewH) {
         modalW = Math.min(560, viewW - 40);
-        boolean isReported = "Reported".equalsIgnoreCase(selectedReview.status) || "Under review".equalsIgnoreCase(selectedReview.status);
+        boolean isReported = "Reported".equalsIgnoreCase(selectedReview.status)
+                || "Under review".equalsIgnoreCase(selectedReview.status);
         modalH = isReported ? 450 : 390;
         modalX = (viewW - modalW) / 2;
         modalY = (viewH - modalH) / 2;
@@ -1259,8 +1402,10 @@ public class AdminModals {
         int miniCardW = (modalW - 56 - 14) / 2;
         int miniCardH = 56;
 
-        paintDetailMiniCard(g, modalX + 28, curY, miniCardW, miniCardH, "REVIEWER", selectedReview.reviewerName + " (" + (selectedReview.roleOrContext != null ? selectedReview.roleOrContext : "Member") + ")");
-        paintDetailMiniCard(g, modalX + 28 + miniCardW + 14, curY, miniCardW, miniCardH, "TARGET & PROJECT", selectedReview.revieweeName + " · " + selectedReview.projectName);
+        paintDetailMiniCard(g, modalX + 28, curY, miniCardW, miniCardH, "REVIEWER", selectedReview.reviewerName + " ("
+                + (selectedReview.roleOrContext != null ? selectedReview.roleOrContext : "Member") + ")");
+        paintDetailMiniCard(g, modalX + 28 + miniCardW + 14, curY, miniCardW, miniCardH, "TARGET & PROJECT",
+                selectedReview.revieweeName + " · " + selectedReview.projectName);
 
         curY += miniCardH + 14;
 
@@ -1280,10 +1425,12 @@ public class AdminModals {
         g.setFont(AdminTheme.FONT_REGULAR_12);
         g.setColor(AdminTheme.TEXT_MAIN);
         String txt = (selectedReview.reviewText != null) ? selectedReview.reviewText : "";
-        if (txt.length() > 160) txt = txt.substring(0, 157) + "…";
+        if (txt.length() > 160)
+            txt = txt.substring(0, 157) + "…";
         if (txt.length() > 80) {
             int breakIdx = txt.lastIndexOf(' ', 80);
-            if (breakIdx == -1) breakIdx = 80;
+            if (breakIdx == -1)
+                breakIdx = 80;
             g.drawString("\"" + txt.substring(0, breakIdx), modalX + 42, curY + 26);
             g.drawString(txt.substring(breakIdx).trim() + "\"", modalX + 42, curY + 48);
         } else {
@@ -1308,7 +1455,8 @@ public class AdminModals {
 
             g.setFont(AdminTheme.FONT_REG_11);
             g.setColor(new Color(0x9F, 0x12, 0x39));
-            String repTxt = (selectedReview.reportReason != null ? selectedReview.reportReason : "Inappropriate content") +
+            String repTxt = (selectedReview.reportReason != null ? selectedReview.reportReason
+                    : "Inappropriate content") +
                     (selectedReview.reportedBy != null ? " · Flagged by " + selectedReview.reportedBy : "");
             g.drawString(repTxt, modalX + 38, curY + 34);
 
@@ -1354,7 +1502,8 @@ public class AdminModals {
             revModalApproveBtnH = 34;
             revModalApproveBtnX = rightX - revModalApproveBtnW;
             revModalApproveBtnY = btnY;
-            paintModalBtn(g, revModalApproveBtnX, revModalApproveBtnY, revModalApproveBtnW, revModalApproveBtnH, "✓ Approve",
+            paintModalBtn(g, revModalApproveBtnX, revModalApproveBtnY, revModalApproveBtnW, revModalApproveBtnH,
+                    "✓ Approve",
                     revModalApproveHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.BRAND_GREEN_DARK,
                     AdminTheme.BRAND_GREEN_DARK, Color.WHITE);
 
@@ -1368,7 +1517,8 @@ public class AdminModals {
         revModalDeleteBtnH = 34;
         revModalDeleteBtnX = rightX - revModalDeleteBtnW;
         revModalDeleteBtnY = btnY;
-        paintModalBtn(g, revModalDeleteBtnX, revModalDeleteBtnY, revModalDeleteBtnW, revModalDeleteBtnH, "🗑 Delete feedback",
+        paintModalBtn(g, revModalDeleteBtnX, revModalDeleteBtnY, revModalDeleteBtnW, revModalDeleteBtnH,
+                "🗑 Delete feedback",
                 revModalDeleteHovered ? new Color(0xFE, 0xE2, 0xE2) : Color.WHITE,
                 AdminTheme.ACCENT_RED, AdminTheme.ACCENT_RED);
     }
@@ -1403,7 +1553,8 @@ public class AdminModals {
         newRevReviewerInputY = curY;
         newRevReviewerInputW = inputHalfW;
 
-        RoundRectangle2D rvwBox = new RoundRectangle2D.Float(newRevReviewerInputX, newRevReviewerInputY, newRevReviewerInputW, newRevReviewerInputH, 8, 8);
+        RoundRectangle2D rvwBox = new RoundRectangle2D.Float(newRevReviewerInputX, newRevReviewerInputY,
+                newRevReviewerInputW, newRevReviewerInputH, 8, 8);
         g.setColor(activeReviewField == 0 ? Color.WHITE : new Color(0xF8, 0xFA, 0xFC));
         g.fill(rvwBox);
         g.setColor(activeReviewField == 0 ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.BORDER_COLOR);
@@ -1412,20 +1563,23 @@ public class AdminModals {
 
         g.setFont(AdminTheme.FONT_REGULAR_12);
         g.setColor(AdminTheme.TEXT_MAIN);
-        g.drawString(newRevReviewer + (activeReviewField == 0 && (System.currentTimeMillis() % 1000 < 500) ? "|" : ""), newRevReviewerInputX + 12, newRevReviewerInputY + 22);
+        g.drawString(newRevReviewer + (activeReviewField == 0 && (System.currentTimeMillis() % 1000 < 500) ? "|" : ""),
+                newRevReviewerInputX + 12, newRevReviewerInputY + 22);
 
         newRevRevieweeInputX = modalX + 28 + inputHalfW + 16;
         newRevRevieweeInputY = curY;
         newRevRevieweeInputW = inputHalfW;
 
-        RoundRectangle2D rveBox = new RoundRectangle2D.Float(newRevRevieweeInputX, newRevRevieweeInputY, newRevRevieweeInputW, newRevRevieweeInputH, 8, 8);
+        RoundRectangle2D rveBox = new RoundRectangle2D.Float(newRevRevieweeInputX, newRevRevieweeInputY,
+                newRevRevieweeInputW, newRevRevieweeInputH, 8, 8);
         g.setColor(activeReviewField == 1 ? Color.WHITE : new Color(0xF8, 0xFA, 0xFC));
         g.fill(rveBox);
         g.setColor(activeReviewField == 1 ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.BORDER_COLOR);
         g.setStroke(new BasicStroke(activeReviewField == 1 ? 1.6f : 1.0f));
         g.draw(rveBox);
 
-        g.drawString(newRevReviewee + (activeReviewField == 1 && (System.currentTimeMillis() % 1000 < 500) ? "|" : ""), newRevRevieweeInputX + 12, newRevRevieweeInputY + 22);
+        g.drawString(newRevReviewee + (activeReviewField == 1 && (System.currentTimeMillis() % 1000 < 500) ? "|" : ""),
+                newRevRevieweeInputX + 12, newRevRevieweeInputY + 22);
 
         curY += 46;
 
@@ -1439,14 +1593,16 @@ public class AdminModals {
         newRevProjectInputY = curY;
         newRevProjectInputW = modalW - 56;
 
-        RoundRectangle2D pBox = new RoundRectangle2D.Float(newRevProjectInputX, newRevProjectInputY, newRevProjectInputW, newRevProjectInputH, 8, 8);
+        RoundRectangle2D pBox = new RoundRectangle2D.Float(newRevProjectInputX, newRevProjectInputY,
+                newRevProjectInputW, newRevProjectInputH, 8, 8);
         g.setColor(activeReviewField == 2 ? Color.WHITE : new Color(0xF8, 0xFA, 0xFC));
         g.fill(pBox);
         g.setColor(activeReviewField == 2 ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.BORDER_COLOR);
         g.setStroke(new BasicStroke(activeReviewField == 2 ? 1.6f : 1.0f));
         g.draw(pBox);
 
-        g.drawString(newRevProject + (activeReviewField == 2 && (System.currentTimeMillis() % 1000 < 500) ? "|" : ""), newRevProjectInputX + 12, newRevProjectInputY + 22);
+        g.drawString(newRevProject + (activeReviewField == 2 && (System.currentTimeMillis() % 1000 < 500) ? "|" : ""),
+                newRevProjectInputX + 12, newRevProjectInputY + 22);
 
         curY += 46;
 
@@ -1482,9 +1638,12 @@ public class AdminModals {
         newRevTypeUserX = newRevTypeTeamX + newRevTypeW + 8;
         newRevTypeCollabX = newRevTypeUserX + newRevTypeW + 8;
 
-        paintStatusChoice(g, newRevTypeTeamX, newRevTypeY, newRevTypeW, newRevTypeH, "Team Member Review", "Team Member Review".equalsIgnoreCase(newRevType));
-        paintStatusChoice(g, newRevTypeUserX, newRevTypeY, newRevTypeW, newRevTypeH, "User Rating", "User Rating".equalsIgnoreCase(newRevType));
-        paintStatusChoice(g, newRevTypeCollabX, newRevTypeY, newRevTypeW, newRevTypeH, "Peer Collaboration", "Peer Collaboration".equalsIgnoreCase(newRevType));
+        paintStatusChoice(g, newRevTypeTeamX, newRevTypeY, newRevTypeW, newRevTypeH, "Team Member Review",
+                "Team Member Review".equalsIgnoreCase(newRevType));
+        paintStatusChoice(g, newRevTypeUserX, newRevTypeY, newRevTypeW, newRevTypeH, "User Rating",
+                "User Rating".equalsIgnoreCase(newRevType));
+        paintStatusChoice(g, newRevTypeCollabX, newRevTypeY, newRevTypeW, newRevTypeH, "Peer Collaboration",
+                "Peer Collaboration".equalsIgnoreCase(newRevType));
 
         curY += 42;
 
@@ -1498,7 +1657,8 @@ public class AdminModals {
         newRevTextInputY = curY;
         newRevTextInputW = modalW - 56;
 
-        RoundRectangle2D tBox = new RoundRectangle2D.Float(newRevTextInputX, newRevTextInputY, newRevTextInputW, newRevTextInputH, 8, 8);
+        RoundRectangle2D tBox = new RoundRectangle2D.Float(newRevTextInputX, newRevTextInputY, newRevTextInputW,
+                newRevTextInputH, 8, 8);
         g.setColor(activeReviewField == 4 ? Color.WHITE : new Color(0xF8, 0xFA, 0xFC));
         g.fill(tBox);
         g.setColor(activeReviewField == 4 ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.BORDER_COLOR);
@@ -1508,10 +1668,12 @@ public class AdminModals {
         g.setFont(AdminTheme.FONT_REGULAR_12);
         if (newRevText.isEmpty() && activeReviewField != 4) {
             g.setColor(AdminTheme.TEXT_LIGHT);
-            g.drawString("Enter constructive feedback or notes regarding peer collaboration...", newRevTextInputX + 12, newRevTextInputY + 28);
+            g.drawString("Enter constructive feedback or notes regarding peer collaboration...", newRevTextInputX + 12,
+                    newRevTextInputY + 28);
         } else {
             g.setColor(AdminTheme.TEXT_MAIN);
-            g.drawString(newRevText + (activeReviewField == 4 && (System.currentTimeMillis() % 1000 < 500) ? "|" : ""), newRevTextInputX + 12, newRevTextInputY + 28);
+            g.drawString(newRevText + (activeReviewField == 4 && (System.currentTimeMillis() % 1000 < 500) ? "|" : ""),
+                    newRevTextInputX + 12, newRevTextInputY + 28);
         }
 
         // Bottom Action buttons
@@ -1529,7 +1691,8 @@ public class AdminModals {
                 AdminTheme.BRAND_GREEN_DARK, Color.WHITE);
     }
 
-    private void paintModalBtn(Graphics2D g, int bx, int by, int bw, int bh, String text, Color bg, Color border, Color fg) {
+    private void paintModalBtn(Graphics2D g, int bx, int by, int bw, int bh, String text, Color bg, Color border,
+            Color fg) {
         RoundRectangle2D b = new RoundRectangle2D.Float(bx, by, bw, bh, 8, 8);
         g.setColor(bg);
         g.fill(b);
@@ -1561,7 +1724,8 @@ public class AdminModals {
     }
 
     public boolean onClick(int mx, int my, AdminDashboard dashboard) {
-        if (activeModal == ActiveModal.NONE) return false;
+        if (activeModal == ActiveModal.NONE)
+            return false;
 
         // Click outside modal card -> close modal (0ms instant)
         if (mx < modalX || mx > modalX + modalW || my < modalY || my > modalY + modalH) {
@@ -1577,7 +1741,8 @@ public class AdminModals {
 
         // Review Modal Actions
         if (activeModal == ActiveModal.REVIEW_REPORT) {
-            if (mx >= dismissBtnX && mx <= dismissBtnX + dismissBtnW && my >= dismissBtnY && my <= dismissBtnY + dismissBtnH) {
+            if (mx >= dismissBtnX && mx <= dismissBtnX + dismissBtnW && my >= dismissBtnY
+                    && my <= dismissBtnY + dismissBtnH) {
                 if (currentItem != null) {
                     currentItem.status = "Dismissed";
                     AdminDataStore.getInstance().resolveReport(currentItem.id, "Dismissed via review modal");
@@ -1595,7 +1760,8 @@ public class AdminModals {
                 closeModal();
                 return true;
             }
-            if (mx >= suspendBtnX && mx <= suspendBtnX + suspendBtnW && my >= suspendBtnY && my <= suspendBtnY + suspendBtnH) {
+            if (mx >= suspendBtnX && mx <= suspendBtnX + suspendBtnW && my >= suspendBtnY
+                    && my <= suspendBtnY + suspendBtnH) {
                 if (currentItem != null) {
                     currentItem.status = "Suspended";
                     AdminDataStore.getInstance().suspendUser("Evan Reed");
@@ -1608,19 +1774,23 @@ public class AdminModals {
 
         // Edit Role Modal Actions
         if (activeModal == ActiveModal.EDIT_ROLE) {
-            if (mx >= roleMemberBtnX && mx <= roleMemberBtnX + roleChoiceW && my >= roleChoiceY && my <= roleChoiceY + roleChoiceH) {
+            if (mx >= roleMemberBtnX && mx <= roleMemberBtnX + roleChoiceW && my >= roleChoiceY
+                    && my <= roleChoiceY + roleChoiceH) {
                 selectedRole = "Member";
                 return true;
             }
-            if (mx >= roleModBtnX && mx <= roleModBtnX + roleChoiceW && my >= roleChoiceY && my <= roleChoiceY + roleChoiceH) {
+            if (mx >= roleModBtnX && mx <= roleModBtnX + roleChoiceW && my >= roleChoiceY
+                    && my <= roleChoiceY + roleChoiceH) {
                 selectedRole = "Moderator";
                 return true;
             }
-            if (mx >= roleAdminBtnX && mx <= roleAdminBtnX + roleChoiceW && my >= roleChoiceY && my <= roleChoiceY + roleChoiceH) {
+            if (mx >= roleAdminBtnX && mx <= roleAdminBtnX + roleChoiceW && my >= roleChoiceY
+                    && my <= roleChoiceY + roleChoiceH) {
                 selectedRole = "Admin";
                 return true;
             }
-            if (mx >= saveRoleBtnX && mx <= saveRoleBtnX + saveRoleBtnW && my >= saveRoleBtnY && my <= saveRoleBtnY + saveRoleBtnH) {
+            if (mx >= saveRoleBtnX && mx <= saveRoleBtnX + saveRoleBtnW && my >= saveRoleBtnY
+                    && my <= saveRoleBtnY + saveRoleBtnH) {
                 AdminDataStore.getInstance().updateUserRole(editRoleUser, selectedRole);
                 dashboard.showToast("Role updated to " + selectedRole + " for " + editRoleUser);
                 closeModal();
@@ -1629,22 +1799,56 @@ public class AdminModals {
         }
 
         // Add Category / Skill
-        if (activeModal == ActiveModal.ADD_CATEGORY) {
-            if (mx >= saveNewItemBtnX && mx <= saveNewItemBtnX + saveNewItemBtnW && my >= saveNewItemBtnY && my <= saveNewItemBtnY + saveNewItemBtnH) {
-                String catName = inputName.trim().isEmpty() ? "Mobile Development" : inputName.trim();
-                AdminDataStore.getInstance().addCategory(catName);
-                dashboard.showToast("Category '" + catName + "' created successfully");
+        if (activeModal == ActiveModal.ADD_CATEGORY || activeModal == ActiveModal.ADD_SKILL) {
+            // Click input box focus
+            if (mx >= newItemInputX && mx <= newItemInputX + newItemInputW && my >= newItemInputY
+                    && my <= newItemInputY + newItemInputH) {
+                newItemInputFocused = true;
+                return true;
+            }
+
+            // Cancel button
+            if (mx >= cancelNewItemBtnX && mx <= cancelNewItemBtnX + cancelNewItemBtnW && my >= cancelNewItemBtnY
+                    && my <= cancelNewItemBtnY + cancelNewItemBtnH) {
                 closeModal();
                 return true;
             }
-        }
-        if (activeModal == ActiveModal.ADD_SKILL) {
-            if (mx >= saveNewItemBtnX && mx <= saveNewItemBtnX + saveNewItemBtnW && my >= saveNewItemBtnY && my <= saveNewItemBtnY + saveNewItemBtnH) {
-                String skillName = inputName.trim().isEmpty() ? "Python" : inputName.trim();
-                AdminDataStore.getInstance().addSkill(skillName);
-                dashboard.showToast("Skill tag '" + skillName + "' added successfully");
-                closeModal();
-                return true;
+
+            if (activeModal == ActiveModal.ADD_CATEGORY) {
+                if (mx >= saveNewItemBtnX && mx <= saveNewItemBtnX + saveNewItemBtnW && my >= saveNewItemBtnY
+                        && my <= saveNewItemBtnY + saveNewItemBtnH) {
+                    String catName = inputName.trim();
+                    if (catName.isEmpty()) {
+                        dashboard.showToast("Please enter a category name");
+                        return true;
+                    }
+                    boolean added = AdminDataStore.getInstance().addCategory(catName);
+                    if (added) {
+                        dashboard.showToast("Category '" + catName + "' created successfully");
+                        closeModal();
+                    } else {
+                        dashboard.showToast("Category '" + catName + "' already exists!");
+                    }
+                    return true;
+                }
+            }
+            if (activeModal == ActiveModal.ADD_SKILL) {
+                if (mx >= saveNewItemBtnX && mx <= saveNewItemBtnX + saveNewItemBtnW && my >= saveNewItemBtnY
+                        && my <= saveNewItemBtnY + saveNewItemBtnH) {
+                    String skillName = inputName.trim();
+                    if (skillName.isEmpty()) {
+                        dashboard.showToast("Please enter a skill name");
+                        return true;
+                    }
+                    boolean added = AdminDataStore.getInstance().addSkill(skillName);
+                    if (added) {
+                        dashboard.showToast("Skill tag '" + skillName + "' added successfully");
+                        closeModal();
+                    } else {
+                        dashboard.showToast("Skill tag '" + skillName + "' already exists!");
+                    }
+                    return true;
+                }
             }
         }
 
@@ -1743,9 +1947,9 @@ public class AdminModals {
                     mx >= projModalStatusBtnX && mx <= projModalStatusBtnX + projModalStatusBtnW &&
                     my >= projModalStatusBtnY && my <= projModalStatusBtnY + projModalStatusBtnH) {
                 String curSt = selectedProject.status;
-                String nextSt = "Active".equalsIgnoreCase(curSt) ? "Recruiting" :
-                        ("Recruiting".equalsIgnoreCase(curSt) ? "Completed" :
-                        ("Completed".equalsIgnoreCase(curSt) ? "Under review" : "Active"));
+                String nextSt = "Active".equalsIgnoreCase(curSt) ? "Recruiting"
+                        : ("Recruiting".equalsIgnoreCase(curSt) ? "Completed"
+                                : ("Completed".equalsIgnoreCase(curSt) ? "Under review" : "Active"));
                 AdminDataStore.getInstance().updateProjectStatus(selectedProject.name, nextSt);
                 dashboard.showToast("Status updated to " + nextSt + " for " + selectedProject.name);
                 selectedProject = AdminDataStore.getInstance().getProjectByName(selectedProject.name);
@@ -1830,7 +2034,8 @@ public class AdminModals {
                     dashboard.showToast("Please enter a project name");
                     return true;
                 }
-                AdminDataStore.getInstance().addProject(newProjectName, newProjectCategory, newProjectOwner, newProjectTeamSize, newProjectStatus, newProjectDesc);
+                AdminDataStore.getInstance().addProject(newProjectName, newProjectCategory, newProjectOwner,
+                        newProjectTeamSize, newProjectStatus, newProjectDesc);
                 dashboard.showToast("Project '" + newProjectName + "' created successfully");
                 closeModal();
                 return true;
@@ -1848,7 +2053,8 @@ public class AdminModals {
                 return true;
             }
             // Approve feedback
-            if (revModalApproveBtnW > 0 && mx >= revModalApproveBtnX && mx <= revModalApproveBtnX + revModalApproveBtnW &&
+            if (revModalApproveBtnW > 0 && mx >= revModalApproveBtnX && mx <= revModalApproveBtnX + revModalApproveBtnW
+                    &&
                     my >= revModalApproveBtnY && my <= revModalApproveBtnY + revModalApproveBtnH) {
                 AdminDataStore.getInstance().approveReportedReview(selectedReview.id);
                 dashboard.showToast("Feedback #" + selectedReview.id + " approved & published");
@@ -1860,7 +2066,8 @@ public class AdminModals {
                     my >= revModalHideBtnY && my <= revModalHideBtnY + revModalHideBtnH) {
                 AdminDataStore.getInstance().hideReview(selectedReview.id);
                 boolean isNowHidden = "Hidden".equalsIgnoreCase(selectedReview.status);
-                dashboard.showToast(isNowHidden ? "Feedback #" + selectedReview.id + " hidden" : "Feedback #" + selectedReview.id + " published");
+                dashboard.showToast(isNowHidden ? "Feedback #" + selectedReview.id + " hidden"
+                        : "Feedback #" + selectedReview.id + " published");
                 selectedReview = AdminDataStore.getInstance().getReviewById(selectedReview.id);
                 return true;
             }
@@ -1948,8 +2155,7 @@ public class AdminModals {
                         newRevRole.trim(),
                         newRevRating,
                         newRevText.trim(),
-                        newRevType
-                );
+                        newRevType);
                 dashboard.showToast("Review submitted successfully");
                 closeModal();
                 return true;
@@ -1969,16 +2175,23 @@ public class AdminModals {
             } else if (keyCode == java.awt.event.KeyEvent.VK_ENTER) {
                 // Submit modal
                 if (activeModal == ActiveModal.ADD_CATEGORY) {
-                    String catName = inputName.trim().isEmpty() ? "Mobile Development" : inputName.trim();
-                    AdminDataStore.getInstance().addCategory(catName);
+                    String catName = inputName.trim();
+                    if (!catName.isEmpty()) {
+                        AdminDataStore.getInstance().addCategory(catName);
+                        closeModal();
+                    }
                 } else {
-                    String skillName = inputName.trim().isEmpty() ? "Python" : inputName.trim();
-                    AdminDataStore.getInstance().addSkill(skillName);
+                    String skillName = inputName.trim();
+                    if (!skillName.isEmpty()) {
+                        AdminDataStore.getInstance().addSkill(skillName);
+                        closeModal();
+                    }
                 }
-                closeModal();
                 return true;
             } else if (ch >= 32 && ch <= 126) {
-                inputName += ch;
+                if (inputName.length() < 40) {
+                    inputName += ch;
+                }
                 return true;
             }
         } else if (activeModal == ActiveModal.ADD_USER) {
@@ -2026,7 +2239,8 @@ public class AdminModals {
                     return true;
                 } else {
                     if (!newProjectName.trim().isEmpty()) {
-                        AdminDataStore.getInstance().addProject(newProjectName, newProjectCategory, newProjectOwner, newProjectTeamSize, newProjectStatus, newProjectDesc);
+                        AdminDataStore.getInstance().addProject(newProjectName, newProjectCategory, newProjectOwner,
+                                newProjectTeamSize, newProjectStatus, newProjectDesc);
                         closeModal();
                         return true;
                     }
@@ -2046,16 +2260,21 @@ public class AdminModals {
                     return true;
                 }
             } else if (ch >= 32 && ch <= 126) {
-                if (activeProjectField == 0) newProjectName += ch;
-                else if (activeProjectField == 1) newProjectOwner += ch;
-                else if (activeProjectField == 2) newProjectTeamSize += ch;
-                else if (activeProjectField == 3) newProjectDesc += ch;
+                if (activeProjectField == 0)
+                    newProjectName += ch;
+                else if (activeProjectField == 1)
+                    newProjectOwner += ch;
+                else if (activeProjectField == 2)
+                    newProjectTeamSize += ch;
+                else if (activeProjectField == 3)
+                    newProjectDesc += ch;
                 return true;
             }
         } else if (activeModal == ActiveModal.ADD_REVIEW) {
             if (keyCode == java.awt.event.KeyEvent.VK_TAB) {
                 activeReviewField = (activeReviewField + 1) % 5;
-                if (activeReviewField == 3) activeReviewField = 4;
+                if (activeReviewField == 3)
+                    activeReviewField = 4;
                 return true;
             } else if (keyCode == java.awt.event.KeyEvent.VK_ENTER) {
                 if (activeReviewField < 4) {
@@ -2077,10 +2296,14 @@ public class AdminModals {
                     return true;
                 }
             } else if (ch >= 32 && ch <= 126) {
-                if (activeReviewField == 0) newRevReviewer += ch;
-                else if (activeReviewField == 1) newRevReviewee += ch;
-                else if (activeReviewField == 2) newRevProject += ch;
-                else if (activeReviewField == 4) newRevText += ch;
+                if (activeReviewField == 0)
+                    newRevReviewer += ch;
+                else if (activeReviewField == 1)
+                    newRevReviewee += ch;
+                else if (activeReviewField == 2)
+                    newRevProject += ch;
+                else if (activeReviewField == 4)
+                    newRevText += ch;
                 return true;
             }
         }
@@ -2088,87 +2311,125 @@ public class AdminModals {
     }
 
     public boolean onMouseMove(int mx, int my) {
-        if (activeModal == ActiveModal.NONE) return false;
+        if (activeModal == ActiveModal.NONE)
+            return false;
 
         boolean pClose = closeBtnHovered;
-        closeBtnHovered = (mx >= closeBtnX && mx <= closeBtnX + closeBtnSize && my >= closeBtnY && my <= closeBtnY + closeBtnSize);
+        closeBtnHovered = (mx >= closeBtnX && mx <= closeBtnX + closeBtnSize && my >= closeBtnY
+                && my <= closeBtnY + closeBtnSize);
 
         boolean pDis = dismissHovered;
-        dismissHovered = (mx >= dismissBtnX && mx <= dismissBtnX + dismissBtnW && my >= dismissBtnY && my <= dismissBtnY + dismissBtnH);
+        dismissHovered = (mx >= dismissBtnX && mx <= dismissBtnX + dismissBtnW && my >= dismissBtnY
+                && my <= dismissBtnY + dismissBtnH);
 
         boolean pWarn = warnHovered;
         warnHovered = (mx >= warnBtnX && mx <= warnBtnX + warnBtnW && my >= warnBtnY && my <= warnBtnY + warnBtnH);
 
         boolean pSus = suspendHovered;
-        suspendHovered = (mx >= suspendBtnX && mx <= suspendBtnX + suspendBtnW && my >= suspendBtnY && my <= suspendBtnY + suspendBtnH);
+        suspendHovered = (mx >= suspendBtnX && mx <= suspendBtnX + suspendBtnW && my >= suspendBtnY
+                && my <= suspendBtnY + suspendBtnH);
 
         boolean pSaveR = saveRoleHovered;
-        saveRoleHovered = (mx >= saveRoleBtnX && mx <= saveRoleBtnX + saveRoleBtnW && my >= saveRoleBtnY && my <= saveRoleBtnY + saveRoleBtnH);
+        saveRoleHovered = (mx >= saveRoleBtnX && mx <= saveRoleBtnX + saveRoleBtnW && my >= saveRoleBtnY
+                && my <= saveRoleBtnY + saveRoleBtnH);
 
         boolean pSaveNew = saveNewItemHovered;
-        saveNewItemHovered = (mx >= saveNewItemBtnX && mx <= saveNewItemBtnX + saveNewItemBtnW && my >= saveNewItemBtnY && my <= saveNewItemBtnY + saveNewItemBtnH);
+        saveNewItemHovered = (mx >= saveNewItemBtnX && mx <= saveNewItemBtnX + saveNewItemBtnW && my >= saveNewItemBtnY
+                && my <= saveNewItemBtnY + saveNewItemBtnH);
+
+        boolean pCancelNew = cancelNewItemHovered;
+        cancelNewItemHovered = (mx >= cancelNewItemBtnX && mx <= cancelNewItemBtnX + cancelNewItemBtnW
+                && my >= cancelNewItemBtnY && my <= cancelNewItemBtnY + cancelNewItemBtnH);
 
         boolean pUsus = userModalSuspendHovered;
-        userModalSuspendHovered = (mx >= userModalSuspendBtnX && mx <= userModalSuspendBtnX + userModalSuspendBtnW && my >= userModalSuspendBtnY && my <= userModalSuspendBtnY + userModalSuspendBtnH);
+        userModalSuspendHovered = (mx >= userModalSuspendBtnX && mx <= userModalSuspendBtnX + userModalSuspendBtnW
+                && my >= userModalSuspendBtnY && my <= userModalSuspendBtnY + userModalSuspendBtnH);
 
         boolean pUrole = userModalRoleHovered;
-        userModalRoleHovered = (mx >= userModalRoleBtnX && mx <= userModalRoleBtnX + userModalRoleBtnW && my >= userModalRoleBtnY && my <= userModalRoleBtnY + userModalRoleBtnH);
+        userModalRoleHovered = (mx >= userModalRoleBtnX && mx <= userModalRoleBtnX + userModalRoleBtnW
+                && my >= userModalRoleBtnY && my <= userModalRoleBtnY + userModalRoleBtnH);
 
         boolean pUdel = userModalDeleteHovered;
-        userModalDeleteHovered = (mx >= userModalDeleteBtnX && mx <= userModalDeleteBtnX + userModalDeleteBtnW && my >= userModalDeleteBtnY && my <= userModalDeleteBtnY + userModalDeleteBtnH);
+        userModalDeleteHovered = (mx >= userModalDeleteBtnX && mx <= userModalDeleteBtnX + userModalDeleteBtnW
+                && my >= userModalDeleteBtnY && my <= userModalDeleteBtnY + userModalDeleteBtnH);
 
         boolean pUclose = userModalCloseHovered;
-        userModalCloseHovered = (mx >= userModalCloseBtnX && mx <= userModalCloseBtnX + userModalCloseBtnW && my >= userModalCloseBtnY && my <= userModalCloseBtnY + userModalCloseBtnH);
+        userModalCloseHovered = (mx >= userModalCloseBtnX && mx <= userModalCloseBtnX + userModalCloseBtnW
+                && my >= userModalCloseBtnY && my <= userModalCloseBtnY + userModalCloseBtnH);
 
         boolean pSnu = saveNewUserHovered;
-        saveNewUserHovered = (mx >= saveNewUserBtnX && mx <= saveNewUserBtnX + saveNewUserBtnW && my >= saveNewUserBtnY && my <= saveNewUserBtnY + saveNewUserBtnH);
+        saveNewUserHovered = (mx >= saveNewUserBtnX && mx <= saveNewUserBtnX + saveNewUserBtnW && my >= saveNewUserBtnY
+                && my <= saveNewUserBtnY + saveNewUserBtnH);
 
         boolean pCnu = cancelNewUserHovered;
-        cancelNewUserHovered = (mx >= cancelNewUserBtnX && mx <= cancelNewUserBtnX + cancelNewUserBtnW && my >= cancelNewUserBtnY && my <= cancelNewUserBtnY + cancelNewUserBtnH);
+        cancelNewUserHovered = (mx >= cancelNewUserBtnX && mx <= cancelNewUserBtnX + cancelNewUserBtnW
+                && my >= cancelNewUserBtnY && my <= cancelNewUserBtnY + cancelNewUserBtnH);
 
         boolean pPapp = projModalApproveHovered;
-        projModalApproveHovered = (mx >= projModalApproveBtnX && mx <= projModalApproveBtnX + projModalApproveBtnW && my >= projModalApproveBtnY && my <= projModalApproveBtnY + projModalApproveBtnH);
+        projModalApproveHovered = (mx >= projModalApproveBtnX && mx <= projModalApproveBtnX + projModalApproveBtnW
+                && my >= projModalApproveBtnY && my <= projModalApproveBtnY + projModalApproveBtnH);
 
         boolean pPstat = projModalStatusHovered;
-        projModalStatusHovered = (mx >= projModalStatusBtnX && mx <= projModalStatusBtnX + projModalStatusBtnW && my >= projModalStatusBtnY && my <= projModalStatusBtnY + projModalStatusBtnH);
+        projModalStatusHovered = (mx >= projModalStatusBtnX && mx <= projModalStatusBtnX + projModalStatusBtnW
+                && my >= projModalStatusBtnY && my <= projModalStatusBtnY + projModalStatusBtnH);
 
         boolean pPdel = projModalDeleteHovered;
-        projModalDeleteHovered = (mx >= projModalDeleteBtnX && mx <= projModalDeleteBtnX + projModalDeleteBtnW && my >= projModalDeleteBtnY && my <= projModalDeleteBtnY + projModalDeleteBtnH);
+        projModalDeleteHovered = (mx >= projModalDeleteBtnX && mx <= projModalDeleteBtnX + projModalDeleteBtnW
+                && my >= projModalDeleteBtnY && my <= projModalDeleteBtnY + projModalDeleteBtnH);
 
         boolean pPclose = projModalCloseHovered;
-        projModalCloseHovered = (mx >= projModalCloseBtnX && mx <= projModalCloseBtnX + projModalCloseBtnW && my >= projModalCloseBtnY && my <= projModalCloseBtnY + projModalCloseBtnH);
+        projModalCloseHovered = (mx >= projModalCloseBtnX && mx <= projModalCloseBtnX + projModalCloseBtnW
+                && my >= projModalCloseBtnY && my <= projModalCloseBtnY + projModalCloseBtnH);
 
         boolean pSnp = saveNewProjectHovered;
-        saveNewProjectHovered = (mx >= saveNewProjectBtnX && mx <= saveNewProjectBtnX + saveNewProjectBtnW && my >= saveNewProjectBtnY && my <= saveNewProjectBtnY + saveNewProjectBtnH);
+        saveNewProjectHovered = (mx >= saveNewProjectBtnX && mx <= saveNewProjectBtnX + saveNewProjectBtnW
+                && my >= saveNewProjectBtnY && my <= saveNewProjectBtnY + saveNewProjectBtnH);
 
         boolean pCnp = cancelNewProjectHovered;
-        cancelNewProjectHovered = (mx >= cancelNewProjectBtnX && mx <= cancelNewProjectBtnX + cancelNewProjectBtnW && my >= cancelNewProjectBtnY && my <= cancelNewProjectBtnY + cancelNewProjectBtnH);
+        cancelNewProjectHovered = (mx >= cancelNewProjectBtnX && mx <= cancelNewProjectBtnX + cancelNewProjectBtnW
+                && my >= cancelNewProjectBtnY && my <= cancelNewProjectBtnY + cancelNewProjectBtnH);
 
         boolean pRdel = revModalDeleteHovered;
-        revModalDeleteHovered = (mx >= revModalDeleteBtnX && mx <= revModalDeleteBtnX + revModalDeleteBtnW && my >= revModalDeleteBtnY && my <= revModalDeleteBtnY + revModalDeleteBtnH);
+        revModalDeleteHovered = (mx >= revModalDeleteBtnX && mx <= revModalDeleteBtnX + revModalDeleteBtnW
+                && my >= revModalDeleteBtnY && my <= revModalDeleteBtnY + revModalDeleteBtnH);
 
         boolean pRapp = revModalApproveHovered;
-        revModalApproveHovered = (mx >= revModalApproveBtnX && mx <= revModalApproveBtnX + revModalApproveBtnW && my >= revModalApproveBtnY && my <= revModalApproveBtnY + revModalApproveBtnH);
+        revModalApproveHovered = (mx >= revModalApproveBtnX && mx <= revModalApproveBtnX + revModalApproveBtnW
+                && my >= revModalApproveBtnY && my <= revModalApproveBtnY + revModalApproveBtnH);
 
         boolean pRhide = revModalHideHovered;
-        revModalHideHovered = (mx >= revModalHideBtnX && mx <= revModalHideBtnX + revModalHideBtnW && my >= revModalHideBtnY && my <= revModalHideBtnY + revModalHideBtnH);
+        revModalHideHovered = (mx >= revModalHideBtnX && mx <= revModalHideBtnX + revModalHideBtnW
+                && my >= revModalHideBtnY && my <= revModalHideBtnY + revModalHideBtnH);
 
         boolean pRclose = revModalCloseHovered;
-        revModalCloseHovered = (mx >= revModalCloseBtnX && mx <= revModalCloseBtnX + revModalCloseBtnW && my >= revModalCloseBtnY && my <= revModalCloseBtnY + revModalCloseBtnH);
+        revModalCloseHovered = (mx >= revModalCloseBtnX && mx <= revModalCloseBtnX + revModalCloseBtnW
+                && my >= revModalCloseBtnY && my <= revModalCloseBtnY + revModalCloseBtnH);
 
         boolean pSnr = saveNewRevHovered;
-        saveNewRevHovered = (mx >= saveNewRevBtnX && mx <= saveNewRevBtnX + saveNewRevBtnW && my >= saveNewRevBtnY && my <= saveNewRevBtnY + saveNewRevBtnH);
+        saveNewRevHovered = (mx >= saveNewRevBtnX && mx <= saveNewRevBtnX + saveNewRevBtnW && my >= saveNewRevBtnY
+                && my <= saveNewRevBtnY + saveNewRevBtnH);
 
         boolean pCnr = cancelNewRevHovered;
-        cancelNewRevHovered = (mx >= cancelNewRevBtnX && mx <= cancelNewRevBtnX + cancelNewRevBtnW && my >= cancelNewRevBtnY && my <= cancelNewRevBtnY + cancelNewRevBtnH);
+        cancelNewRevHovered = (mx >= cancelNewRevBtnX && mx <= cancelNewRevBtnX + cancelNewRevBtnW
+                && my >= cancelNewRevBtnY && my <= cancelNewRevBtnY + cancelNewRevBtnH);
 
         return pClose != closeBtnHovered || pDis != dismissHovered || pWarn != warnHovered || pSus != suspendHovered ||
-                pSaveR != saveRoleHovered || pSaveNew != saveNewItemHovered || pUsus != userModalSuspendHovered ||
+                pSaveR != saveRoleHovered || pSaveNew != saveNewItemHovered || pCancelNew != cancelNewItemHovered ||
+                pUsus != userModalSuspendHovered ||
                 pUrole != userModalRoleHovered || pUdel != userModalDeleteHovered || pUclose != userModalCloseHovered ||
                 pSnu != saveNewUserHovered || pCnu != cancelNewUserHovered ||
-                pPapp != projModalApproveHovered || pPstat != projModalStatusHovered || pPdel != projModalDeleteHovered ||
+                pPapp != projModalApproveHovered || pPstat != projModalStatusHovered || pPdel != projModalDeleteHovered
+                ||
                 pPclose != projModalCloseHovered || pSnp != saveNewProjectHovered || pCnp != cancelNewProjectHovered ||
                 pRdel != revModalDeleteHovered || pRapp != revModalApproveHovered || pRhide != revModalHideHovered ||
                 pRclose != revModalCloseHovered || pSnr != saveNewRevHovered || pCnr != cancelNewRevHovered;
+    }
+
+    public String getInputName() {
+        return inputName;
+    }
+
+    public void setInputName(String inputName) {
+        this.inputName = (inputName != null) ? inputName : "";
     }
 }

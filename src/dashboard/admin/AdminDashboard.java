@@ -4,7 +4,8 @@ import java.awt.geom.RoundRectangle2D;
 
 /**
  * Controller and main container for TeamUp Admin Dashboard.
- * Coordinates AdminSidebar, AdminHeader, AdminModals, and all 7 admin sub-views:
+ * Coordinates AdminSidebar, AdminHeader, AdminModals, and all 7 admin
+ * sub-views:
  * - AdminOverview (Overview)
  * - AdminUsers (Users)
  * - AdminProjects (Projects)
@@ -19,6 +20,7 @@ public class AdminDashboard {
 
     public interface AdminListener {
         void returnToLanding();
+
         void switchToStudentDashboard();
     }
 
@@ -109,8 +111,10 @@ public class AdminDashboard {
 
         // Prevent scrolling beyond bounds
         int maxScroll = Math.max(0, totalContentH - (height - headH) + 40);
-        if (targetScrollY > maxScroll) targetScrollY = maxScroll;
-        if (targetScrollY < 0) targetScrollY = 0;
+        if (targetScrollY > maxScroll)
+            targetScrollY = maxScroll;
+        if (targetScrollY < 0)
+            targetScrollY = 0;
 
         paintActiveView(gContent, sideW, headH, contentW, height - headH);
         gContent.dispose();
@@ -179,7 +183,8 @@ public class AdminDashboard {
     }
 
     private void paintToast(Graphics2D g, int w, int h) {
-        if (toastMessage == null || toastMessage.isEmpty() || toastTimer <= 0f) return;
+        if (toastMessage == null || toastMessage.isEmpty() || toastTimer <= 0f)
+            return;
 
         float alpha = Math.min(1.0f, toastTimer * 2f);
         Graphics2D g2 = (Graphics2D) g.create();
@@ -285,6 +290,10 @@ public class AdminDashboard {
         return settingsView;
     }
 
+    public AdminCategories getCategoriesView() {
+        return categoriesView;
+    }
+
     public void openReviewDetailsModal(AdminDataStore.ReviewModel review) {
         modals.openReviewDetails(review);
     }
@@ -295,6 +304,18 @@ public class AdminDashboard {
 
     public AdminModals getModals() {
         return modals;
+    }
+
+    public AdminHeader getHeader() {
+        return header;
+    }
+
+    public AdminSidebar getSidebar() {
+        return sidebar;
+    }
+
+    public AdminSidebar.AdminNavItem getActiveNav() {
+        return sidebar.getActiveNav();
     }
 
     public boolean onClick(int mx, int my) {
@@ -311,8 +332,8 @@ public class AdminDashboard {
             return sidebar.onClick(mx, my, this);
         }
 
-        // Header click
-        if (my < headH) {
+        // Header click (including live search dropdown overlay and profile popover)
+        if (my < headH || header.isAnyPopoverOpen()) {
             return header.onClick(mx, my, this);
         }
 
@@ -346,6 +367,7 @@ public class AdminDashboard {
         int sideW = 230;
         int headH = 68;
 
+        boolean c0 = header.onMouseMove(mx, my);
         boolean c1 = sidebar.onMouseMove(mx, my);
         int cy = my + Math.round(scrollY);
 
@@ -375,7 +397,7 @@ public class AdminDashboard {
             default:
                 break;
         }
-        return c1 || c2;
+        return c0 || c1 || c2;
     }
 
     public boolean onMouseWheel(int rotation) {
@@ -383,7 +405,8 @@ public class AdminDashboard {
             return false;
         }
         targetScrollY += rotation * 48f;
-        if (targetScrollY < 0f) targetScrollY = 0f;
+        if (targetScrollY < 0f)
+            targetScrollY = 0f;
         return true;
     }
 
@@ -396,6 +419,17 @@ public class AdminDashboard {
             if (modals.onKey(ch, keyCode)) {
                 return true;
             }
+            return true;
+        }
+
+        // Header search bar key handling
+        if (header.isSearchFocused()) {
+            return header.onKey(ch, keyCode, this);
+        }
+
+        // Global shortcut: Ctrl+K or Cmd+K focuses header search
+        if (keyCode == KeyEvent.VK_K && (ch == 11 || ch == 'k' || ch == 'K')) {
+            header.setSearchFocused(true);
             return true;
         }
 
@@ -423,7 +457,8 @@ public class AdminDashboard {
             default:
                 break;
         }
-        if (handled) return true;
+        if (handled)
+            return true;
 
         return header.onKey(ch, keyCode, this);
     }

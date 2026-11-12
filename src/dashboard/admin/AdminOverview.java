@@ -73,19 +73,6 @@ public class AdminOverview {
     private final List<ActivityItem> activityList = new ArrayList<>();
     private final List<SkillRowHitbox> skillHitboxes = new ArrayList<>();
 
-    // Time range filter (0=Last 30 Days, 1=Last 6 Months, 2=Year to Date)
-    private int selectedRange = 0;
-    private final String[] rangeLabels = {"Last 30 Days", "Last 6 Months", "Year to Date"};
-    private final int[] rangeBoxX = new int[3];
-    private final int[] rangeBoxY = new int[3];
-    private final int[] rangeBoxW = new int[3];
-    private final int[] rangeBoxH = new int[3];
-    private int hoveredRangeIdx = -1;
-
-    // Header export button
-    private int exportBtnX, exportBtnY, exportBtnW = 150, exportBtnH = 34;
-    private boolean exportBtnHovered = false;
-
     // Active teams explore button
     private int exploreTeamsBtnX, exploreTeamsBtnY, exploreTeamsBtnW = 155, exploreTeamsBtnH = 28;
     private boolean exploreTeamsHovered = false;
@@ -122,15 +109,7 @@ public class AdminOverview {
         int totalH = 24; // top padding
 
         // 1. Header Section
-        boolean wrapHeader = (w < 860);
-        boolean stackMobile = (w < 550);
-        if (stackMobile) {
-            totalH += 154;
-        } else if (wrapHeader) {
-            totalH += 114;
-        } else {
-            totalH += 60;
-        }
+        totalH += 56;
         totalH += 20; // gap
 
         // 2. KPI Cards Row
@@ -282,120 +261,7 @@ public class AdminOverview {
         }
         g.drawString(sub, x, y + 48);
 
-        boolean wrap = (w < 860);
-        boolean stackMobile = (w < 550);
-
-        if (stackMobile) {
-            // Mobile layout: time pills at y + 68, export at y + 110
-            int pillRowY = y + 68;
-            int gap = 6;
-            int rW = (w - gap * 2) / 3;
-            for (int i = 0; i < 3; i++) {
-                rangeBoxX[i] = x + i * (rW + gap);
-                rangeBoxY[i] = pillRowY;
-                rangeBoxW[i] = rW;
-                rangeBoxH[i] = 32;
-
-                paintRangePill(g, rangeBoxX[i], rangeBoxY[i], rangeBoxW[i], rangeBoxH[i], rangeLabels[i], (i == selectedRange), (i == hoveredRangeIdx));
-            }
-
-            exportBtnW = w;
-            exportBtnH = 34;
-            exportBtnX = x;
-            exportBtnY = y + 110;
-            paintExportBtn(g, exportBtnX, exportBtnY, exportBtnW, exportBtnH);
-
-            return y + 154;
-        } else if (wrap) {
-            // Tablet wrapped: pills on left, export on right at y + 68
-            int btnY = y + 68;
-            exportBtnW = 144;
-            exportBtnH = 34;
-            exportBtnX = x + w - exportBtnW;
-            exportBtnY = btnY;
-            paintExportBtn(g, exportBtnX, exportBtnY, exportBtnW, exportBtnH);
-
-            int curRangeX = x;
-            for (int i = 0; i < 3; i++) {
-                g.setFont(AdminTheme.FONT_BOLD_11);
-                int rW = g.getFontMetrics().stringWidth(rangeLabels[i]) + 20;
-
-                rangeBoxX[i] = curRangeX;
-                rangeBoxY[i] = btnY;
-                rangeBoxW[i] = rW;
-                rangeBoxH[i] = 34;
-
-                paintRangePill(g, rangeBoxX[i], rangeBoxY[i], rangeBoxW[i], rangeBoxH[i], rangeLabels[i], (i == selectedRange), (i == hoveredRangeIdx));
-                curRangeX += rW + 6;
-            }
-
-            return y + 112;
-        } else {
-            // Desktop single-row header
-            int rightX = x + w;
-            exportBtnW = 144;
-            exportBtnH = 34;
-            exportBtnX = rightX - exportBtnW;
-            exportBtnY = y + 8;
-            paintExportBtn(g, exportBtnX, exportBtnY, exportBtnW, exportBtnH);
-
-            int curRangeX = exportBtnX - 16;
-            for (int i = 2; i >= 0; i--) {
-                g.setFont(AdminTheme.FONT_BOLD_11);
-                int rW = g.getFontMetrics().stringWidth(rangeLabels[i]) + 20;
-                curRangeX -= rW;
-
-                rangeBoxX[i] = curRangeX;
-                rangeBoxY[i] = y + 8;
-                rangeBoxW[i] = rW;
-                rangeBoxH[i] = 34;
-
-                paintRangePill(g, rangeBoxX[i], rangeBoxY[i], rangeBoxW[i], rangeBoxH[i], rangeLabels[i], (i == selectedRange), (i == hoveredRangeIdx));
-                curRangeX -= 6;
-            }
-
-            return y + 60;
-        }
-    }
-
-    private void paintRangePill(Graphics2D g, int rx, int ry, int rw, int rh, String label, boolean isSel, boolean isHov) {
-        RoundRectangle2D rBox = new RoundRectangle2D.Float(rx, ry, rw, rh, 8, 8);
-        if (isSel) {
-            g.setColor(AdminTheme.BRAND_GREEN_DARK);
-            g.fill(rBox);
-            g.setColor(Color.WHITE);
-        } else {
-            g.setColor(isHov ? new Color(0xF1, 0xF5, 0xF9) : Color.WHITE);
-            g.fill(rBox);
-            g.setColor(AdminTheme.BORDER_COLOR);
-            g.setStroke(new BasicStroke(1.2f));
-            g.draw(rBox);
-            g.setColor(AdminTheme.TEXT_DARK);
-        }
-        g.setFont(AdminTheme.FONT_BOLD_11);
-        FontMetrics fm = g.getFontMetrics();
-        g.drawString(label, rx + (rw - fm.stringWidth(label)) / 2, ry + 21);
-    }
-
-    private void paintExportBtn(Graphics2D g, int bx, int by, int bw, int bh) {
-        RoundRectangle2D expBox = new RoundRectangle2D.Float(bx, by, bw, bh, 8, 8);
-        g.setColor(exportBtnHovered ? new Color(0xF8, 0xFA, 0xFC) : Color.WHITE);
-        g.fill(expBox);
-        g.setColor(AdminTheme.BORDER_COLOR);
-        g.setStroke(new BasicStroke(1.2f));
-        g.draw(expBox);
-
-        // Download icon
-        int iconOffset = Math.max(12, (bw - 130) / 2);
-        g.setColor(AdminTheme.TEXT_MUTED);
-        g.drawRect(bx + iconOffset, by + 12, 11, 9);
-        g.drawLine(bx + iconOffset + 5, by + 8, bx + iconOffset + 5, by + 15);
-        g.drawLine(bx + iconOffset + 2, by + 12, bx + iconOffset + 5, by + 15);
-        g.drawLine(bx + iconOffset + 8, by + 12, bx + iconOffset + 5, by + 15);
-
-        g.setFont(AdminTheme.FONT_BOLD_11);
-        g.setColor(AdminTheme.TEXT_DARK);
-        g.drawString("Export Analytics", bx + iconOffset + 18, by + 21);
+        return y + 56;
     }
 
     private int paintKpiCardsRow(Graphics2D g, int x, int y, int w) {
@@ -1199,24 +1065,7 @@ public class AdminOverview {
     }
 
     public boolean onClick(int mx, int my, AdminDashboard dashboard) {
-        // 1. Time range selector pills
-        for (int i = 0; i < 3; i++) {
-            if (mx >= rangeBoxX[i] && mx <= rangeBoxX[i] + rangeBoxW[i] &&
-                    my >= rangeBoxY[i] && my <= rangeBoxY[i] + rangeBoxH[i]) {
-                selectedRange = i;
-                dashboard.showToast("Time range set to: " + rangeLabels[i]);
-                return true;
-            }
-        }
-
-        // 2. Export Analytics Report button
-        if (mx >= exportBtnX && mx <= exportBtnX + exportBtnW && my >= exportBtnY && my <= exportBtnY + exportBtnH) {
-            String path = AdminDataStore.getInstance().exportAnalyticsToCsv();
-            dashboard.showToast("Exported Analytics Report to " + new java.io.File(path).getName());
-            return true;
-        }
-
-        // 3. Explore Teams button (navigates to Projects view)
+        // 1. Explore Teams button (navigates to Projects view)
         if (mx >= exploreTeamsBtnX && mx <= exploreTeamsBtnX + exploreTeamsBtnW &&
                 my >= exploreTeamsBtnY && my <= exploreTeamsBtnY + exploreTeamsBtnH) {
             dashboard.navigateTo(AdminSidebar.AdminNavItem.PROJECTS);
@@ -1224,13 +1073,13 @@ public class AdminOverview {
             return true;
         }
 
-        // 4. View all reports button
+        // 2. View all reports button
         if (mx >= viewAllReportsX && mx <= viewAllReportsX + viewAllReportsW && my >= viewAllReportsY && my <= viewAllReportsY + viewAllReportsH) {
             dashboard.openReportsQueue();
             return true;
         }
 
-        // 5. Popular Skills row clicks
+        // 3. Popular Skills row clicks
         for (SkillRowHitbox sh : skillHitboxes) {
             if (mx >= sh.x && mx <= sh.x + sh.w && my >= sh.y && my <= sh.y + sh.h) {
                 dashboard.showToast("Skill: " + sh.name + " (" + String.format("%,d", sh.count) + " enrolled students)");
@@ -1238,7 +1087,7 @@ public class AdminOverview {
             }
         }
 
-        // 6. Moderation review actions
+        // 4. Moderation review actions
         for (ModerationItem item : moderationList) {
             if (mx >= item.actionX && mx <= item.actionX + item.actionW && my >= item.actionY && my <= item.actionY + item.actionH) {
                 dashboard.openReviewModal(item);
@@ -1251,23 +1100,6 @@ public class AdminOverview {
 
     public boolean onMouseMove(int mx, int my) {
         boolean changed = false;
-
-        // Time range hover
-        int oldRangeHover = hoveredRangeIdx;
-        hoveredRangeIdx = -1;
-        for (int i = 0; i < 3; i++) {
-            if (mx >= rangeBoxX[i] && mx <= rangeBoxX[i] + rangeBoxW[i] &&
-                    my >= rangeBoxY[i] && my <= rangeBoxY[i] + rangeBoxH[i]) {
-                hoveredRangeIdx = i;
-                break;
-            }
-        }
-        if (hoveredRangeIdx != oldRangeHover) changed = true;
-
-        // Export hover
-        boolean pExp = exportBtnHovered;
-        exportBtnHovered = (mx >= exportBtnX && mx <= exportBtnX + exportBtnW && my >= exportBtnY && my <= exportBtnY + exportBtnH);
-        if (exportBtnHovered != pExp) changed = true;
 
         // Explore teams hover
         boolean pTeams = exploreTeamsHovered;
@@ -1296,7 +1128,4 @@ public class AdminOverview {
 
         return changed;
     }
-
-    public int getSelectedRange() { return selectedRange; }
-    public void setSelectedRange(int range) { this.selectedRange = range; }
 }

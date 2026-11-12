@@ -58,29 +58,61 @@ public class AdminCategories {
     }
 
     public int getComputedHeight(int width) {
-        return 740;
+        int padX = 36;
+        int contentW = width - padX * 2;
+        boolean stack = (contentW < 820);
+
+        List<AdminDataStore.CategoryModel> allCats = AdminDataStore.getInstance().getAllCategories();
+        List<AdminDataStore.CategoryModel> filteredCats = allCats.stream()
+                .filter(c -> catSearch.isEmpty() || c.name.toLowerCase().contains(catSearch.toLowerCase()))
+                .collect(Collectors.toList());
+        int catDisplayLimit = showAllCategories ? filteredCats.size() : Math.min(6, filteredCats.size());
+        int catTableH = Math.max(300, 38 + catDisplayLimit * 43 + 8);
+        int catColH = 48 + 46 + catTableH + 52;
+
+        List<AdminDataStore.SkillModel> allSkills = AdminDataStore.getInstance().getAllSkills();
+        List<AdminDataStore.SkillModel> filteredSkills = allSkills.stream()
+                .filter(s -> skillSearch.isEmpty() || s.name.toLowerCase().contains(skillSearch.toLowerCase()))
+                .collect(Collectors.toList());
+        int skillDisplayLimit = showAllSkills ? filteredSkills.size() : Math.min(6, filteredSkills.size());
+        int skillTableH = Math.max(300, 38 + skillDisplayLimit * 43 + 8);
+        int skillColH = 48 + 46 + skillTableH + 52;
+
+        int totalH = 28 + 72; // top padding + title header
+        if (stack) {
+            totalH += catColH + 24 + skillColH;
+        } else {
+            totalH += Math.max(catColH, skillColH);
+        }
+        totalH += 24 + 56 + 36; // gap + bottom banner (56) + bottom padding (36)
+        return totalH;
     }
 
     public void paint(Graphics2D g, int x, int y, int width, int height, AdminDashboard dashboard) {
         int padX = 36;
         int curY = y + 28;
         int contentW = width - padX * 2;
+        boolean stack = (contentW < 820);
 
         // 1. Title Header
         paintHeader(g, x + padX, curY, contentW);
         curY += 72;
 
-        // 2. Dual Columns (50% / 50% split with 24px gap)
-        int gap = 24;
-        int colW = (contentW - gap) / 2;
-
-        paintCategoryColumn(g, x + padX, curY, colW, dashboard);
-        paintSkillColumn(g, x + padX + colW + gap, curY, colW, dashboard);
-
-        curY += 460;
+        // 2. Dual Columns
+        int bottomY;
+        if (stack) {
+            int catBottom = paintCategoryColumn(g, x + padX, curY, contentW, dashboard);
+            bottomY = paintSkillColumn(g, x + padX, catBottom + 24, contentW, dashboard);
+        } else {
+            int gap = 24;
+            int colW = (contentW - gap) / 2;
+            int catBottom = paintCategoryColumn(g, x + padX, curY, colW, dashboard);
+            int skillBottom = paintSkillColumn(g, x + padX + colW + gap, curY, colW, dashboard);
+            bottomY = Math.max(catBottom, skillBottom);
+        }
 
         // 3. Information Banner at bottom
-        paintBottomBanner(g, x + padX, curY, contentW);
+        paintBottomBanner(g, x + padX, bottomY + 24, contentW);
     }
 
     private void paintHeader(Graphics2D g, int x, int y, int w) {
@@ -109,7 +141,7 @@ public class AdminCategories {
         g.drawString("Keep project discovery and skill matching relevant, clear and consistent.", x, y + 48);
     }
 
-    private void paintCategoryColumn(Graphics2D g, int x, int y, int w, AdminDashboard dashboard) {
+    private int paintCategoryColumn(Graphics2D g, int x, int y, int w, AdminDashboard dashboard) {
         List<AdminDataStore.CategoryModel> allCats = AdminDataStore.getInstance().getAllCategories();
         long activeCount = allCats.stream().filter(c -> c.active).count();
 
@@ -123,6 +155,8 @@ public class AdminCategories {
         g.drawString(allCats.size() + " categories · " + activeCount + " active", x, y + 34);
 
         // "+ Add category" button
+        addCatBtnW = 126;
+        addCatBtnH = 36;
         addCatBtnX = x + w - addCatBtnW;
         addCatBtnY = y;
         RoundRectangle2D addBtn = new RoundRectangle2D.Float(addCatBtnX, addCatBtnY, addCatBtnW, addCatBtnH, 8, 8);
@@ -147,8 +181,12 @@ public class AdminCategories {
                 .filter(c -> catSearch.isEmpty() || c.name.toLowerCase().contains(catSearch.toLowerCase()))
                 .collect(Collectors.toList());
 
-        // Card Container
-        int tableH = 310;
+        // Card Container - dynamic height
+        int headH = 38;
+        int rowH = 43;
+        int displayLimit = showAllCategories ? filteredCats.size() : Math.min(6, filteredCats.size());
+        int tableH = Math.max(300, headH + Math.max(1, displayLimit) * rowH + 8);
+
         RoundRectangle2D card = new RoundRectangle2D.Float(x, curY, w, tableH, 12, 12);
         g.setColor(Color.WHITE);
         g.fill(card);
@@ -156,7 +194,6 @@ public class AdminCategories {
         g.draw(card);
 
         // Table Header
-        int headH = 38;
         g.setColor(AdminTheme.BG_CANVAS);
         g.fill(new RoundRectangle2D.Float(x, curY, w, headH, 12, 12));
         g.fillRect(x, curY + headH - 8, w, 8);
@@ -171,10 +208,13 @@ public class AdminCategories {
 
         // Rows
         int rowY = curY + headH;
-        int rowH = 43;
         catHitboxes.clear();
 
-        int displayLimit = showAllCategories ? filteredCats.size() : Math.min(6, filteredCats.size());
+        if (filteredCats.isEmpty()) {
+            g.setFont(AdminTheme.FONT_REGULAR_13);
+            g.setColor(AdminTheme.TEXT_MUTED);
+            g.drawString("No categories match your search.", x + 24, rowY + 36);
+        }
 
         for (int i = 0; i < displayLimit; i++) {
             AdminDataStore.CategoryModel item = filteredCats.get(i);
@@ -234,24 +274,37 @@ public class AdminCategories {
         int footY = curY + tableH + 18;
         g.setFont(AdminTheme.FONT_REGULAR_12);
         g.setColor(AdminTheme.TEXT_MUTED);
-        String footPrefix = "Showing " + displayLimit + " of " + allCats.size() + " categories · ";
-        g.drawString(footPrefix, x, footY);
+        String footPrefix = "Showing " + displayLimit + " of " + filteredCats.size() + " categories · ";
+        g.drawString(footPrefix, x, footY + 4);
 
         FontMetrics fmFoot = g.getFontMetrics();
         int preW = fmFoot.stringWidth(footPrefix);
 
-        viewAllCatX = x + preW;
-        viewAllCatY = footY - 14;
-        String viewAllText = showAllCategories ? "Show less ↑" : "View all categories →";
-        viewAllCatW = fmFoot.stringWidth(viewAllText);
-        viewAllCatH = 18;
+        String viewAllText = showAllCategories ? "Show less ↑" : ("View all (" + filteredCats.size() + ") →");
+        g.setFont(AdminTheme.FONT_BOLD_11);
+        FontMetrics bfm = g.getFontMetrics();
 
-        g.setColor(viewAllCatHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.BRAND_GREEN_DARK);
-        g.setFont(AdminTheme.FONT_BOLD_12);
-        g.drawString(viewAllText, viewAllCatX, footY);
+        viewAllCatW = bfm.stringWidth(viewAllText) + 18;
+        viewAllCatH = 24;
+        viewAllCatX = x + preW;
+        viewAllCatY = footY - 12;
+
+        RoundRectangle2D pill = new RoundRectangle2D.Float(viewAllCatX, viewAllCatY, viewAllCatW, viewAllCatH, 12, 12);
+        g.setColor(viewAllCatHovered ? AdminTheme.BRAND_GREEN_DARK : new Color(0xEC, 0xFD, 0xF5));
+        g.fill(pill);
+        g.setColor(viewAllCatHovered ? AdminTheme.BRAND_GREEN_DARK : new Color(0xA7, 0xF3, 0xD0));
+        g.setStroke(new BasicStroke(1.0f));
+        g.draw(pill);
+
+        g.setColor(viewAllCatHovered ? Color.WHITE : AdminTheme.BRAND_GREEN_DARK);
+        int tx = viewAllCatX + (viewAllCatW - bfm.stringWidth(viewAllText)) / 2;
+        int ty = viewAllCatY + (viewAllCatH - bfm.getHeight()) / 2 + bfm.getAscent();
+        g.drawString(viewAllText, tx, ty);
+
+        return footY + viewAllCatH + 8;
     }
 
-    private void paintSkillColumn(Graphics2D g, int x, int y, int w, AdminDashboard dashboard) {
+    private int paintSkillColumn(Graphics2D g, int x, int y, int w, AdminDashboard dashboard) {
         List<AdminDataStore.SkillModel> allSkills = AdminDataStore.getInstance().getAllSkills();
         long activeCount = allSkills.stream().filter(s -> s.active).count();
 
@@ -265,6 +318,8 @@ public class AdminCategories {
         g.drawString(allSkills.size() + " skills · " + activeCount + " active", x, y + 34);
 
         // "+ Add skill" button
+        addSkillBtnW = 104;
+        addSkillBtnH = 36;
         addSkillBtnX = x + w - addSkillBtnW;
         addSkillBtnY = y;
         RoundRectangle2D addBtn = new RoundRectangle2D.Float(addSkillBtnX, addSkillBtnY, addSkillBtnW, addSkillBtnH, 8, 8);
@@ -289,8 +344,12 @@ public class AdminCategories {
                 .filter(s -> skillSearch.isEmpty() || s.name.toLowerCase().contains(skillSearch.toLowerCase()))
                 .collect(Collectors.toList());
 
-        // Card Container
-        int tableH = 310;
+        // Card Container - dynamic height
+        int headH = 38;
+        int rowH = 43;
+        int displayLimit = showAllSkills ? filteredSkills.size() : Math.min(6, filteredSkills.size());
+        int tableH = Math.max(300, headH + Math.max(1, displayLimit) * rowH + 8);
+
         RoundRectangle2D card = new RoundRectangle2D.Float(x, curY, w, tableH, 12, 12);
         g.setColor(Color.WHITE);
         g.fill(card);
@@ -298,7 +357,6 @@ public class AdminCategories {
         g.draw(card);
 
         // Table Header
-        int headH = 38;
         g.setColor(AdminTheme.BG_CANVAS);
         g.fill(new RoundRectangle2D.Float(x, curY, w, headH, 12, 12));
         g.fillRect(x, curY + headH - 8, w, 8);
@@ -313,10 +371,13 @@ public class AdminCategories {
 
         // Rows
         int rowY = curY + headH;
-        int rowH = 43;
         skillHitboxes.clear();
 
-        int displayLimit = showAllSkills ? filteredSkills.size() : Math.min(6, filteredSkills.size());
+        if (filteredSkills.isEmpty()) {
+            g.setFont(AdminTheme.FONT_REGULAR_13);
+            g.setColor(AdminTheme.TEXT_MUTED);
+            g.drawString("No skills match your search.", x + 24, rowY + 36);
+        }
 
         for (int i = 0; i < displayLimit; i++) {
             AdminDataStore.SkillModel item = filteredSkills.get(i);
@@ -376,21 +437,34 @@ public class AdminCategories {
         int footY = curY + tableH + 18;
         g.setFont(AdminTheme.FONT_REGULAR_12);
         g.setColor(AdminTheme.TEXT_MUTED);
-        String footPrefix = "Showing " + displayLimit + " of " + allSkills.size() + " skills · ";
-        g.drawString(footPrefix, x, footY);
+        String footPrefix = "Showing " + displayLimit + " of " + filteredSkills.size() + " skills · ";
+        g.drawString(footPrefix, x, footY + 4);
 
         FontMetrics fmFoot = g.getFontMetrics();
         int preW = fmFoot.stringWidth(footPrefix);
 
-        viewAllSkillX = x + preW;
-        viewAllSkillY = footY - 14;
-        String viewAllText = showAllSkills ? "Show less ↑" : "View all skills →";
-        viewAllSkillW = fmFoot.stringWidth(viewAllText);
-        viewAllSkillH = 18;
+        String viewAllText = showAllSkills ? "Show less ↑" : ("View all (" + filteredSkills.size() + ") →");
+        g.setFont(AdminTheme.FONT_BOLD_11);
+        FontMetrics bfm = g.getFontMetrics();
 
-        g.setColor(viewAllSkillHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.BRAND_GREEN_DARK);
-        g.setFont(AdminTheme.FONT_BOLD_12);
-        g.drawString(viewAllText, viewAllSkillX, footY);
+        viewAllSkillW = bfm.stringWidth(viewAllText) + 18;
+        viewAllSkillH = 24;
+        viewAllSkillX = x + preW;
+        viewAllSkillY = footY - 12;
+
+        RoundRectangle2D pill = new RoundRectangle2D.Float(viewAllSkillX, viewAllSkillY, viewAllSkillW, viewAllSkillH, 12, 12);
+        g.setColor(viewAllSkillHovered ? AdminTheme.BRAND_GREEN_DARK : new Color(0xEC, 0xFD, 0xF5));
+        g.fill(pill);
+        g.setColor(viewAllSkillHovered ? AdminTheme.BRAND_GREEN_DARK : new Color(0xA7, 0xF3, 0xD0));
+        g.setStroke(new BasicStroke(1.0f));
+        g.draw(pill);
+
+        g.setColor(viewAllSkillHovered ? Color.WHITE : AdminTheme.BRAND_GREEN_DARK);
+        int tx = viewAllSkillX + (viewAllSkillW - bfm.stringWidth(viewAllText)) / 2;
+        int ty = viewAllSkillY + (viewAllSkillH - bfm.getHeight()) / 2 + bfm.getAscent();
+        g.drawString(viewAllText, tx, ty);
+
+        return footY + viewAllSkillH + 8;
     }
 
     private void paintSearchBar(Graphics2D g, int sx, int sy, int sw, int sh, String text, String placeholder, boolean focused) {
@@ -590,5 +664,21 @@ public class AdminCategories {
             }
         }
         return false;
+    }
+
+    public boolean isShowAllCategories() {
+        return showAllCategories;
+    }
+
+    public void setShowAllCategories(boolean show) {
+        this.showAllCategories = show;
+    }
+
+    public boolean isShowAllSkills() {
+        return showAllSkills;
+    }
+
+    public void setShowAllSkills(boolean show) {
+        this.showAllSkills = show;
     }
 }
