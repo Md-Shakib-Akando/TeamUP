@@ -35,7 +35,6 @@ public class StudentDashboard {
     private final TeamWorkspaceData teamData = new TeamWorkspaceData();
     private final SettingsData settingsData = new SettingsData();
     private final ProfileData profileData = new ProfileData();
-    private final MessagesData messagesData = new MessagesData();
 
     // Modular Sub-components
     private final DashboardSidebar sidebar;
@@ -58,7 +57,6 @@ public class StudentDashboard {
         FIND_TEAMMATES("Find Teammates", 0),
         MY_PROJECTS("My Projects", 0),
         MY_TEAMS("My Teams", 0),
-        MESSAGES("Messages", 3),
         MY_PROFILE("My Profile", 0),
         SETTINGS("Settings", 0);
 
@@ -79,7 +77,6 @@ public class StudentDashboard {
         PROJECT_DETAILS,
         TEAMMATE_DETAILS,
         ALL_TASKS,
-        MESSAGES,
         TEAMS_LIST
     }
 
@@ -202,10 +199,6 @@ public class StudentDashboard {
     private final List<TaskItem> tasks = new ArrayList<TaskItem>();
     private final List<ActivityItem> activities = new ArrayList<ActivityItem>();
     private final List<String> notifications = new ArrayList<String>();
-    private final List<String> chatHistory = new ArrayList<String>(Arrays.asList(
-            "Priya Shah: Hey Alex, have you checked the new UI mockups for GreenRoute?",
-            "Alex Morgan: Yes! Looks super clean, especially the route mapping cards.",
-            "Priya Shah: Awesome! Let's sync today at 4 PM to finalize the schema."));
 
     // =========================================================================
     // HITBOXES - MY PROFILE
@@ -230,17 +223,6 @@ public class StudentDashboard {
     private boolean profileAddSkillHovered = false;
     private final Rectangle profileRequestReviewBtnBox = new Rectangle();
     private boolean profileRequestReviewHovered = false;
-
-    // =========================================================================
-    // HITBOXES - MESSAGES
-    // =========================================================================
-    private final List<Rectangle> convBounds = new ArrayList<Rectangle>();
-    private int hoveredConvIndex = -1;
-    private final Rectangle msgInputBox = new Rectangle();
-    private final Rectangle msgSendBtnBox = new Rectangle();
-    private boolean msgSendHovered = false;
-    private final Rectangle videoCallBtnBox = new Rectangle();
-    private boolean videoCallHovered = false;
 
     // =========================================================================
     // HITBOXES - SETTINGS (4 TABS)
@@ -298,8 +280,6 @@ public class StudentDashboard {
     // =========================================================================
     private int teamSettingsBtnX, teamSettingsBtnY, teamSettingsBtnW, teamSettingsBtnH;
     private boolean teamSettingsBtnHovered = false;
-    private int teamMsgBtnX, teamMsgBtnY, teamMsgBtnW, teamMsgBtnH;
-    private boolean teamMsgBtnHovered = false;
     private final Rectangle[] teamTabBounds = new Rectangle[8];
     private int hoveredTeamTabIndex = -1;
     private int inviteMemberBtnX, inviteMemberBtnY, inviteMemberBtnW, inviteMemberBtnH;
@@ -323,7 +303,6 @@ public class StudentDashboard {
     private boolean tabInviteMemberHovered = false;
     private final Rectangle inviteTeammateSlotBox = new Rectangle();
     private boolean inviteTeammateSlotHovered = false;
-    private final List<Rectangle> memberTabMsgBtns = new ArrayList<Rectangle>();
     private final List<Rectangle> memberTabProfileBtns = new ArrayList<Rectangle>();
     private final List<Rectangle> memberTabRemoveBtns = new ArrayList<Rectangle>();
 
@@ -348,7 +327,6 @@ public class StudentDashboard {
     private boolean tabPostRoleHovered = false;
     private final List<Rectangle> reqAcceptBtns = new ArrayList<Rectangle>();
     private final List<Rectangle> reqDeclineBtns = new ArrayList<Rectangle>();
-    private final List<Rectangle> reqMessageBtns = new ArrayList<Rectangle>();
 
     // =========================================================================
     // EXACT LANDING PAGE COLOR SYSTEM (THEME.JAVA TOKENS)
@@ -539,9 +517,6 @@ public class StudentDashboard {
             case MY_TEAMS:
                 paintMyTeamsContent(cg, sideW, contentY, width - sideW, height);
                 break;
-            case MESSAGES:
-                paintMessagesContent(cg, sideW, contentY, width - sideW, height);
-                break;
             case MY_PROFILE:
                 paintProfileContent(cg, sideW, contentY, width - sideW, height);
                 break;
@@ -563,10 +538,8 @@ public class StudentDashboard {
         // 4. Top Fixed Header
         header.paint(g2, sideW, 0, width - sideW, headerH, this);
 
-        // 5. Scrollbar for Content (Hidden for Messages split view)
-        if (activeNav != NavItem.MESSAGES) {
-            paintContentScrollbar(g2, width - 8, headerH, 6, height - headerH);
-        }
+        // 5. Scrollbar for Content
+        paintContentScrollbar(g2, width - 8, headerH, 6, height - headerH);
 
         // 6. Active Dropdown Overlays & Profile Modal
         if (activeNav == NavItem.MY_PROJECTS) {
@@ -601,7 +574,6 @@ public class StudentDashboard {
             case OVERVIEW:
                 return overview.getTotalContentHeight();
             case MY_TEAMS:
-            case MESSAGES:
             case MY_PROFILE:
             case SETTINGS:
             default:
@@ -1151,244 +1123,7 @@ public class StudentDashboard {
     }
 
     // =========================================================================
-    // 2. MESSAGES VIEW RENDERING (ALIGNED WITH LANDING PAGE PALETTE)
-    // =========================================================================
-    private void paintMessagesContent(Graphics2D g, int startX, int startY, int width, int height) {
-        int padX = 28;
-        int curY = startY + 20;
-        int contentW = width - padX * 2;
-        int contentH = height - 80;
-
-        convBounds.clear();
-
-        RoundRectangle2D mainCard = new RoundRectangle2D.Float(startX + padX, curY, contentW, contentH, 14, 14);
-        g.setColor(Color.WHITE);
-        g.fill(mainCard);
-        g.setColor(BORDER_COLOR);
-        g.draw(mainCard);
-
-        int leftPaneW = 280;
-        int rightPaneW = contentW - leftPaneW;
-        int paneX = startX + padX;
-
-        g.setColor(BORDER_COLOR);
-        g.drawLine(paneX + leftPaneW, curY, paneX + leftPaneW, curY + contentH);
-
-        // LEFT PANE: CONVERSATIONS LIST
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 16));
-        g.setColor(TEXT_DARK);
-        g.drawString("Messages", paneX + 16, curY + 28);
-
-        int unreadTotal = messagesData.getTotalUnreadCount();
-        if (unreadTotal > 0) {
-            RoundRectangle2D unreadPill = new RoundRectangle2D.Float(paneX + 104, curY + 14, 22, 18, 18, 18);
-            g.setColor(BRAND_TINT_BG);
-            g.fill(unreadPill);
-            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 10));
-            g.setColor(BRAND_ACCENT);
-            g.drawString(String.valueOf(unreadTotal), paneX + 111, curY + 27);
-        }
-
-        int convY = curY + 48;
-        int convItemH = 58;
-
-        for (int i = 0; i < messagesData.conversations.size(); i++) {
-            MessagesData.Conversation c = messagesData.conversations.get(i);
-            boolean isSel = (i == messagesData.activeConvIndex);
-            boolean isHov = (i == hoveredConvIndex);
-
-            Rectangle itemBox = new Rectangle(paneX + 8, convY, leftPaneW - 16, convItemH);
-            convBounds.add(itemBox);
-
-            RoundRectangle2D itemShape = new RoundRectangle2D.Float(itemBox.x, itemBox.y, itemBox.width, itemBox.height,
-                    8, 8);
-            if (isSel) {
-                g.setColor(BRAND_TINT_BG);
-                g.fill(itemShape);
-            } else if (isHov) {
-                g.setColor(BG_CANVAS);
-                g.fill(itemShape);
-            }
-
-            drawAvatar(g, itemBox.x + 22, itemBox.y + 29, 16, c.initials, c.avatarBg, c.avatarFg);
-            if (c.isOnline && !c.isChannel) {
-                g.setColor(SUCCESS_GREEN);
-                g.fillOval(itemBox.x + 32, itemBox.y + 36, 7, 7);
-                g.setColor(Color.WHITE);
-                g.drawOval(itemBox.x + 32, itemBox.y + 36, 7, 7);
-            }
-
-            g.setFont(new Font(Font.SANS_SERIF, isSel ? Font.BOLD : Font.PLAIN, 12));
-            g.setColor(isSel ? BRAND_ACCENT : TEXT_DARK);
-            g.drawString(c.title, itemBox.x + 46, itemBox.y + 24);
-
-            g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 10));
-            g.setColor(TEXT_LIGHT);
-            g.drawString(c.lastTime, itemBox.x + itemBox.width - 48, itemBox.y + 24);
-
-            g.setColor(TEXT_MUTED);
-            String prev = c.lastPreview;
-            if (prev.length() > 28)
-                prev = prev.substring(0, 26) + "...";
-            g.drawString(prev, itemBox.x + 46, itemBox.y + 42);
-
-            if (c.unreadCount > 0) {
-                RoundRectangle2D uPill = new RoundRectangle2D.Float(itemBox.x + itemBox.width - 24, itemBox.y + 32, 16,
-                        16, 16, 16);
-                g.setColor(BRAND_ACCENT);
-                g.fill(uPill);
-                g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 9));
-                g.setColor(Color.WHITE);
-                g.drawString(String.valueOf(c.unreadCount), itemBox.x + itemBox.width - 19, itemBox.y + 44);
-            }
-
-            convY += convItemH + 4;
-        }
-
-        // RIGHT PANE: ACTIVE CHAT VIEW
-        MessagesData.Conversation activeConv = messagesData.getActiveConversation();
-        int chatX = paneX + leftPaneW;
-
-        int chatHeaderH = 56;
-        g.setColor(Color.WHITE);
-        g.fillRect(chatX + 1, curY + 1, rightPaneW - 2, chatHeaderH);
-        g.setColor(BORDER_COLOR);
-        g.drawLine(chatX, curY + chatHeaderH, chatX + rightPaneW, curY + chatHeaderH);
-
-        drawAvatar(g, chatX + 30, curY + 28, 16, activeConv.initials, activeConv.avatarBg, activeConv.avatarFg);
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
-        g.setColor(TEXT_DARK);
-        g.drawString(activeConv.title, chatX + 54, curY + 24);
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
-        g.setColor(TEXT_MUTED);
-        g.drawString(activeConv.subtitle, chatX + 54, curY + 40);
-
-        videoCallBtnBox.setBounds(chatX + rightPaneW - 110, curY + 14, 94, 28);
-        RoundRectangle2D callBtn = new RoundRectangle2D.Float(videoCallBtnBox.x, videoCallBtnBox.y,
-                videoCallBtnBox.width, videoCallBtnBox.height, 6, 6);
-        g.setColor(videoCallHovered ? BG_CANVAS : Color.WHITE);
-        g.fill(callBtn);
-        g.setColor(BORDER_COLOR);
-        g.draw(callBtn);
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
-        g.setColor(TEXT_DARK);
-        g.drawString("📹 Start Call", videoCallBtnBox.x + 10, videoCallBtnBox.y + 18);
-
-        int historyY = curY + chatHeaderH + 16;
-        int composerH = 54;
-        int maxHistoryH = contentH - chatHeaderH - composerH - 24;
-
-        List<MessagesData.ChatMessage> msgList = messagesData.getActiveMessages();
-        int curMsgY = historyY;
-
-        for (MessagesData.ChatMessage msg : msgList) {
-            if (curMsgY > historyY + maxHistoryH)
-                break;
-
-            if (msg.isOutgoing) {
-                // Outgoing Bubble (Right side in signature Brand Hot Pink #EA4C89)
-                g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
-                FontMetrics mfm = g.getFontMetrics();
-                int textW = mfm.stringWidth(msg.text);
-                int bubbleW = Math.min(rightPaneW - 100, Math.max(80, textW + 28));
-                int bubbleH = 34;
-                int bubbleX = chatX + rightPaneW - bubbleW - 24;
-
-                RoundRectangle2D outBubble = new RoundRectangle2D.Float(bubbleX, curMsgY, bubbleW, bubbleH, 12, 12);
-                g.setColor(BRAND_ACCENT);
-                g.fill(outBubble);
-
-                g.setColor(Color.WHITE);
-                g.drawString(msg.text, bubbleX + 14, curMsgY + 21);
-
-                g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 9));
-                g.setColor(TEXT_LIGHT);
-                g.drawString(msg.time, bubbleX + bubbleW - 48, curMsgY + bubbleH + 11);
-
-                curMsgY += bubbleH + 18;
-            } else {
-                // Incoming Bubble (Left side)
-                drawAvatar(g, chatX + 28, curMsgY + 16, 14, msg.senderInitials, msg.avatarBg, msg.avatarFg);
-
-                g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
-                g.setColor(TEXT_DARK);
-                g.drawString(msg.senderName, chatX + 50, curMsgY + 12);
-
-                g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 9));
-                g.setColor(TEXT_LIGHT);
-                g.drawString(msg.time, chatX + 56 + g.getFontMetrics().stringWidth(msg.senderName), curMsgY + 12);
-
-                g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
-                FontMetrics mfm = g.getFontMetrics();
-                int textW = mfm.stringWidth(msg.text);
-                int bubbleW = Math.min(rightPaneW - 120, Math.max(80, textW + 28));
-                int bubbleH = 34;
-                int bubbleX = chatX + 50;
-
-                RoundRectangle2D inBubble = new RoundRectangle2D.Float(bubbleX, curMsgY + 18, bubbleW, bubbleH, 12, 12);
-                g.setColor(BG_CANVAS);
-                g.fill(inBubble);
-                g.setColor(BORDER_COLOR);
-                g.draw(inBubble);
-
-                g.setColor(TEXT_DARK);
-                g.drawString(msg.text, bubbleX + 14, curMsgY + 39);
-
-                curMsgY += bubbleH + 28;
-            }
-        }
-
-        // Chat Composer Input Bar at Bottom
-        int compY = curY + contentH - composerH;
-        g.setColor(Color.WHITE);
-        g.fillRect(chatX + 1, compY, rightPaneW - 2, composerH - 1);
-        g.setColor(BORDER_COLOR);
-        g.drawLine(chatX, compY, chatX + rightPaneW, compY);
-
-        msgInputBox.setBounds(chatX + 16, compY + 9, rightPaneW - 84, 36);
-        RoundRectangle2D inShape = new RoundRectangle2D.Float(msgInputBox.x, msgInputBox.y, msgInputBox.width,
-                msgInputBox.height, 8, 8);
-        g.setColor(messagesData.inputFocused ? Color.WHITE : BG_CANVAS);
-        g.fill(inShape);
-        g.setColor(messagesData.inputFocused ? BRAND_ACCENT : BORDER_COLOR);
-        g.draw(inShape);
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
-        g.setColor(TEXT_LIGHT);
-        g.drawString("📎", msgInputBox.x + 10, msgInputBox.y + 23);
-
-        if (messagesData.inputDraft.isEmpty()) {
-            g.setColor(TEXT_LIGHT);
-            g.drawString("Type a message to " + activeConv.title + " (Press Enter to send)...", msgInputBox.x + 32,
-                    msgInputBox.y + 22);
-        } else {
-            g.setColor(TEXT_DARK);
-            g.drawString(messagesData.inputDraft, msgInputBox.x + 32, msgInputBox.y + 22);
-
-            if (messagesData.inputFocused && (System.currentTimeMillis() / 500) % 2 == 0) {
-                int dw = g.getFontMetrics().stringWidth(messagesData.inputDraft);
-                g.setColor(BRAND_ACCENT);
-                g.drawLine(msgInputBox.x + 34 + dw, msgInputBox.y + 10, msgInputBox.x + 34 + dw, msgInputBox.y + 26);
-            }
-        }
-
-        // Send Button (➤) in signature Brand Hot Pink #EA4C89
-        msgSendBtnBox.setBounds(chatX + rightPaneW - 56, compY + 9, 40, 36);
-        RoundRectangle2D sendBtn = new RoundRectangle2D.Float(msgSendBtnBox.x, msgSendBtnBox.y, msgSendBtnBox.width,
-                msgSendBtnBox.height, 8, 8);
-        g.setColor(msgSendHovered ? BRAND_ACCENT_HOVER : BRAND_ACCENT);
-        g.fill(sendBtn);
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
-        g.setColor(Color.WHITE);
-        g.drawString("➤", msgSendBtnBox.x + 13, msgSendBtnBox.y + 23);
-
-        totalContentHeight = height;
-    }
-
-    // =========================================================================
-    // 3. SETTINGS VIEW RENDERING (ALIGNED WITH LANDING PAGE PALETTE)
+    // 2. SETTINGS VIEW RENDERING (ALIGNED WITH LANDING PAGE PALETTE)
     // =========================================================================
     private void paintSettingsContent(Graphics2D g, int startX, int startY, int width, int height) {
         int padX = 36;
@@ -2224,18 +1959,10 @@ public class StudentDashboard {
         g.drawString(teamData.subtitle, startX + padX, titleY + 22);
 
         int btnH = 36;
-        int btnW1 = 128;
-        int btnW2 = 128;
-
-        teamMsgBtnW = btnW1;
-        teamMsgBtnH = btnH;
-        teamMsgBtnX = startX + padX + contentW - teamMsgBtnW;
-        teamMsgBtnY = curY + 4;
-
-        teamSettingsBtnW = btnW2;
+        teamSettingsBtnW = 128;
         teamSettingsBtnH = btnH;
-        teamSettingsBtnX = teamMsgBtnX - teamSettingsBtnW - 12;
-        teamSettingsBtnY = teamMsgBtnY;
+        teamSettingsBtnX = startX + padX + contentW - teamSettingsBtnW;
+        teamSettingsBtnY = curY + 4;
 
         RoundRectangle2D setBtnShape = new RoundRectangle2D.Float(teamSettingsBtnX, teamSettingsBtnY, teamSettingsBtnW,
                 teamSettingsBtnH, 10, 10);
@@ -2248,17 +1975,6 @@ public class StudentDashboard {
         g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
         g.setColor(TEXT_DARK);
         g.drawString("Team settings", teamSettingsBtnX + 34, teamSettingsBtnY + 22);
-
-        // [Message team] Solid Button in signature Brand Hot Pink #EA4C89
-        RoundRectangle2D msgBtnShape = new RoundRectangle2D.Float(teamMsgBtnX, teamMsgBtnY, teamMsgBtnW, teamMsgBtnH,
-                10, 10);
-        g.setColor(teamMsgBtnHovered ? BRAND_ACCENT_HOVER : BRAND_ACCENT);
-        g.fill(msgBtnShape);
-
-        drawMessageBubbleIcon(g, teamMsgBtnX + 14, teamMsgBtnY + 12, 14, Color.WHITE);
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
-        g.setColor(Color.WHITE);
-        g.drawString("Message team", teamMsgBtnX + 34, teamMsgBtnY + 22);
 
         curY += 66;
 
@@ -2745,13 +2461,6 @@ public class StudentDashboard {
         g.drawLine(cx + r, cy, cx + r + 2, cy);
     }
 
-    private void drawMessageBubbleIcon(Graphics2D g, int x, int y, int size, Color c) {
-        g.setColor(c);
-        g.setStroke(new BasicStroke(1.4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-        g.drawRoundRect(x + 1, y + 1, size - 2, size - 4, 4, 4);
-        g.drawLine(x + 4, y + size - 3, x + 2, y + size);
-    }
-
     private void drawFileIcon(Graphics2D g, int x, int y, int size, Color c) {
         g.setColor(c);
         g.setStroke(new BasicStroke(1.4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
@@ -2760,34 +2469,7 @@ public class StudentDashboard {
         g.drawLine(x + 5, y + 10, x + size - 5, y + 10);
     }
 
-    private void openChatWithPerson(String name) {
-        if (messagesData == null || messagesData.conversations.isEmpty()) {
-            activeNav = NavItem.MESSAGES;
-            showToast("Opening messages view...");
-            return;
-        }
-        int found = -1;
-        String s = name.trim().toLowerCase();
-        for (int i = 0; i < messagesData.conversations.size(); i++) {
-            MessagesData.Conversation c = messagesData.conversations.get(i);
-            if (c.title != null && c.title.toLowerCase().contains(s)) {
-                found = i;
-                break;
-            }
-        }
-        if (found >= 0) {
-            messagesData.selectConversation(found);
-            activeNav = NavItem.MESSAGES;
-            showToast("Opened chat with " + name);
-        } else {
-            messagesData.selectConversation(0);
-            activeNav = NavItem.MESSAGES;
-            showToast("Opened CampusConnect chat for " + name);
-        }
-    }
-
     private int paintMyTeamsMembersTab(Graphics2D g, int x, int y, int w) {
-        memberTabMsgBtns.clear();
         memberTabProfileBtns.clear();
         memberTabRemoveBtns.clear();
 
@@ -2866,20 +2548,9 @@ public class StudentDashboard {
             int btnY = cy + 82;
             int btnH2 = 28;
 
-            // [Message] Button
-            int msgW = 86;
-            Rectangle msgBox = new Rectangle(cx + 18, btnY, msgW, btnH2);
-            memberTabMsgBtns.add(msgBox);
-            g.setColor(BRAND_TINT_BG);
-            g.fill(new RoundRectangle2D.Float(msgBox.x, msgBox.y, msgBox.width, msgBox.height, 6, 6));
-            g.setColor(BRAND_ACCENT);
-            g.draw(new RoundRectangle2D.Float(msgBox.x, msgBox.y, msgBox.width, msgBox.height, 6, 6));
-            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
-            g.drawString("Message", msgBox.x + 18, msgBox.y + 18);
-
             // [View Profile] Button
-            int profW = 92;
-            Rectangle profBox = new Rectangle(cx + 18 + msgW + 10, btnY, profW, btnH2);
+            int profW = 96;
+            Rectangle profBox = new Rectangle(cx + 18, btnY, profW, btnH2);
             memberTabProfileBtns.add(profBox);
             g.setColor(BG_CANVAS);
             g.fill(new RoundRectangle2D.Float(profBox.x, profBox.y, profBox.width, profBox.height, 6, 6));
@@ -2887,7 +2558,7 @@ public class StudentDashboard {
             g.draw(new RoundRectangle2D.Float(profBox.x, profBox.y, profBox.width, profBox.height, 6, 6));
             g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
             g.setColor(TEXT_DARK);
-            g.drawString("View Profile", profBox.x + 14, profBox.y + 18);
+            g.drawString("View Profile", profBox.x + 16, profBox.y + 18);
 
             // [Remove] Button (only for non-You members)
             if (!isYou) {
@@ -3210,7 +2881,6 @@ public class StudentDashboard {
     private int paintMyTeamsRequestsTab(Graphics2D g, int x, int y, int w) {
         reqAcceptBtns.clear();
         reqDeclineBtns.clear();
-        reqMessageBtns.clear();
 
         int curY = y;
 
@@ -3286,13 +2956,13 @@ public class StudentDashboard {
             String pitch = "Applicant note: 'Excited to contribute to CampusConnect and collaborate with full-stack developers.'";
             g.drawString(pitch, x + 76, cardY + 76);
 
-            // Action Buttons: [Accept] (Solid Green) [Decline] (Outline) [Message] (Pink)
+            // Action Buttons: [Accept] (Solid Green) [Decline] (Outline)
             int aBtnY = cardY + cardH / 2 - 16;
             int aBtnH = 32;
 
             // [Accept]
             int accW = 86;
-            Rectangle accBox = new Rectangle(x + w - 280, aBtnY, accW, aBtnH);
+            Rectangle accBox = new Rectangle(x + w - 184, aBtnY, accW, aBtnH);
             reqAcceptBtns.add(accBox);
             RoundRectangle2D accShape = new RoundRectangle2D.Float(accBox.x, accBox.y, accBox.width, accBox.height, 8, 8);
             g.setColor(SUCCESS_GREEN);
@@ -3303,7 +2973,7 @@ public class StudentDashboard {
 
             // [Decline]
             int decW = 80;
-            Rectangle decBox = new Rectangle(x + w - 186, aBtnY, decW, aBtnH);
+            Rectangle decBox = new Rectangle(x + w - 90, aBtnY, decW, aBtnH);
             reqDeclineBtns.add(decBox);
             RoundRectangle2D decShape = new RoundRectangle2D.Float(decBox.x, decBox.y, decBox.width, decBox.height, 8, 8);
             g.setColor(BG_CANVAS);
@@ -3313,19 +2983,6 @@ public class StudentDashboard {
             g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
             g.setColor(TEXT_MUTED);
             g.drawString("Decline", decBox.x + 18, decBox.y + 21);
-
-            // [Message]
-            int msgW = 92;
-            Rectangle msgBox = new Rectangle(x + w - 98, aBtnY, msgW, aBtnH);
-            reqMessageBtns.add(msgBox);
-            RoundRectangle2D mShape = new RoundRectangle2D.Float(msgBox.x, msgBox.y, msgBox.width, msgBox.height, 8, 8);
-            g.setColor(BRAND_TINT_BG);
-            g.fill(mShape);
-            g.setColor(BRAND_TINT_BORDER);
-            g.draw(mShape);
-            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
-            g.setColor(BRAND_ACCENT);
-            g.drawString("Message 💬", msgBox.x + 12, msgBox.y + 21);
         }
 
         return curY + teamData.recruitmentRequests.size() * (cardH + gap) + 30;
@@ -3386,10 +3043,6 @@ public class StudentDashboard {
                 break;
             case MY_PROFILE:
                 if (handleProfileClick(mx, my))
-                    return true;
-                break;
-            case MESSAGES:
-                if (handleMessagesClick(mx, my))
                     return true;
                 break;
             case SETTINGS:
@@ -3497,39 +3150,6 @@ public class StudentDashboard {
                 showToast("Opening workspace for " + p.title + "...");
                 return true;
             }
-        }
-        return false;
-    }
-
-    private boolean handleMessagesClick(int mx, int my) {
-        for (int i = 0; i < convBounds.size(); i++) {
-            if (convBounds.get(i).contains(mx, my)) {
-                messagesData.selectConversation(i);
-                showToast("Opened: " + messagesData.getActiveConversation().title);
-                return true;
-            }
-        }
-
-        if (msgInputBox.contains(mx, my)) {
-            messagesData.inputFocused = true;
-            return true;
-        } else {
-            messagesData.inputFocused = false;
-        }
-
-        if (msgSendBtnBox.contains(mx, my)) {
-            messagesData.sendCurrentDraft();
-            showToast("Message sent to " + messagesData.getActiveConversation().title);
-            return true;
-        }
-
-        if (videoCallBtnBox.contains(mx, my)) {
-            if (listener != null) {
-                listener.openModal("Start Video Meeting",
-                        "Connect via UW Zoom or WebRTC with " + messagesData.getActiveConversation().title + ".",
-                        false);
-            }
-            return true;
         }
         return false;
     }
@@ -3728,14 +3348,6 @@ public class StudentDashboard {
             return true;
         }
 
-        if (mx >= teamMsgBtnX && mx <= teamMsgBtnX + teamMsgBtnW &&
-                my >= teamMsgBtnY && my <= teamMsgBtnY + teamMsgBtnH) {
-            messagesData.selectConversation(0);
-            activeNav = NavItem.MESSAGES;
-            showToast("Opening CampusConnect team chat: #campusconnect-general");
-            return true;
-        }
-
         // 3. Tab-specific interactive buttons
         if (teamData.activeTabIndex == 0) {
             // TAB 0: OVERVIEW
@@ -3787,7 +3399,10 @@ public class StudentDashboard {
                         activeNav = NavItem.MY_PROFILE;
                         showToast("Opened your profile - Alex Morgan");
                     } else {
-                        openChatWithPerson(m.name);
+                        if (listener != null) {
+                            listener.openModal("Profile - " + m.name, "Role: " + m.role + "\nCampusConnect Team Member", false);
+                        }
+                        showToast("Viewing profile of " + m.name);
                     }
                     return true;
                 }
@@ -3851,14 +3466,6 @@ public class StudentDashboard {
                 }
                 showToast("Opening invite member dialog...");
                 return true;
-            }
-
-            for (int i = 0; i < memberTabMsgBtns.size() && i < teamData.members.size(); i++) {
-                if (memberTabMsgBtns.get(i).contains(mx, my)) {
-                    TeamWorkspaceData.TeamMember m = teamData.members.get(i);
-                    openChatWithPerson(m.name);
-                    return true;
-                }
             }
 
             for (int i = 0; i < memberTabProfileBtns.size() && i < teamData.members.size(); i++) {
@@ -3967,14 +3574,6 @@ public class StudentDashboard {
                     return true;
                 }
             }
-
-            for (int i = 0; i < reqMessageBtns.size() && i < teamData.recruitmentRequests.size(); i++) {
-                if (reqMessageBtns.get(i).contains(mx, my)) {
-                    String name = teamData.recruitmentRequests.get(i).name;
-                    openChatWithPerson(name);
-                    return true;
-                }
-            }
         }
 
         return false;
@@ -4004,9 +3603,6 @@ public class StudentDashboard {
                 break;
             case MY_PROFILE:
                 vHov = handleProfileMouseMove(mx, my);
-                break;
-            case MESSAGES:
-                vHov = handleMessagesMouseMove(mx, my);
                 break;
             case SETTINGS:
                 vHov = handleSettingsMouseMove(mx, my);
@@ -4102,31 +3698,6 @@ public class StudentDashboard {
         return changed || anyInteractiveHovered;
     }
 
-    private boolean handleMessagesMouseMove(int mx, int my) {
-        boolean changed = false;
-        boolean pSend = msgSendHovered;
-        msgSendHovered = msgSendBtnBox.contains(mx, my);
-        if (msgSendHovered != pSend)
-            changed = true;
-
-        boolean pCall = videoCallHovered;
-        videoCallHovered = videoCallBtnBox.contains(mx, my);
-        if (videoCallHovered != pCall)
-            changed = true;
-
-        int oldConvHov = hoveredConvIndex;
-        hoveredConvIndex = -1;
-        for (int i = 0; i < convBounds.size(); i++) {
-            if (convBounds.get(i).contains(mx, my)) {
-                hoveredConvIndex = i;
-                break;
-            }
-        }
-        if (hoveredConvIndex != oldConvHov)
-            changed = true;
-        return changed || msgSendHovered;
-    }
-
     private boolean handleSettingsMouseMove(int mx, int my) {
         boolean changed = false;
         int oldHov = hoveredSettingsTab;
@@ -4217,12 +3788,6 @@ public class StudentDashboard {
         if (teamSettingsBtnHovered != p1)
             changed = true;
 
-        boolean p2 = teamMsgBtnHovered;
-        teamMsgBtnHovered = (mx >= teamMsgBtnX && mx <= teamMsgBtnX + teamMsgBtnW &&
-                my >= teamMsgBtnY && my <= teamMsgBtnY + teamMsgBtnH);
-        if (teamMsgBtnHovered != p2)
-            changed = true;
-
         boolean p3 = inviteMemberBtnHovered;
         inviteMemberBtnHovered = (mx >= inviteMemberBtnX && mx <= inviteMemberBtnX + inviteMemberBtnW &&
                 my >= inviteMemberBtnY && my <= inviteMemberBtnY + inviteMemberBtnH);
@@ -4272,9 +3837,6 @@ public class StudentDashboard {
             inviteTeammateSlotHovered = inviteTeammateSlotBox.contains(mx, my);
             if (pInv != tabInviteMemberHovered || pSlot != inviteTeammateSlotHovered)
                 changed = true;
-            for (Rectangle r : memberTabMsgBtns) {
-                if (r.contains(mx, my)) anyActionHov = true;
-            }
             for (Rectangle r : memberTabProfileBtns) {
                 if (r.contains(mx, my)) anyActionHov = true;
             }
@@ -4319,9 +3881,6 @@ public class StudentDashboard {
             for (Rectangle r : reqDeclineBtns) {
                 if (r.contains(mx, my)) anyActionHov = true;
             }
-            for (Rectangle r : reqMessageBtns) {
-                if (r.contains(mx, my)) anyActionHov = true;
-            }
             anyActionHov = anyActionHov || tabPostRoleHovered;
         } else {
             for (Rectangle r : memberCardBounds) {
@@ -4340,12 +3899,10 @@ public class StudentDashboard {
                     || reviewAllBtnHovered || reviewAppsBtnHovered;
         }
 
-        return changed || teamSettingsBtnHovered || teamMsgBtnHovered || (hoveredTeamTabIndex >= 0) || anyActionHov;
+        return changed || teamSettingsBtnHovered || (hoveredTeamTabIndex >= 0) || anyActionHov;
     }
 
     public void onMouseWheel(int wheelRotation, int screenH) {
-        if (activeNav == NavItem.MESSAGES)
-            return;
         int maxScroll = Math.max(0, getCurrentContentHeight() - (screenH - 60));
         targetScrollY = Math.max(0, Math.min(targetScrollY + wheelRotation * 45, maxScroll));
     }
@@ -4375,37 +3932,12 @@ public class StudentDashboard {
                 if (projectsView.onKey(e))
                     return true;
                 break;
-            case MESSAGES:
-                return handleMessagesKey(e);
             case SETTINGS:
                 return handleSettingsKey(e);
             default:
                 break;
         }
 
-        return false;
-    }
-
-    private boolean handleMessagesKey(KeyEvent e) {
-        if (messagesData.inputFocused) {
-            if (e.getKeyCode() == KeyEvent.VK_ENTER) {
-                messagesData.sendCurrentDraft();
-                showToast("Message sent to " + messagesData.getActiveConversation().title);
-                return true;
-            }
-            if (e.getKeyCode() == KeyEvent.VK_BACK_SPACE) {
-                if (messagesData.inputDraft.length() > 0) {
-                    messagesData.inputDraft = messagesData.inputDraft.substring(0,
-                            messagesData.inputDraft.length() - 1);
-                }
-                return true;
-            }
-            char c = e.getKeyChar();
-            if (c >= 32 && c <= 126 && messagesData.inputDraft.length() < 120) {
-                messagesData.inputDraft += c;
-                return true;
-            }
-        }
         return false;
     }
 
@@ -4578,10 +4110,6 @@ public class StudentDashboard {
         return notifications;
     }
 
-    public List<String> getChatHistory() {
-        return chatHistory;
-    }
-
     public DashboardProjects getProjectsView() {
         return projectsView;
     }
@@ -4604,10 +4132,6 @@ public class StudentDashboard {
 
     public ProfileData getProfileData() {
         return profileData;
-    }
-
-    public MessagesData getMessagesData() {
-        return messagesData;
     }
 
     public DashboardHeader getHeader() {

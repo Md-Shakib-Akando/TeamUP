@@ -53,18 +53,10 @@ public class TestFourDedicatedViews {
         dashboard.paint(g, 1280, 800);
         System.out.println("  'Review all ->' switched tab to: " + dashboard.getTeamData().tabs.get(dashboard.getTeamData().activeTabIndex));
 
-        // Click 'Message team' button
+        // Click 'Team settings' button
         dashboard.getTeamData().activeTabIndex = 0;
         dashboard.paint(g, 1280, 800);
-        dashboard.onClick(1160, 115); // Message team button
-        dashboard.paint(g, 1280, 800);
-        System.out.println("  'Message team' clicked: activeNav=" + dashboard.getActiveNav() +
-                ", conv=" + dashboard.getMessagesData().getActiveConversation().title);
-
-        // Click 'Team settings' button
-        dashboard.setActiveNav(StudentDashboard.NavItem.MY_TEAMS);
-        dashboard.paint(g, 1280, 800);
-        dashboard.onClick(1020, 115); // Team settings button
+        dashboard.onClick(1160, 115); // Team settings button
         dashboard.paint(g, 1280, 800);
         System.out.println("  'Team settings' clicked: activeNav=" + dashboard.getActiveNav());
 
@@ -171,8 +163,7 @@ public class TestFourDedicatedViews {
         }
 
         // Test hover states
-        dashboard.onMouseMove(1160, 115); // hover message team
-        dashboard.onMouseMove(1020, 115); // hover settings
+        dashboard.onMouseMove(1160, 115); // hover settings
         dashboard.onMouseMove(300, 150);  // hover tabs
         dashboard.paint(g, 1280, 800);
         System.out.println("  My Teams hover states verified.");
