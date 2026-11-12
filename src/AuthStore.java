@@ -1,4 +1,11 @@
+import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,8 +25,10 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
 /**
- * AuthStore handles user registration and authentication backed by salted
- * PBKDF2-HMAC-SHA256 password hashing and thread-safe persistent storage in data/users.csv.
+ * AuthStore handles user registration and authentication backed by:
+ * 1. Node.js + Express + MongoDB Atlas backend REST API (http://localhost:5000/api)
+ * 2. Automatic offline fallback with salted PBKDF2-HMAC-SHA256 password hashing
+ *    and thread-safe persistent storage in data/users.csv.
  */
 public class AuthStore {
 
@@ -33,6 +42,14 @@ public class AuthStore {
     private static final int HASH_BITS = 256;
     private static final int ITERATIONS = 65536;
     private static final SecureRandom RANDOM = new SecureRandom();
+
+    // Node.js Backend API configuration
+    private static volatile String apiBaseUrl = System.getProperty("teamup.api.url",
+            System.getenv("TEAMUP_API_URL") != null ? System.getenv("TEAMUP_API_URL") : "http://localhost:5000/api");
+    private static volatile String currentToken = null;
+    private static volatile UserRecord currentUser = null;
+    private static volatile boolean offlineMode = false;
+    private static Process serverProcess = null;
 
     public static class UserRecord {
         public final String name;
@@ -56,16 +73,107 @@ public class AuthStore {
         public final boolean success;
         public final String message;
         public final UserRecord user;
+        public final String token;
 
         public AuthResult(boolean success, String message, UserRecord user) {
+            this(success, message, user, null);
+        }
+
+        public AuthResult(boolean success, String message, UserRecord user, String token) {
             this.success = success;
             this.message = message;
             this.user = user;
+            this.token = token;
         }
     }
 
     static {
         ensureStoreInitialized();
+        // Check / start Node backend asynchronously on startup
+        Thread starter = new Thread(() -> ensureServerRunning());
+        starter.setDaemon(true);
+        starter.start();
+    }
+
+    public static void setOfflineMode(boolean offline) {
+        offlineMode = offline;
+    }
+
+    public static boolean isOfflineMode() {
+        return offlineMode;
+    }
+
+    public static String getApiBaseUrl() {
+        return apiBaseUrl;
+    }
+
+    public static void setApiBaseUrl(String url) {
+        if (url != null && !url.trim().isEmpty()) {
+            apiBaseUrl = url.trim();
+        }
+    }
+
+    public static String getCurrentToken() {
+        return currentToken;
+    }
+
+    public static UserRecord getCurrentUser() {
+        return currentUser;
+    }
+
+    public static void logout() {
+        currentUser = null;
+        currentToken = null;
+    }
+
+    public static synchronized void ensureServerRunning() {
+        if (offlineMode) return;
+        if (isServerAlive()) return;
+
+        File serverDir = new File("server");
+        File serverScript = new File(serverDir, "server.js");
+        if (!serverScript.exists()) return;
+
+        try {
+            ProcessBuilder pb = new ProcessBuilder("node", "server.js");
+            pb.directory(serverDir);
+            pb.redirectErrorStream(true);
+            serverProcess = pb.start();
+
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                if (serverProcess != null && serverProcess.isAlive()) {
+                    try {
+                        serverProcess.destroy();
+                    } catch (Exception ignored) {}
+                }
+            }));
+
+            long start = System.currentTimeMillis();
+            while (System.currentTimeMillis() - start < 3500) {
+                if (isServerAlive()) {
+                    System.out.println("[AuthStore] Node.js backend server auto-started and connected on port 5000.");
+                    return;
+                }
+                Thread.sleep(200);
+            }
+        } catch (Exception e) {
+            System.err.println("[AuthStore] Note: Could not auto-start node server: " + e.getMessage());
+        }
+    }
+
+    public static boolean isServerAlive() {
+        try {
+            String fullUrl = apiBaseUrl.endsWith("/") ? (apiBaseUrl + "health") : (apiBaseUrl + "/health");
+            URL url = URI.create(fullUrl).toURL();
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(800);
+            conn.setReadTimeout(800);
+            int code = conn.getResponseCode();
+            return (code >= 200 && code < 300);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private static void ensureStoreInitialized() {
@@ -92,7 +200,7 @@ public class AuthStore {
     }
 
     /**
-     * Registers a new user with a unique random 16-byte salt and PBKDF2-HMAC-SHA256 hash.
+     * Registers a new user directly in MongoDB Atlas via Node.js backend.
      */
     public static AuthResult register(String name, String email, String password, String role) {
         if (name == null || name.trim().isEmpty()) {
@@ -116,6 +224,53 @@ public class AuthStore {
         String cleanRole = (role == null || role.trim().isEmpty()) ? "Student" : role.trim();
         if (cleanRole.length() > 64) cleanRole = cleanRole.substring(0, 64);
 
+        // 1. Online registration with Node.js + MongoDB Atlas backend
+        if (!offlineMode) {
+            ensureServerRunning();
+            String jsonPayload = "{\"name\":\"" + escapeJson(cleanName) + "\","
+                    + "\"email\":\"" + escapeJson(cleanEmail) + "\","
+                    + "\"password\":\"" + escapeJson(password) + "\","
+                    + "\"role\":\"" + escapeJson(cleanRole) + "\"}";
+
+            try {
+                HttpResp resp = postJson("/auth/register", jsonPayload);
+                boolean ok = extractJsonBoolean(resp.body, "success");
+                String msg = extractJsonString(resp.body, "message");
+
+                if (resp.status >= 200 && resp.status < 300 && ok) {
+                    String token = extractJsonString(resp.body, "token");
+                    String retRole = extractJsonString(resp.body, "role");
+                    if (retRole == null || retRole.isEmpty()) retRole = cleanRole;
+                    String retName = extractJsonString(resp.body, "name");
+                    if (retName == null || retName.isEmpty()) retName = cleanName;
+
+                    currentToken = token;
+                    String ts = DateTimeFormatter.ISO_INSTANT.format(Instant.now());
+                    UserRecord user = new UserRecord(retName, cleanEmail, retRole, "", "", ts);
+                    currentUser = user;
+
+                    // Sync locally so local CSV lookups and offline tests stay consistent
+                    synchronized (LOCK) {
+                        ensureStoreInitialized();
+                        if (findUserByEmail(cleanEmail) == null) {
+                            createUserRecord(retName, cleanEmail, retRole, password.toCharArray());
+                        }
+                    }
+
+                    String successMsg = (msg != null && !msg.isEmpty()) ? msg : ("Account created! Welcome, " + retName + ".");
+                    return new AuthResult(true, successMsg, user, token);
+                } else {
+                    String errorMsg = (msg != null && !msg.isEmpty()) ? msg : "Unable to register account.";
+                    return new AuthResult(false, errorMsg, null);
+                }
+            } catch (IOException e) {
+                return new AuthResult(false,
+                        "Could not connect to MongoDB Atlas backend at " + apiBaseUrl + ". Please ensure 'npm start' is running in the server/ directory.",
+                        null);
+            }
+        }
+
+        // 2. Explicit offline mode fallback: local PBKDF2 hashing in data/users.csv
         synchronized (LOCK) {
             ensureStoreInitialized();
             if (findUserByEmail(cleanEmail) != null) {
@@ -125,13 +280,13 @@ public class AuthStore {
             if (created == null) {
                 return new AuthResult(false, "Unable to create account right now.", null);
             }
+            currentUser = created;
             return new AuthResult(true, "Account created! Welcome, " + created.name + ".", created);
         }
     }
 
     /**
-     * Authenticates a user by computing the PBKDF2 hash with their stored salt
-     * and comparing digests in constant time.
+     * Authenticates a user against MongoDB Atlas via Node.js backend.
      */
     public static AuthResult login(String email, String password) {
         if (email == null || email.trim().isEmpty()) {
@@ -145,6 +300,52 @@ public class AuthStore {
             return new AuthResult(false, "Password must be at least 6 characters.", null);
         }
 
+        // 1. Online authentication with Node.js + MongoDB Atlas backend
+        if (!offlineMode) {
+            ensureServerRunning();
+            String jsonPayload = "{\"email\":\"" + escapeJson(cleanEmail) + "\","
+                    + "\"password\":\"" + escapeJson(password) + "\"}";
+
+            try {
+                HttpResp resp = postJson("/auth/login", jsonPayload);
+                boolean ok = extractJsonBoolean(resp.body, "success");
+                String msg = extractJsonString(resp.body, "message");
+
+                if (resp.status >= 200 && resp.status < 300 && ok) {
+                    String token = extractJsonString(resp.body, "token");
+                    String retRole = extractJsonString(resp.body, "role");
+                    if (retRole == null || retRole.isEmpty()) retRole = "Student";
+                    String retName = extractJsonString(resp.body, "name");
+                    if (retName == null || retName.isEmpty()) retName = cleanEmail;
+
+                    currentToken = token;
+                    String ts = DateTimeFormatter.ISO_INSTANT.format(Instant.now());
+                    UserRecord user = new UserRecord(retName, cleanEmail, retRole, "", "", ts);
+                    currentUser = user;
+
+                    String successMsg = (msg != null && !msg.isEmpty()) ? msg : ("Welcome back, " + retName + "!");
+                    return new AuthResult(true, successMsg, user, token);
+                } else {
+                    String errorMsg = (msg != null && !msg.isEmpty()) ? msg : "Invalid email or password.";
+                    return new AuthResult(false, errorMsg, null);
+                }
+            } catch (IOException e) {
+                // If backend is down, check local cache for offline convenience
+                synchronized (LOCK) {
+                    ensureStoreInitialized();
+                    UserRecord user = findUserByEmail(cleanEmail);
+                    if (user != null && verifyPassword(password.toCharArray(), user.saltHex, user.hashHex)) {
+                        currentUser = user;
+                        return new AuthResult(true, "Welcome back, " + user.name + "! (Offline Cache)", user);
+                    }
+                }
+                return new AuthResult(false,
+                        "Could not connect to MongoDB Atlas backend at " + apiBaseUrl + ". Please ensure 'npm start' is running in the server/ directory.",
+                        null);
+            }
+        }
+
+        // 2. Explicit offline mode fallback: local PBKDF2 verification against data/users.csv
         synchronized (LOCK) {
             ensureStoreInitialized();
             UserRecord user = findUserByEmail(cleanEmail);
@@ -154,6 +355,7 @@ public class AuthStore {
             if (!verifyPassword(password.toCharArray(), user.saltHex, user.hashHex)) {
                 return new AuthResult(false, "Incorrect password. Please try again.", null);
             }
+            currentUser = user;
             return new AuthResult(true, "Welcome back, " + user.name + "!", user);
         }
     }
@@ -263,6 +465,133 @@ public class AuthStore {
         return out;
     }
 
+    // =========================================================================
+    // HTTP Communication & Lightweight JSON Helpers (Zero External Dependencies)
+    // =========================================================================
+
+    private static class HttpResp {
+        final int status;
+        final String body;
+
+        HttpResp(int status, String body) {
+            this.status = status;
+            this.body = body;
+        }
+    }
+
+    private static HttpResp postJson(String endpoint, String jsonPayload) throws IOException {
+        String fullUrl = apiBaseUrl.endsWith("/") ? (apiBaseUrl.substring(0, apiBaseUrl.length() - 1) + endpoint)
+                : (apiBaseUrl + endpoint);
+        URL url = URI.create(fullUrl).toURL();
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setConnectTimeout(5000);
+        conn.setReadTimeout(10000);
+        conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+        conn.setRequestProperty("Accept", "application/json");
+        conn.setDoOutput(true);
+
+        byte[] bytes = jsonPayload.getBytes(StandardCharsets.UTF_8);
+        conn.setFixedLengthStreamingMode(bytes.length);
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(bytes);
+            os.flush();
+        }
+
+        int status = conn.getResponseCode();
+        InputStream is = (status >= 200 && status < 300) ? conn.getInputStream() : conn.getErrorStream();
+        String body = "";
+        if (is != null) {
+            try (ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
+                byte[] buf = new byte[1024];
+                int r;
+                while ((r = is.read(buf)) != -1) {
+                    bos.write(buf, 0, r);
+                }
+                body = new String(bos.toByteArray(), StandardCharsets.UTF_8);
+            }
+        }
+        return new HttpResp(status, body);
+    }
+
+    public static String extractJsonString(String json, String key) {
+        if (json == null) return null;
+        String pattern = "\"" + key + "\"";
+        int idx = json.indexOf(pattern);
+        if (idx == -1) return null;
+        int colon = json.indexOf(':', idx + pattern.length());
+        if (colon == -1) return null;
+        int quoteStart = json.indexOf('"', colon + 1);
+        if (quoteStart == -1) return null;
+
+        String between = json.substring(colon + 1, quoteStart).trim();
+        if (!between.isEmpty()) {
+            return null;
+        }
+
+        StringBuilder sb = new StringBuilder();
+        boolean esc = false;
+        for (int i = quoteStart + 1; i < json.length(); i++) {
+            char c = json.charAt(i);
+            if (esc) {
+                if (c == '"') sb.append('"');
+                else if (c == '\\') sb.append('\\');
+                else if (c == 'n') sb.append('\n');
+                else if (c == 'r') sb.append('\r');
+                else if (c == 't') sb.append('\t');
+                else if (c == '/') sb.append('/');
+                else sb.append(c);
+                esc = false;
+            } else if (c == '\\') {
+                esc = true;
+            } else if (c == '"') {
+                return sb.toString();
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
+
+    public static boolean extractJsonBoolean(String json, String key) {
+        if (json == null) return false;
+        String pattern = "\"" + key + "\"";
+        int idx = json.indexOf(pattern);
+        if (idx == -1) return false;
+        int colon = json.indexOf(':', idx + pattern.length());
+        if (colon == -1) return false;
+        String sub = json.substring(colon + 1).trim();
+        return sub.startsWith("true");
+    }
+
+    public static String escapeJson(String s) {
+        if (s == null) return "";
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            switch (c) {
+                case '"': sb.append("\\\""); break;
+                case '\\': sb.append("\\\\"); break;
+                case '\b': sb.append("\\b"); break;
+                case '\f': sb.append("\\f"); break;
+                case '\n': sb.append("\\n"); break;
+                case '\r': sb.append("\\r"); break;
+                case '\t': sb.append("\\t"); break;
+                default:
+                    if (c < 32) {
+                        sb.append(String.format("\\u%04x", (int) c));
+                    } else {
+                        sb.append(c);
+                    }
+            }
+        }
+        return sb.toString();
+    }
+
+    // =========================================================================
+    // CSV Utilities
+    // =========================================================================
+
     private static String sanitizeForCsv(String value) {
         if (value == null || value.isEmpty()) return "";
         char first = value.charAt(0);
@@ -322,4 +651,3 @@ public class AuthStore {
         return fields;
     }
 }
-

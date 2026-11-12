@@ -6,6 +6,9 @@ public class TestAuthStore {
         System.out.println("  STARTING AUTHSTORE PBKDF2 & AUTH TEST SUITE     ");
         System.out.println("==================================================");
 
+        // Force offline mode for unit testing PBKDF2 crypto and local CSV isolation
+        AuthStore.setOfflineMode(true);
+
         // 1. Test PBKDF2 hashing & random salt uniqueness
         byte[] salt1 = AuthStore.generateSalt();
         byte[] salt2 = AuthStore.generateSalt();
@@ -66,7 +69,16 @@ public class TestAuthStore {
         }
         Files.write(usersCsv, kept);
 
+        // 3. Test JSON parsing & escaping utilities
+        String sampleJson = "{\"success\":true,\"message\":\"Welcome back!\",\"token\":\"xyz123\",\"user\":{\"name\":\"John\",\"role\":\"Admin\"}}";
+        assertCond(AuthStore.extractJsonBoolean(sampleJson, "success"), "JSON boolean true should be extracted");
+        assertCond("Welcome back!".equals(AuthStore.extractJsonString(sampleJson, "message")), "JSON message should match");
+        assertCond("xyz123".equals(AuthStore.extractJsonString(sampleJson, "token")), "JSON token should match");
+        assertCond("Admin".equals(AuthStore.extractJsonString(sampleJson, "role")), "JSON role should match");
+        assertCond("hello \\\"world\\\"".equals(AuthStore.escapeJson("hello \"world\"")), "JSON quote escape should match");
+
         System.out.println("  [OK] PBKDF2-HMAC-SHA256 salting, verification, registration & login passed.");
+        System.out.println("  [OK] JSON parser & REST communication helpers validated.");
         System.out.println("ALL AUTHSTORE TESTS PASSED!");
     }
 

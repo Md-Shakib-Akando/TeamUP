@@ -290,7 +290,7 @@ public class AdminHeader {
 
     private void paintProfileDropdown(Graphics2D g, int px, int py) {
         int dropW = 200;
-        int dropH = 120;
+        int dropH = 156;
         RoundRectangle2D dropBox = new RoundRectangle2D.Float(px, py, dropW, dropH, 12, 12);
 
         g.setColor(new Color(0, 0, 0, 14));
@@ -302,7 +302,7 @@ public class AdminHeader {
         g.setStroke(new BasicStroke(1f));
         g.draw(dropBox);
 
-        String[] items = {"Switch to Student View", "Return to Landing Page", "Admin Settings"};
+        String[] items = {"Switch to Student View", "Return to Landing Page", "Admin Settings", "Log Out"};
         int iy = py + 8;
         for (int i = 0; i < items.length; i++) {
             int itemY = iy + i * 36;
@@ -311,7 +311,11 @@ public class AdminHeader {
                 g.fillRoundRect(px + 6, itemY, dropW - 12, 32, 6, 6);
             }
             g.setFont(AdminTheme.FONT_REG_12);
-            g.setColor(AdminTheme.TEXT_DARK);
+            if (i == 3) {
+                g.setColor(new Color(0xEF, 0x44, 0x44)); // red
+            } else {
+                g.setColor(AdminTheme.TEXT_DARK);
+            }
             g.drawString(items[i], px + 16, itemY + 21);
         }
     }
@@ -409,7 +413,7 @@ public class AdminHeader {
             int px = userX - 110;
             int py = 68 + 4;
             int dropW = 200;
-            int dropH = 120;
+            int dropH = 156;
             if (mx >= px && mx <= px + dropW && my >= py && my <= py + dropH) {
                 int clickedIdx = (my - (py + 8)) / 36;
                 profileOpen = false;
@@ -417,8 +421,11 @@ public class AdminHeader {
                     dashboard.switchToStudentDashboard();
                 } else if (clickedIdx == 1) {
                     dashboard.returnToLanding();
-                } else {
+                } else if (clickedIdx == 2) {
                     dashboard.navigateTo(AdminSidebar.AdminNavItem.SETTINGS);
+                } else if (clickedIdx >= 3) {
+                    AuthStore.logout();
+                    dashboard.returnToLanding();
                 }
                 return true;
             }
