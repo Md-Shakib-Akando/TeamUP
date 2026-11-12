@@ -294,12 +294,24 @@ public class AdminDashboard {
         return categoriesView;
     }
 
+    public AdminReports getReportsView() {
+        return reportsView;
+    }
+
     public void openReviewDetailsModal(AdminDataStore.ReviewModel review) {
         modals.openReviewDetails(review);
     }
 
     public void openAddReviewModal() {
         modals.openAddReview();
+    }
+
+    public void openEditCategoryModal(String currentName) {
+        modals.openEditCategory(currentName);
+    }
+
+    public void openEditSkillModal(String currentName) {
+        modals.openEditSkill(currentName);
     }
 
     public AdminModals getModals() {
@@ -425,12 +437,6 @@ public class AdminDashboard {
         // Header search bar key handling
         if (header.isSearchFocused()) {
             return header.onKey(ch, keyCode, this);
-        }
-
-        // Global shortcut: Ctrl+K or Cmd+K focuses header search
-        if (keyCode == KeyEvent.VK_K && (ch == 11 || ch == 'k' || ch == 'K')) {
-            header.setSearchFocused(true);
-            return true;
         }
 
         // Subview key handling (search input, etc.)

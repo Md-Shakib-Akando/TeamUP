@@ -195,6 +195,36 @@ public class TestAdminSettingsPage {
         int desktopHeight = settings.getComputedHeight(1200);
         check(mobileHeight > desktopHeight, "Mobile computed height adapts when stacked (Mobile: " + mobileHeight + "px > Desktop: " + desktopHeight + "px)");
 
+        // Test 12: Removal of Database Backup Card and Bottom Bar
+        System.out.println("\n[Test 12] Testing Removal of Database Backup Card & Bottom Bar...");
+        BufferedImage bImg = new BufferedImage(1366, 768, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D bg = bImg.createGraphics();
+        dashboard.paint(bg, 1366, 768);
+        bg.dispose();
+
+        AdminSettings.ActionBtn backupBtn = settings.getActionBtns().stream().filter(a -> "BACKUP".equals(a.id)).findFirst().orElse(null);
+        check(backupBtn == null, "Database Backup button ('BACKUP') correctly deleted from Settings UI");
+
+        AdminSettings.ActionBtn saveTopBtn = settings.getActionBtns().stream().filter(a -> "SAVE_TOP".equals(a.id)).findFirst().orElse(null);
+        check(saveTopBtn != null, "Top 'Save Changes' button ('SAVE_TOP') exists and is active");
+
+        AdminSettings.ActionBtn resetTopBtn = settings.getActionBtns().stream().filter(a -> "RESET_TOP".equals(a.id)).findFirst().orElse(null);
+        check(resetTopBtn != null, "Top 'Reset Defaults' button ('RESET_TOP') exists and is active");
+
+        // Test 13: Maintenance Mode & University Domains
+        System.out.println("\n[Test 13] Testing Maintenance Mode & Allowed Domains...");
+        boolean initMaint = settings.isMaintenanceModeDraft();
+        settings.setMaintenanceModeDraft(!initMaint);
+        check(settings.isMaintenanceModeDraft() != initMaint, "Maintenance mode toggled to: " + settings.isMaintenanceModeDraft());
+
+        settings.setAllowedDomainsDraft("@university.edu, @stanford.edu, @mit.edu, @buet.ac.bd");
+        settings.saveAllSettings(dashboard);
+        check(store.maintenanceModeActive == !initMaint, "Persisted Maintenance Mode: " + store.maintenanceModeActive);
+        check(store.allowedDomains.contains("@buet.ac.bd"), "Persisted Allowed Domains with @buet.ac.bd");
+
+        // Clean up
+        settings.resetAllSettings(dashboard);
+
         System.out.println("\n==================================================");
         if (totalFailed == 0) {
             System.out.println("  ALL " + totalPassed + " ADMIN SETTINGS TESTS PASSED 100%!  ");
