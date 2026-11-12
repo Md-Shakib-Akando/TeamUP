@@ -101,9 +101,6 @@ public class AdminUsers {
     private int addUserBtnX, addUserBtnY, addUserBtnW = 112, addUserBtnH = 36;
     private boolean addUserHovered = false;
 
-    private int exportBtnX, exportBtnY, exportBtnW = 124, exportBtnH = 36;
-    private boolean exportHovered = false;
-
     // Pagination bounds & state
     private int currentPage = 1;
     private final int pageSize = 8;
@@ -216,36 +213,12 @@ public class AdminUsers {
         // Header Action Buttons
         boolean wrapButtons = (w < 680);
         int btnY = wrapButtons ? y + 68 : y + 8;
-        int rightX = wrapButtons ? (x + w) : (x + w);
-
-        // "Export users" Button (Secondary Outline)
-        exportBtnW = 120;
-        exportBtnH = 36;
-        exportBtnX = rightX - exportBtnW;
-        exportBtnY = btnY;
-
-        RoundRectangle2D expBox = new RoundRectangle2D.Float(exportBtnX, exportBtnY, exportBtnW, exportBtnH, 8, 8);
-        g.setColor(exportHovered ? new Color(0xF8, 0xFA, 0xFC) : Color.WHITE);
-        g.fill(expBox);
-        g.setColor(AdminTheme.BORDER_COLOR);
-        g.setStroke(new BasicStroke(1.2f));
-        g.draw(expBox);
-
-        // Download icon
-        g.setColor(AdminTheme.TEXT_MUTED);
-        g.drawRect(exportBtnX + 12, exportBtnY + 13, 11, 9);
-        g.drawLine(exportBtnX + 17, exportBtnY + 9, exportBtnX + 17, exportBtnY + 16);
-        g.drawLine(exportBtnX + 14, exportBtnY + 13, exportBtnX + 17, exportBtnY + 16);
-        g.drawLine(exportBtnX + 20, exportBtnY + 13, exportBtnX + 17, exportBtnY + 16);
-
-        g.setFont(AdminTheme.FONT_BOLD_11);
-        g.setColor(AdminTheme.TEXT_DARK);
-        g.drawString("Export users", exportBtnX + 31, exportBtnY + 22);
+        int rightX = x + w;
 
         // "+ Add user" Button (Primary Forest Green)
         addUserBtnW = 110;
         addUserBtnH = 36;
-        addUserBtnX = exportBtnX - addUserBtnW - 10;
+        addUserBtnX = rightX - addUserBtnW;
         addUserBtnY = btnY;
 
         RoundRectangle2D addBox = new RoundRectangle2D.Float(addUserBtnX, addUserBtnY, addUserBtnW, addUserBtnH, 8, 8);
@@ -871,15 +844,7 @@ public class AdminUsers {
             return true;
         }
 
-        // 3. Export Users Button
-        if (mx >= exportBtnX && mx <= exportBtnX + exportBtnW && my >= exportBtnY && my <= exportBtnY + exportBtnH) {
-            String path = AdminDataStore.getInstance().exportUsersToCsv();
-            int total = AdminDataStore.getInstance().getAllUsers().size();
-            dashboard.showToast("Exported " + total + " users to " + path);
-            return true;
-        }
-
-        // 4. Reset Filters Buttons
+        // 3. Reset Filters Buttons
         if (mx >= resetBtnX && mx <= resetBtnX + resetBtnW && my >= resetBtnY && my <= resetBtnY + resetBtnH) {
             resetAllFilters(dashboard);
             return true;
@@ -996,10 +961,6 @@ public class AdminUsers {
         boolean pAdd = addUserHovered;
         addUserHovered = (mx >= addUserBtnX && mx <= addUserBtnX + addUserBtnW && my >= addUserBtnY && my <= addUserBtnY + addUserBtnH);
         if (pAdd != addUserHovered) changed = true;
-
-        boolean pExp = exportHovered;
-        exportHovered = (mx >= exportBtnX && mx <= exportBtnX + exportBtnW && my >= exportBtnY && my <= exportBtnY + exportBtnH);
-        if (pExp != exportHovered) changed = true;
 
         // Reset button hover
         boolean pRes = resetBtnHovered;

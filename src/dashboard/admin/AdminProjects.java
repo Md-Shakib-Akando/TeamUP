@@ -116,9 +116,6 @@ public class AdminProjects {
     private int addProjectBtnX, addProjectBtnY, addProjectBtnW = 120, addProjectBtnH = 36;
     private boolean addProjectHovered = false;
 
-    private int exportBtnX, exportBtnY, exportBtnW = 126, exportBtnH = 36;
-    private boolean exportHovered = false;
-
     // Pagination bounds & states
     private int currentPage = 1;
     private final int pageSize = 8;
@@ -273,33 +270,10 @@ public class AdminProjects {
         int btnY = wrapButtons ? y + 68 : y + 8;
         int rightX = x + w;
 
-        // "Export projects" Button
-        exportBtnW = 126;
-        exportBtnH = 36;
-        exportBtnX = rightX - exportBtnW;
-        exportBtnY = btnY;
-        RoundRectangle2D expBox = new RoundRectangle2D.Float(exportBtnX, exportBtnY, exportBtnW, exportBtnH, 8, 8);
-        g.setColor(exportHovered ? new Color(0xF8, 0xFA, 0xFC) : Color.WHITE);
-        g.fill(expBox);
-        g.setColor(AdminTheme.BORDER_COLOR);
-        g.setStroke(new BasicStroke(1.2f));
-        g.draw(expBox);
-
-        // Download icon
-        g.setColor(AdminTheme.TEXT_MUTED);
-        g.drawRect(exportBtnX + 12, exportBtnY + 13, 11, 9);
-        g.drawLine(exportBtnX + 17, exportBtnY + 9, exportBtnX + 17, exportBtnY + 16);
-        g.drawLine(exportBtnX + 14, exportBtnY + 13, exportBtnX + 17, exportBtnY + 16);
-        g.drawLine(exportBtnX + 20, exportBtnY + 13, exportBtnX + 17, exportBtnY + 16);
-
-        g.setFont(AdminTheme.FONT_BOLD_11);
-        g.setColor(AdminTheme.TEXT_DARK);
-        g.drawString("Export projects", exportBtnX + 31, exportBtnY + 22);
-
         // "+ Add project" Button (Primary Forest Green)
         addProjectBtnW = 120;
         addProjectBtnH = 36;
-        addProjectBtnX = exportBtnX - addProjectBtnW - 10;
+        addProjectBtnX = rightX - addProjectBtnW;
         addProjectBtnY = btnY;
 
         RoundRectangle2D addBox = new RoundRectangle2D.Float(addProjectBtnX, addProjectBtnY, addProjectBtnW, addProjectBtnH, 8, 8);
@@ -872,15 +846,7 @@ public class AdminProjects {
             return true;
         }
 
-        // 3. Export projects button
-        if (mx >= exportBtnX && mx <= exportBtnX + exportBtnW && my >= exportBtnY && my <= exportBtnY + exportBtnH) {
-            String filePath = AdminDataStore.getInstance().exportProjectsToCsv();
-            int count = AdminDataStore.getInstance().getAllProjects().size();
-            dashboard.showToast("Exported project repository to CSV (" + count + " initiatives)");
-            return true;
-        }
-
-        // 4. Tab clicks with dynamic hitboxes
+        // 3. Tab clicks with dynamic hitboxes
         for (int i = 0; i < tabBoxes.length; i++) {
             TabHitbox tb = tabBoxes[i];
             if (tb != null && mx >= tb.x && mx <= tb.x + tb.w && my >= tb.y && my <= tb.y + tb.h) {
@@ -1007,10 +973,6 @@ public class AdminProjects {
         boolean pAdd = addProjectHovered;
         addProjectHovered = (mx >= addProjectBtnX && mx <= addProjectBtnX + addProjectBtnW && my >= addProjectBtnY && my <= addProjectBtnY + addProjectBtnH);
         if (addProjectHovered != pAdd) changed = true;
-
-        boolean pExp = exportHovered;
-        exportHovered = (mx >= exportBtnX && mx <= exportBtnX + exportBtnW && my >= exportBtnY && my <= exportBtnY + exportBtnH);
-        if (exportHovered != pExp) changed = true;
 
         boolean pRst = resetBtnHovered;
         resetBtnHovered = (resetBtnX > 0 && mx >= resetBtnX && mx <= resetBtnX + resetBtnW && my >= resetBtnY && my <= resetBtnY + resetBtnH);

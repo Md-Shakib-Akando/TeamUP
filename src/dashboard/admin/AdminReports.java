@@ -41,9 +41,6 @@ public class AdminReports {
     private int statusFilterIdx = 0;
     private int statusDropX, statusDropY, statusDropW = 110, statusDropH = 34;
 
-    private int guidelinesBtnX, guidelinesBtnY, guidelinesBtnW = 165, guidelinesBtnH = 36;
-    private boolean guidelinesHovered = false;
-
     // Action buttons bounds in Right Panel
     private int dismissBtnX, dismissBtnY, dismissBtnW = 90, dismissBtnH = 34;
     private int warnBtnX, warnBtnY, warnBtnW = 96, warnBtnH = 34;
@@ -109,25 +106,6 @@ public class AdminReports {
         g.setFont(AdminTheme.FONT_REG_13);
         g.setColor(AdminTheme.TEXT_MUTED);
         g.drawString("Investigate user reports, flagged content, and resolve moderation actions.", x, y + 48);
-
-        // Right side: "Moderation guidelines" Button
-        guidelinesBtnX = x + w - guidelinesBtnW;
-        guidelinesBtnY = y + 8;
-        RoundRectangle2D gBox = new RoundRectangle2D.Float(guidelinesBtnX, guidelinesBtnY, guidelinesBtnW, guidelinesBtnH, 8, 8);
-        g.setColor(guidelinesHovered ? new Color(0xF5, 0xF3, 0xEF) : Color.WHITE);
-        g.fill(gBox);
-        g.setColor(AdminTheme.BORDER_COLOR);
-        g.setStroke(new BasicStroke(1.2f));
-        g.draw(gBox);
-
-        // Book/Shield icon
-        g.setColor(AdminTheme.TEXT_MUTED);
-        g.drawRect(guidelinesBtnX + 12, guidelinesBtnY + 11, 12, 13);
-        g.drawLine(guidelinesBtnX + 18, guidelinesBtnY + 11, guidelinesBtnX + 18, guidelinesBtnY + 24);
-
-        g.setFont(AdminTheme.FONT_BOLD_11);
-        g.setColor(AdminTheme.TEXT_DARK);
-        g.drawString("Moderation guidelines", guidelinesBtnX + 32, guidelinesBtnY + 22);
     }
 
     private void paintSummaryPills(Graphics2D g, int x, int y) {
@@ -543,12 +521,6 @@ public class AdminReports {
     }
 
     public boolean onClick(int mx, int my, AdminDashboard dashboard) {
-        // Moderation Guidelines button
-        if (mx >= guidelinesBtnX && mx <= guidelinesBtnX + guidelinesBtnW && my >= guidelinesBtnY && my <= guidelinesBtnY + guidelinesBtnH) {
-            dashboard.showToast("Opening TeamUp Community Moderation Guidelines v2.4...");
-            return true;
-        }
-
         // Search focus
         if (mx >= searchX && mx <= searchX + searchW && my >= searchY && my <= searchY + searchH) {
             searchFocused = true;
@@ -627,10 +599,6 @@ public class AdminReports {
 
     public boolean onMouseMove(int mx, int my) {
         boolean changed = false;
-
-        boolean pGuid = guidelinesHovered;
-        guidelinesHovered = (mx >= guidelinesBtnX && mx <= guidelinesBtnX + guidelinesBtnW && my >= guidelinesBtnY && my <= guidelinesBtnY + guidelinesBtnH);
-        if (guidelinesHovered != pGuid) changed = true;
 
         boolean pDis = dismissHovered;
         dismissHovered = (mx >= dismissBtnX && mx <= dismissBtnX + dismissBtnW && my >= dismissBtnY && my <= dismissBtnY + dismissBtnH);
