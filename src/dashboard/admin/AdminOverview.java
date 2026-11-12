@@ -748,38 +748,18 @@ public class AdminOverview {
 
         // Capacity section
         int capY = stackTiles ? gridY + (46 + 6) * 4 + 8 : gridY + (68 + tileGap) * 2 + 10;
-        exploreTeamsBtnW = Math.min(155, Math.max(126, w / 3));
-        exploreTeamsBtnH = 28;
+        g.setFont(AdminTheme.FONT_SEMIBOLD_11);
+        g.setColor(AdminTheme.TEXT_DARK);
+        g.drawString("Team Capacity Distribution:", gridX, capY + 12);
 
-        boolean stackBtn = (w < 480);
-        if (stackBtn) {
-            g.setFont(AdminTheme.FONT_SEMIBOLD_11);
-            g.setColor(AdminTheme.TEXT_DARK);
-            g.drawString("Team Capacity Distribution:", gridX, capY + 12);
-
-            exploreTeamsBtnX = gridX;
-            exploreTeamsBtnY = capY + 20;
-
-            capY += 54;
-        } else {
-            g.setFont(AdminTheme.FONT_SEMIBOLD_11);
-            g.setColor(AdminTheme.TEXT_DARK);
-            g.drawString("Team Capacity Distribution:", gridX, capY + 12);
-
-            exploreTeamsBtnX = x + w - exploreTeamsBtnW - 20;
-            exploreTeamsBtnY = capY - 4;
-        }
-
-        RoundRectangle2D btn = new RoundRectangle2D.Float(exploreTeamsBtnX, exploreTeamsBtnY, exploreTeamsBtnW, exploreTeamsBtnH, 6, 6);
-        g.setColor(exploreTeamsHovered ? AdminTheme.BRAND_GREEN_DARK.darker() : AdminTheme.BRAND_GREEN_DARK);
-        g.fill(btn);
-        g.setFont(AdminTheme.FONT_BOLD_11);
-        g.setColor(Color.WHITE);
-        FontMetrics tfm = g.getFontMetrics();
-        g.drawString("Explore All Teams →", exploreTeamsBtnX + (exploreTeamsBtnW - tfm.stringWidth("Explore All Teams →")) / 2, exploreTeamsBtnY + 18);
+        // Explore teams button removed as requested
+        exploreTeamsBtnX = -9999;
+        exploreTeamsBtnY = -9999;
+        exploreTeamsBtnW = 0;
+        exploreTeamsBtnH = 0;
 
         // Segmented Capacity Bar
-        int barY = capY + (stackBtn ? 0 : 26);
+        int barY = capY + 26;
         int barW = w - 40;
         int barH = 10;
         RoundRectangle2D b1 = new RoundRectangle2D.Float(gridX, barY, Math.round(barW * 0.68f), barH, 4, 4);
@@ -1067,15 +1047,7 @@ public class AdminOverview {
     }
 
     public boolean onClick(int mx, int my, AdminDashboard dashboard) {
-        // 1. Explore Teams button (navigates to Projects view)
-        if (mx >= exploreTeamsBtnX && mx <= exploreTeamsBtnX + exploreTeamsBtnW &&
-                my >= exploreTeamsBtnY && my <= exploreTeamsBtnY + exploreTeamsBtnH) {
-            dashboard.navigateTo(AdminSidebar.AdminNavItem.PROJECTS);
-            dashboard.showToast("Switched to Projects & Teams");
-            return true;
-        }
-
-        // 2. View all reports button
+        // 1. View all reports button
         if (mx >= viewAllReportsX && mx <= viewAllReportsX + viewAllReportsW && my >= viewAllReportsY && my <= viewAllReportsY + viewAllReportsH) {
             dashboard.openReportsQueue();
             return true;
@@ -1102,12 +1074,6 @@ public class AdminOverview {
 
     public boolean onMouseMove(int mx, int my) {
         boolean changed = false;
-
-        // Explore teams hover
-        boolean pTeams = exploreTeamsHovered;
-        exploreTeamsHovered = (mx >= exploreTeamsBtnX && mx <= exploreTeamsBtnX + exploreTeamsBtnW &&
-                my >= exploreTeamsBtnY && my <= exploreTeamsBtnY + exploreTeamsBtnH);
-        if (exploreTeamsHovered != pTeams) changed = true;
 
         // View all reports hover
         boolean p2 = viewAllReportsHovered;

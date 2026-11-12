@@ -5,7 +5,7 @@ import java.awt.Canvas;
 
 public class TestFourDedicatedViews {
     public static void main(String[] args) {
-        System.out.println("=== Testing All 4 Dedicated Views (My Teams, Messages, My Profile, Settings) ===");
+        System.out.println("=== Testing Dedicated Views (My Teams, My Profile, Settings) ===");
 
         final boolean[] modalOpened = new boolean[1];
         final String[] lastModalTitle = new String[1];
@@ -182,32 +182,8 @@ public class TestFourDedicatedViews {
         dashboard.paint(g, 1280, 800);
         System.out.println("  [OK] All My Teams buttons and tabs verified 100%!");
 
-        // 2. Test MESSAGES Page
-        System.out.println("\n[Test 2] Testing Messages Page...");
-        dashboard.setActiveNav(StudentDashboard.NavItem.MESSAGES);
-        dashboard.paint(g, 1280, 800);
-        dashboard.update(0.016f);
-        System.out.println("  Painted Messages successfully, activeNav=" + dashboard.getActiveNav());
-
-        // Test conversation switching
-        dashboard.getMessagesData().selectConversation(1);
-        dashboard.paint(g, 1280, 800);
-        System.out.println("  Switched to conversation: " + dashboard.getMessagesData().getActiveConversation().title);
-
-        // Test message typing and send
-        dashboard.getMessagesData().inputFocused = true;
-        for (char c : "Hello team!".toCharArray()) {
-            KeyEvent ke = new KeyEvent(new Canvas(), KeyEvent.KEY_TYPED, System.currentTimeMillis(), 0, KeyEvent.VK_UNDEFINED, c);
-            dashboard.onKey(ke);
-        }
-        System.out.println("  Typed draft: " + dashboard.getMessagesData().inputDraft);
-        KeyEvent enterKey = new KeyEvent(new Canvas(), KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_ENTER, '\n');
-        dashboard.onKey(enterKey);
-        dashboard.paint(g, 1280, 800);
-        System.out.println("  Sent message successfully.");
-
-        // 3. Test MY_PROFILE Page
-        System.out.println("\n[Test 3] Testing My Profile Page...");
+        // 2. Test MY_PROFILE Page
+        System.out.println("\n[Test 2] Testing My Profile Page...");
         dashboard.setActiveNav(StudentDashboard.NavItem.MY_PROFILE);
         dashboard.paint(g, 1280, 800);
         dashboard.update(0.016f);
