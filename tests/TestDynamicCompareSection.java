@@ -32,7 +32,7 @@ public class TestDynamicCompareSection {
         }
 
         // [Test 2] Interactive View Mode Switching
-        System.out.println("\n[Test 2] Testing View Mode Switching (Matrix -> Benchmarks -> Simulator)...");
+        System.out.println("\n[Test 2] Testing View Mode Switching (Matrix -> Simulator -> Matrix)...");
         int w = 1280;
         int h = compare.getHeight(w);
 
@@ -42,52 +42,36 @@ public class TestDynamicCompareSection {
         compare.paint(gSim, 0, w, 0, h);
         gSim.dispose();
 
-        // Paint to populate benchmarks bounds
-        simImg = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
-        gSim = simImg.createGraphics();
-        compare.paint(gSim, 0, w, 0, h);
-        gSim.dispose();
-
-        // Print first mode tab bounds to verify
-        // Switch to Benchmarks
-        boolean clickedBench = compare.onClick(w / 2, 230);
-        if (!clickedBench) {
-            // Find tab coordinate dynamically from internal layout
-            for (int ty = 150; ty < 400; ty += 10) {
-                if (compare.onClick(w / 2, ty)) {
-                    clickedBench = true;
-                    System.out.println("  ✓ Located Benchmarks Tab at y=" + ty);
-                    break;
-                }
+        // Switch to Simulator (Right tab at x ~ w/2 + 100)
+        boolean clickedSim = false;
+        for (int ty = 150; ty < 400; ty += 10) {
+            if (compare.onClick(w / 2 + 100, ty)) {
+                clickedSim = true;
+                System.out.println("  ✓ Located & Clicked Simulator Tab at y=" + ty);
+                break;
             }
         }
-        System.out.println("  ✓ Clicked Benchmarks Tab: " + clickedBench);
-        compare.update(0.2f);
-        int benchH = compare.getHeight(w);
-        System.out.println("  ✓ Benchmarks View dynamic height: " + benchH + "px");
-
-        // Paint to populate benchmarks bounds
-        simImg = new BufferedImage(w, benchH, BufferedImage.TYPE_INT_ARGB);
-        gSim = simImg.createGraphics();
-        compare.paint(gSim, 0, w, 0, benchH);
-        gSim.dispose();
-
-        // Switch to Simulator (Tab at right: x ~ 730, y = 330)
-        boolean clickedSim = compare.onClick(w / 2 + 100, 330);
-        System.out.println("  ✓ Clicked Simulator Tab: " + clickedSim);
+        if (!clickedSim) throw new AssertionError("Failed to click Simulator tab");
         compare.update(0.2f);
         int simH = compare.getHeight(w);
         System.out.println("  ✓ Simulator View dynamic height: " + simH + "px");
 
-        // Paint to populate simulator button bounds
+        // Paint to populate simulator button & tab bounds
         simImg = new BufferedImage(w, simH, BufferedImage.TYPE_INT_ARGB);
         gSim = simImg.createGraphics();
         compare.paint(gSim, 0, w, 0, simH);
         gSim.dispose();
 
-        // Switch back to Matrix (Tab at left: x ~ 460, y = 330)
-        boolean clickedMatrix = compare.onClick(w / 2 - 100, 330);
-        System.out.println("  ✓ Clicked Feature Matrix Tab: " + clickedMatrix);
+        // Switch back to Matrix (Left tab at x ~ w/2 - 100)
+        boolean clickedMatrix = false;
+        for (int ty = 150; ty < 400; ty += 10) {
+            if (compare.onClick(w / 2 - 100, ty)) {
+                clickedMatrix = true;
+                System.out.println("  ✓ Clicked Feature Matrix Tab at y=" + ty);
+                break;
+            }
+        }
+        if (!clickedMatrix) throw new AssertionError("Failed to switch back to Matrix tab");
         compare.update(0.2f);
         int matrixH = compare.getHeight(w);
 

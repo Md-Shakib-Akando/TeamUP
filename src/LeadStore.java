@@ -16,7 +16,9 @@ public class LeadStore {
 
     private static final Path DATA_DIR = Paths.get("data");
     private static final Path CSV_PATH = DATA_DIR.resolve("leads.csv");
-    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
+    private static final Pattern EMAIL_PATTERN = Pattern.compile(
+            "^[A-Za-z0-9_+%-]+(\\.[A-Za-z0-9_+%-]+)*@[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)*\\.[A-Za-z]{2,}$"
+    );
     private static final Object LOCK = new Object();
 
     static {
@@ -48,16 +50,26 @@ public class LeadStore {
         }
     }
 
+    /** Validates standard email address syntax (e.g. abcd@gmail.com). */
+    public static boolean isValidEmail(String email) {
+        if (email == null) return false;
+        String cleanEmail = email.trim();
+        if (cleanEmail.isEmpty() || cleanEmail.length() > 254) return false;
+        int at = cleanEmail.indexOf('@');
+        if (at <= 0 || at > 64) return false;
+        return EMAIL_PATTERN.matcher(cleanEmail).matches();
+    }
+
     public static ValidationResult saveLead(String email, String role) {
         if (email == null || email.trim().isEmpty()) {
-            return new ValidationResult(false, "Please enter your email address.");
+            return new ValidationResult(false, "Please enter your email address (e.g. abcd@gmail.com).");
         }
         String cleanEmail = email.trim();
         if (cleanEmail.length() > 254) {
             return new ValidationResult(false, "Email is too long (max 254 characters).");
         }
-        if (!EMAIL_PATTERN.matcher(cleanEmail).matches()) {
-            return new ValidationResult(false, "Please enter a valid email address (e.g. you@domain.com).");
+        if (!isValidEmail(cleanEmail)) {
+            return new ValidationResult(false, "Invalid email structure - please enter a valid email (e.g. abcd@gmail.com).");
         }
 
         String cleanRole = (role == null || role.trim().isEmpty()) ? "Student" : role.trim();

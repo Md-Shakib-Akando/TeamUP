@@ -79,6 +79,9 @@ public class Hero extends LpSection {
     private int visibleMembers = 3;
 
     private int winX, winY, winW, winH;
+    private int dashBtnX, dashBtnY, dashBtnW, dashBtnH;
+    private boolean dashBtnHovered;
+    private final Elastic dashBtnHov = new Elastic(0f, 260f, 20f);
     private final Elastic tiltX = new Elastic(0f, 70f, 12f);
     private final Elastic tiltY = new Elastic(0f, 70f, 12f);
     private AffineTransform winTx = new AffineTransform();
@@ -171,6 +174,7 @@ public class Hero extends LpSection {
         b1Hov.setTarget(b1Hover ? 1f : 0f); b1Hov.update(dt);
         b2Hov.setTarget(b2Hover ? 1f : 0f); b2Hov.update(dt);
         sBtnHov.setTarget(sBtnHover ? 1f : 0f); sBtnHov.update(dt);
+        dashBtnHov.setTarget(dashBtnHovered ? 1f : 0f); dashBtnHov.update(dt);
 
         float[] mag = Anim.calculateMagneticOffset(b1X + b1W / 2f, b1Y + b1H / 2f, 110f, 9f);
         magX.setTarget(mag[0]); magY.setTarget(mag[1]);
@@ -692,6 +696,43 @@ public class Hero extends LpSection {
             mg.dispose();
         }
 
+        // Bottom preview bar: interactive hint + "Explore full dashboard ->" button
+        {
+            int footY = gy + memberH + 12;
+            String ctaTxt = "Explore full dashboard";
+            w.setFont(Fx.bold(12.5f));
+            FontMetrics cfm = w.getFontMetrics();
+            dashBtnW = cfm.stringWidth(ctaTxt) + 42;
+            dashBtnH = 30;
+            dashBtnX = mainW > 380 ? (mainX + mainW - dashBtnW) : (mainX + (mainW - dashBtnW) / 2);
+            dashBtnY = footY;
+
+            if (mainW > 420) {
+                w.setFont(Fx.font(Font.PLAIN, 11.5f));
+                w.setColor(Fx.text3());
+                Fx.textMid(w, "Interactive preview · Try clicking Invite", mainX, footY + dashBtnH / 2f);
+            }
+
+            float hv = dashBtnHov.getValue();
+            RoundRectangle2D.Float db = Fx.rr(dashBtnX, dashBtnY, dashBtnW, dashBtnH, 15);
+            if (hv > 0.01f) {
+                Fx.glow(w, dashBtnX + dashBtnW / 2f, dashBtnY + dashBtnH / 2f, dashBtnW * 0.55f, Fx.PINK, 0.25f * hv);
+            }
+            w.setPaint(new GradientPaint(dashBtnX, dashBtnY, Fx.mix(Fx.a(Fx.PINK, 26), Fx.PINK, hv),
+                    dashBtnX + dashBtnW, dashBtnY, Fx.mix(Fx.a(Fx.VIOLET, 26), Fx.VIOLET, hv)));
+            w.fill(db);
+            w.setColor(Fx.mix(Fx.a(Fx.PINK, 110), Color.WHITE, hv * 0.4f));
+            w.setStroke(new BasicStroke(1f));
+            w.draw(db);
+
+            w.setFont(Fx.bold(12.5f));
+            w.setColor(hv > 0.45f ? Color.WHITE : Fx.ink(Fx.PINK));
+            int tw = cfm.stringWidth(ctaTxt);
+            Fx.textMid(w, ctaTxt, dashBtnX + 14, dashBtnY + dashBtnH / 2f);
+            Fx.arrow(w, dashBtnX + 14 + tw + 10 + hv * 2f, dashBtnY + dashBtnH / 2f, 9,
+                    hv > 0.45f ? Color.WHITE : Fx.ink(Fx.PINK), 1.6f);
+        }
+
         if (showFeed) paintFeed(w, wx + ww - feedW, bodyY, feedW, wh - 44);
 
         if (mouseOverWin) {
@@ -1032,6 +1073,10 @@ public class Hero extends LpSection {
         }
         Point2D w = toWindow(mx, my);
         int wx = (int) w.getX(), wy = (int) w.getY();
+        if (dashBtnW > 0 && Fx.inside(wx, wy, dashBtnX, dashBtnY, dashBtnW, dashBtnH)) {
+            if (listener != null) listener.openDashboard();
+            return true;
+        }
         for (Member m : members) {
             if (Fx.inside(wx, wy, m.bx, m.by, m.bw, m.bh)) {
                 m.invited = !m.invited;
@@ -1056,6 +1101,8 @@ public class Hero extends LpSection {
         mouseOverWin = Fx.inside(mx, my, winX - 80, winY - 80, winW + 160, winH + 160);
         Point2D w = toWindow(mx, my);
         int wx = (int) w.getX(), wy = (int) w.getY();
+        dashBtnHovered = dashBtnW > 0 && Fx.inside(wx, wy, dashBtnX, dashBtnY, dashBtnW, dashBtnH);
+        hand |= dashBtnHovered;
         for (Member m : members) {
             m.hovered = Fx.inside(wx, wy, m.x, m.y, m.w, m.h);
             m.btnHovered = Fx.inside(wx, wy, m.bx, m.by, m.bw, m.bh);

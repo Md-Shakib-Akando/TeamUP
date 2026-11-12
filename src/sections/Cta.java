@@ -28,7 +28,7 @@ public class Cta extends LpSection {
     private int panelX, panelY, panelW, panelH;
 
     public Cta() {
-        emailBox = new TextBox("you@university.edu");
+        emailBox = new TextBox("abcd@gmail.com");
         roleDropdown = new Dropdown(Arrays.asList("Student", "Freelancer", "Developer", "Researcher", "Startup"));
         joinBtn = new Button("Join early access", true, this::submitLead);
     }
@@ -39,13 +39,31 @@ public class Cta extends LpSection {
         LeadStore.ValidationResult res = LeadStore.saveLead(emailBox.getText(), roleDropdown.getSelected());
         statusMessage = res.message;
         isSuccess = res.success;
-        statusT = 0f;
+        statusT = 0.08f;
         if (res.success) {
             emailBox.setText("");
             emailBox.hasError = false;
             burst(joinBtn.x + joinBtn.width / 2f, joinBtn.y + joinBtn.height / 2f);
         } else {
             emailBox.hasError = true;
+        }
+    }
+
+    private void validateWhileEditing() {
+        String txt = emailBox.getText().trim();
+        if (txt.isEmpty()) {
+            if (!isSuccess) {
+                emailBox.hasError = false;
+                statusMessage = "";
+            }
+            return;
+        }
+        if (LeadStore.isValidEmail(txt)) {
+            emailBox.hasError = false;
+            if (!isSuccess) statusMessage = "";
+        } else if (!isSuccess && !statusMessage.isEmpty()) {
+            emailBox.hasError = true;
+            statusMessage = "Invalid email structure - please enter a valid email (e.g. abcd@gmail.com).";
         }
     }
 
@@ -266,8 +284,18 @@ public class Cta extends LpSection {
     @Override
     public boolean onMouseDown(int mx, int my) {
         if (roleDropdown.contains(mx, my)) return true;
+        boolean wasFocused = emailBox.focused;
         boolean b1 = emailBox.onMouseDown(mx, my);
         boolean b2 = joinBtn.onMouseDown(mx, my);
+        if (wasFocused && !b1 && !b2) {
+            String cur = emailBox.getText().trim();
+            if (!cur.isEmpty() && !LeadStore.isValidEmail(cur)) {
+                emailBox.hasError = true;
+                isSuccess = false;
+                statusMessage = "Invalid email structure - please enter a valid email (e.g. abcd@gmail.com).";
+                statusT = 0.08f;
+            }
+        }
         return b1 || b2;
     }
 
@@ -278,12 +306,23 @@ public class Cta extends LpSection {
 
     @Override
     public boolean onKey(KeyEvent e) {
-        if (emailBox.focused) {
-            if (e.getID() == KeyEvent.KEY_PRESSED && e.getKeyCode() == KeyEvent.VK_ENTER) {
+        if (!emailBox.focused) return false;
+        if (e.getID() == KeyEvent.KEY_PRESSED) {
+            if (e.getKeyCode() == KeyEvent.VK_ENTER) {
                 submitLead();
                 return true;
             }
-            return emailBox.onKey(e);
+            if (e.getKeyChar() == KeyEvent.CHAR_UNDEFINED || Character.isISOControl(e.getKeyChar()) || e.isControlDown()) {
+                boolean handled = emailBox.onKey(e);
+                if (handled) validateWhileEditing();
+                return handled;
+            }
+            return true;
+        }
+        if (e.getID() == KeyEvent.KEY_TYPED) {
+            boolean handled = emailBox.onKey(e);
+            if (handled) validateWhileEditing();
+            return handled;
         }
         return false;
     }

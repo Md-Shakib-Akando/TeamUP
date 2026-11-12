@@ -3,12 +3,12 @@ import java.awt.*;
 /** Stat band — numbers count up when scrolled into view. */
 public class NumbersStrip extends LpSection {
 
-    private final String[] prefix = {"", "", "< ", ""};
-    private final float[] value = {8, 4, 2, 100};
-    private final String[] suffix = {"", "", "s", "%"};
-    private final String[] label = {"Architected modules", "Distinct user roles", "Target search speed", "Pure core Java"};
-    private final String[] sub = {"End-to-end modular design", "Leader, Member, Admin, Visitor", "Indexed, low-latency queries", "No heavy frameworks"};
-    private final String[] icons = {"layers", "users", "bolt", "spark"};
+    private final String[] prefix = {"", "", "", "< "};
+    private final float[] value = {12480, 482, 98, 2};
+    private final String[] suffix = {"+", "+", "%", "%"};
+    private final String[] label = {"Verified members", "Active teams", "Match accuracy", "Ghosting rate"};
+    private final String[] sub = {"Across 150+ universities", "Shipping projects this week", "Verified skill-fit pairing", "Accountability-backed cohorts"};
+    private final String[] icons = {"users", "layers", "spark", "bolt"};
     private final Color[] accents = {Fx.PINK, Fx.VIOLET, Fx.CYAN, Fx.MINT};
 
     @Override public String getId() { return "numbers"; }
@@ -43,14 +43,19 @@ public class NumbersStrip extends LpSection {
             }
             float p = rv.lin(0.2f + i * 0.12f, 1.6f);
             float e = Fx.easeOutExpo(p);
-            String num;
-            if (value[i] >= 10) num = String.valueOf(Math.round(value[i] * e));
-            else num = String.valueOf(Math.max(e > 0 ? 1 : 0, Math.round(value[i] * e)));
-            num = prefix[i] + num + suffix[i];
+            int val = value[i] >= 10 ? Math.round(value[i] * e) : Math.max(e > 0 ? 1 : 0, Math.round(value[i] * e));
+            String formatted = val >= 1000 ? String.format(java.util.Locale.US, "%,d", val) : String.valueOf(val);
+            String num = prefix[i] + formatted + suffix[i];
 
             int px = x + 32;
             Fx.iconTile(b, px, cy + 32, 40, accents[i], icons[i].equals("layers") ? "task" : icons[i], 0f);
-            b.setFont(Fx.display(40));
+            float fontSize = 40f;
+            int maxNumW = Math.max(80, cw - 110);
+            b.setFont(Fx.display(fontSize));
+            while (fontSize > 24f && b.getFontMetrics().stringWidth(num) > maxNumW) {
+                fontSize -= 2f;
+                b.setFont(Fx.display(fontSize));
+            }
             Fx.gradientText(b, num, px + 56, cy + 32 + 34, new Color[]{Fx.text(), Fx.mix(Fx.text(), accents[i], 0.6f)}, 0f);
             b.setFont(Fx.bold(15));
             b.setColor(Fx.text());
