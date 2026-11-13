@@ -7,7 +7,8 @@ import java.util.stream.Collectors;
 /**
  * Admin Dashboard - Categories & Skills Management View.
  * Matches Figma reference Image 5 with exact dual-column layout, badges, search, and action toggles.
- * Fully wired to AdminDataStore for real-time reactivity.
+ * Fully dynamic: every button (Add Category, Add Skill, Edit, Enable/Disable, View All, Clear, Reset)
+ * features real-time feedback, distinct button styling, reactive hover states, and store mutation.
  * Pure core Java - zero third-party dependencies.
  */
 public class AdminCategories {
@@ -31,28 +32,39 @@ public class AdminCategories {
     private final List<CatHitbox> catHitboxes = new ArrayList<>();
     private final List<SkillHitbox> skillHitboxes = new ArrayList<>();
 
+    // Search state & hitboxes
     private String catSearch = "";
     private boolean catSearchFocused = false;
-    private int catSearchX, catSearchY, catSearchW, catSearchH = 34;
+    private int catSearchX, catSearchY, catSearchW, catSearchH = 36;
+    private int catClearX, catClearY, catClearSize = 18;
+    private boolean catClearHovered = false;
+    private int catResetBtnX = -9999, catResetBtnY = -9999, catResetBtnW = 104, catResetBtnH = 28;
+    private boolean catResetHovered = false;
 
     private String skillSearch = "";
     private boolean skillSearchFocused = false;
-    private int skillSearchX, skillSearchY, skillSearchW, skillSearchH = 34;
+    private int skillSearchX, skillSearchY, skillSearchW, skillSearchH = 36;
+    private int skillClearX, skillClearY, skillClearSize = 18;
+    private boolean skillClearHovered = false;
+    private int skillResetBtnX = -9999, skillResetBtnY = -9999, skillResetBtnW = 104, skillResetBtnH = 28;
+    private boolean skillResetHovered = false;
 
-    private int addCatBtnX, addCatBtnY, addCatBtnW = 126, addCatBtnH = 36;
+    // Header buttons
+    private int addCatBtnX, addCatBtnY, addCatBtnW = 132, addCatBtnH = 36;
     private boolean addCatHovered = false;
 
-    private int addSkillBtnX, addSkillBtnY, addSkillBtnW = 104, addSkillBtnH = 36;
+    private int addSkillBtnX, addSkillBtnY, addSkillBtnW = 114, addSkillBtnH = 36;
     private boolean addSkillHovered = false;
 
-    private int viewAllCatX, viewAllCatY, viewAllCatW, viewAllCatH = 20;
+    // Footer buttons
+    private int viewAllCatX, viewAllCatY, viewAllCatW, viewAllCatH = 24;
     private boolean viewAllCatHovered = false;
 
-    private int viewAllSkillX, viewAllSkillY, viewAllSkillW, viewAllSkillH = 20;
+    private int viewAllSkillX, viewAllSkillY, viewAllSkillW, viewAllSkillH = 24;
     private boolean viewAllSkillHovered = false;
 
-    private boolean showAllCategories = false;
-    private boolean showAllSkills = false;
+    private boolean showAllCategories = true;
+    private boolean showAllSkills = true;
 
     public AdminCategories() {
     }
@@ -67,7 +79,7 @@ public class AdminCategories {
                 .filter(c -> catSearch.isEmpty() || c.name.toLowerCase().contains(catSearch.toLowerCase()))
                 .collect(Collectors.toList());
         int catDisplayLimit = showAllCategories ? filteredCats.size() : Math.min(6, filteredCats.size());
-        int catTableH = Math.max(300, 38 + catDisplayLimit * 43 + 8);
+        int catTableH = Math.max(300, 38 + Math.max(1, catDisplayLimit) * 46 + 8);
         int catColH = 48 + 46 + catTableH + 52;
 
         List<AdminDataStore.SkillModel> allSkills = AdminDataStore.getInstance().getAllSkills();
@@ -75,7 +87,7 @@ public class AdminCategories {
                 .filter(s -> skillSearch.isEmpty() || s.name.toLowerCase().contains(skillSearch.toLowerCase()))
                 .collect(Collectors.toList());
         int skillDisplayLimit = showAllSkills ? filteredSkills.size() : Math.min(6, filteredSkills.size());
-        int skillTableH = Math.max(300, 38 + skillDisplayLimit * 43 + 8);
+        int skillTableH = Math.max(300, 38 + Math.max(1, skillDisplayLimit) * 46 + 8);
         int skillColH = 48 + 46 + skillTableH + 52;
 
         int totalH = 28 + 72; // top padding + title header
@@ -145,7 +157,7 @@ public class AdminCategories {
         List<AdminDataStore.CategoryModel> allCats = AdminDataStore.getInstance().getAllCategories();
         long activeCount = allCats.stream().filter(c -> c.active).count();
 
-        // Header line: "Project categories", sub: "X categories · Y active", Button: "+ Add category"
+        // Header line: "Project categories", sub: "X categories · Y active"
         g.setFont(AdminTheme.FONT_BOLD_16);
         g.setColor(AdminTheme.TEXT_MAIN);
         g.drawString("Project categories", x, y + 16);
@@ -154,25 +166,38 @@ public class AdminCategories {
         g.setColor(AdminTheme.TEXT_MUTED);
         g.drawString(allCats.size() + " categories · " + activeCount + " active", x, y + 34);
 
-        // "+ Add category" button
-        addCatBtnW = 126;
+        // Dynamic "+ Add category" button
+        addCatBtnW = 132;
         addCatBtnH = 36;
         addCatBtnX = x + w - addCatBtnW;
         addCatBtnY = y;
         RoundRectangle2D addBtn = new RoundRectangle2D.Float(addCatBtnX, addCatBtnY, addCatBtnW, addCatBtnH, 8, 8);
         g.setColor(addCatHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.BRAND_GREEN_DARK);
         g.fill(addBtn);
-        g.setFont(AdminTheme.FONT_BOLD_12);
+
+        // Plus icon
         g.setColor(Color.WHITE);
-        g.drawString("+ Add category", addCatBtnX + 16, addCatBtnY + 22);
+        g.setStroke(new BasicStroke(2f));
+        int cpx = addCatBtnX + 16;
+        int cpy = addCatBtnY + 18;
+        g.drawLine(cpx - 4, cpy, cpx + 4, cpy);
+        g.drawLine(cpx, cpy - 4, cpx, cpy + 4);
+
+        g.setFont(AdminTheme.FONT_BOLD_11);
+        g.drawString("Add category", addCatBtnX + 26, addCatBtnY + 22);
 
         int curY = y + 48;
 
-        // Search Input
+        // Dynamic Search Input with Clear Button
         catSearchX = x;
         catSearchY = curY;
         catSearchW = w;
-        paintSearchBar(g, catSearchX, catSearchY, catSearchW, catSearchH, catSearch, "Search categories...", catSearchFocused);
+        catClearSize = 18;
+        catClearX = catSearchX + catSearchW - catClearSize - 10;
+        catClearY = catSearchY + (catSearchH - catClearSize) / 2;
+
+        paintSearchBar(g, catSearchX, catSearchY, catSearchW, catSearchH, catSearch, "Search categories...",
+                catSearchFocused, catClearHovered, catClearX, catClearY, catClearSize);
 
         curY += 46;
 
@@ -183,7 +208,7 @@ public class AdminCategories {
 
         // Card Container - dynamic height
         int headH = 38;
-        int rowH = 43;
+        int rowH = 46;
         int displayLimit = showAllCategories ? filteredCats.size() : Math.min(6, filteredCats.size());
         int tableH = Math.max(300, headH + Math.max(1, displayLimit) * rowH + 8);
 
@@ -203,8 +228,8 @@ public class AdminCategories {
         g.setFont(AdminTheme.FONT_SEMIBOLD_11);
         g.setColor(AdminTheme.TEXT_MUTED);
         g.drawString("CATEGORY / USAGE", x + 16, curY + 23);
-        g.drawString("STATUS", x + w - 150, curY + 23);
-        g.drawString("ACTIONS", x + w - 75, curY + 23);
+        g.drawString("STATUS", x + w - 186, curY + 23);
+        g.drawString("ACTIONS", x + w - 110, curY + 23);
 
         // Rows
         int rowY = curY + headH;
@@ -213,7 +238,25 @@ public class AdminCategories {
         if (filteredCats.isEmpty()) {
             g.setFont(AdminTheme.FONT_REGULAR_13);
             g.setColor(AdminTheme.TEXT_MUTED);
-            g.drawString("No categories match your search.", x + 24, rowY + 36);
+            g.drawString("No categories match \"" + catSearch + "\".", x + 20, rowY + 36);
+
+            // Dynamic Reset search button
+            catResetBtnX = x + 20;
+            catResetBtnY = rowY + 54;
+            catResetBtnW = 106;
+            catResetBtnH = 28;
+            RoundRectangle2D rbox = new RoundRectangle2D.Float(catResetBtnX, catResetBtnY, catResetBtnW, catResetBtnH, 6, 6);
+            g.setColor(catResetHovered ? new Color(0xF1, 0xF5, 0xF9) : Color.WHITE);
+            g.fill(rbox);
+            g.setColor(catResetHovered ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.BORDER_COLOR);
+            g.setStroke(new BasicStroke(1f));
+            g.draw(rbox);
+            g.setFont(AdminTheme.FONT_BOLD_11);
+            g.setColor(catResetHovered ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.TEXT_DARK);
+            g.drawString("Reset search", catResetBtnX + 16, catResetBtnY + 18);
+        } else {
+            catResetBtnX = -9999;
+            catResetBtnY = -9999;
         }
 
         for (int i = 0; i < displayLimit; i++) {
@@ -228,87 +271,99 @@ public class AdminCategories {
             // Category Name & count
             g.setFont(AdminTheme.FONT_BOLD_13);
             g.setColor(AdminTheme.TEXT_MAIN);
-            g.drawString(item.name, x + 16, ry + 18);
+            g.drawString(item.name, x + 16, ry + 20);
 
             g.setFont(AdminTheme.FONT_REGULAR_11);
             g.setColor(AdminTheme.TEXT_MUTED);
-            g.drawString(item.projectCount + " projects", x + 16, ry + 32);
+            g.drawString(item.projectCount + " projects", x + 16, ry + 35);
 
-            // Status Pill
-            int badgeX = x + w - 152;
-            int badgeY = ry + 12;
+            // Status Badge
+            int badgeX = x + w - 190;
+            int badgeY = ry + 13;
             paintStatusBadge(g, badgeX, badgeY, item.active ? "Active" : "Disabled", item.active);
 
-            // Action Links: Edit | Disable/Enable
-            int actionX = x + w - 85;
-            int actionY = ry + 24;
-
+            // Dynamic Row Action Buttons: Edit | Disable / Enable
             CatHitbox hb = new CatHitbox();
             hb.model = item;
-            hb.editX = actionX;
-            hb.editY = ry + 10;
-            hb.editW = 28;
-            hb.editH = 20;
+            hb.editW = 44;
+            hb.editH = 24;
+            hb.editX = x + w - 128;
+            hb.editY = ry + 11;
 
-            hb.toggleX = actionX + 34;
-            hb.toggleY = ry + 10;
-            hb.toggleW = 46;
-            hb.toggleH = 20;
+            hb.toggleW = 58;
+            hb.toggleH = 24;
+            hb.toggleX = x + w - 74;
+            hb.toggleY = ry + 11;
 
             catHitboxes.add(hb);
 
-            g.setFont(AdminTheme.FONT_BOLD_12);
-            g.setColor(AdminTheme.TEXT_MAIN);
-            g.drawString("Edit", hb.editX, actionY);
+            // 1. Dynamic "Edit" button pill
+            RoundRectangle2D editBtn = new RoundRectangle2D.Float(hb.editX, hb.editY, hb.editW, hb.editH, 6, 6);
+            g.setColor(hb.editHovered ? new Color(0xF1, 0xF5, 0xF9) : Color.WHITE);
+            g.fill(editBtn);
+            g.setColor(hb.editHovered ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.BORDER_COLOR);
+            g.setStroke(new BasicStroke(1f));
+            g.draw(editBtn);
 
+            g.setFont(AdminTheme.FONT_BOLD_11);
+            g.setColor(hb.editHovered ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.TEXT_MAIN);
+            FontMetrics efm = g.getFontMetrics();
+            int etw = efm.stringWidth("Edit");
+            g.drawString("Edit", hb.editX + (hb.editW - etw) / 2, hb.editY + 16);
+
+            // 2. Dynamic "Disable" / "Enable" toggle button pill
+            RoundRectangle2D togBtn = new RoundRectangle2D.Float(hb.toggleX, hb.toggleY, hb.toggleW, hb.toggleH, 6, 6);
             if (item.active) {
-                g.setColor(AdminTheme.STATUS_RED_TEXT);
-                g.drawString("Disable", hb.toggleX, actionY);
+                // Disable button (Soft Red styling)
+                String togText = "Disable";
+                g.setColor(hb.toggleHovered ? new Color(0xFE, 0xE2, 0xE2) : new Color(0xFE, 0xF2, 0xF2));
+                g.fill(togBtn);
+                g.setColor(hb.toggleHovered ? new Color(0xEF, 0x44, 0x44) : new Color(0xFE, 0xCD, 0xCD));
+                g.setStroke(new BasicStroke(1f));
+                g.draw(togBtn);
+
+                g.setFont(AdminTheme.FONT_BOLD_11);
+                g.setColor(hb.toggleHovered ? new Color(0x99, 0x1B, 0x1B) : AdminTheme.STATUS_RED_TEXT);
+                FontMetrics tfm = g.getFontMetrics();
+                int ttw = tfm.stringWidth(togText);
+                g.drawString(togText, hb.toggleX + (hb.toggleW - ttw) / 2, hb.toggleY + 16);
             } else {
-                g.setColor(AdminTheme.STATUS_GREEN_TEXT);
-                g.drawString("Enable", hb.toggleX, actionY);
+                // Enable button (Soft Green styling)
+                String togText = "Enable";
+                g.setColor(hb.toggleHovered ? new Color(0xDC, 0xFC, 0xE7) : new Color(0xEC, 0xFD, 0xF5));
+                g.fill(togBtn);
+                g.setColor(hb.toggleHovered ? new Color(0x16, 0xA3, 0x4A) : new Color(0xA7, 0xF3, 0xD0));
+                g.setStroke(new BasicStroke(1f));
+                g.draw(togBtn);
+
+                g.setFont(AdminTheme.FONT_BOLD_11);
+                g.setColor(hb.toggleHovered ? new Color(0x14, 0x53, 0x2D) : AdminTheme.STATUS_GREEN_TEXT);
+                FontMetrics tfm = g.getFontMetrics();
+                int ttw = tfm.stringWidth(togText);
+                g.drawString(togText, hb.toggleX + (hb.toggleW - ttw) / 2, hb.toggleY + 16);
             }
         }
 
-        // Footer "Showing X of Y categories · View all categories →"
+        // Footer "Showing X of Y categories" (View all button deleted)
         int footY = curY + tableH + 18;
         g.setFont(AdminTheme.FONT_REGULAR_12);
         g.setColor(AdminTheme.TEXT_MUTED);
-        String footPrefix = "Showing " + displayLimit + " of " + filteredCats.size() + " categories · ";
-        g.drawString(footPrefix, x, footY + 4);
+        String footText = "Showing " + displayLimit + " of " + allCats.size() + " categories";
+        g.drawString(footText, x, footY + 4);
 
-        FontMetrics fmFoot = g.getFontMetrics();
-        int preW = fmFoot.stringWidth(footPrefix);
+        viewAllCatX = -9999;
+        viewAllCatY = -9999;
+        viewAllCatW = 0;
+        viewAllCatH = 0;
 
-        String viewAllText = showAllCategories ? "Show less ↑" : ("View all (" + filteredCats.size() + ") →");
-        g.setFont(AdminTheme.FONT_BOLD_11);
-        FontMetrics bfm = g.getFontMetrics();
-
-        viewAllCatW = bfm.stringWidth(viewAllText) + 18;
-        viewAllCatH = 24;
-        viewAllCatX = x + preW;
-        viewAllCatY = footY - 12;
-
-        RoundRectangle2D pill = new RoundRectangle2D.Float(viewAllCatX, viewAllCatY, viewAllCatW, viewAllCatH, 12, 12);
-        g.setColor(viewAllCatHovered ? AdminTheme.BRAND_GREEN_DARK : new Color(0xEC, 0xFD, 0xF5));
-        g.fill(pill);
-        g.setColor(viewAllCatHovered ? AdminTheme.BRAND_GREEN_DARK : new Color(0xA7, 0xF3, 0xD0));
-        g.setStroke(new BasicStroke(1.0f));
-        g.draw(pill);
-
-        g.setColor(viewAllCatHovered ? Color.WHITE : AdminTheme.BRAND_GREEN_DARK);
-        int tx = viewAllCatX + (viewAllCatW - bfm.stringWidth(viewAllText)) / 2;
-        int ty = viewAllCatY + (viewAllCatH - bfm.getHeight()) / 2 + bfm.getAscent();
-        g.drawString(viewAllText, tx, ty);
-
-        return footY + viewAllCatH + 8;
+        return footY + 28;
     }
 
     private int paintSkillColumn(Graphics2D g, int x, int y, int w, AdminDashboard dashboard) {
         List<AdminDataStore.SkillModel> allSkills = AdminDataStore.getInstance().getAllSkills();
         long activeCount = allSkills.stream().filter(s -> s.active).count();
 
-        // Header line: "Skill tags", sub: "X skills · Y active", Button: "+ Add skill"
+        // Header line: "Skill tags", sub: "X skills · Y active"
         g.setFont(AdminTheme.FONT_BOLD_16);
         g.setColor(AdminTheme.TEXT_MAIN);
         g.drawString("Skill tags", x, y + 16);
@@ -317,25 +372,38 @@ public class AdminCategories {
         g.setColor(AdminTheme.TEXT_MUTED);
         g.drawString(allSkills.size() + " skills · " + activeCount + " active", x, y + 34);
 
-        // "+ Add skill" button
-        addSkillBtnW = 104;
+        // Dynamic "+ Add skill" button
+        addSkillBtnW = 114;
         addSkillBtnH = 36;
         addSkillBtnX = x + w - addSkillBtnW;
         addSkillBtnY = y;
         RoundRectangle2D addBtn = new RoundRectangle2D.Float(addSkillBtnX, addSkillBtnY, addSkillBtnW, addSkillBtnH, 8, 8);
         g.setColor(addSkillHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.BRAND_GREEN_DARK);
         g.fill(addBtn);
-        g.setFont(AdminTheme.FONT_BOLD_12);
+
+        // Plus icon
         g.setColor(Color.WHITE);
-        g.drawString("+ Add skill", addSkillBtnX + 16, addSkillBtnY + 22);
+        g.setStroke(new BasicStroke(2f));
+        int spx = addSkillBtnX + 16;
+        int spy = addSkillBtnY + 18;
+        g.drawLine(spx - 4, spy, spx + 4, spy);
+        g.drawLine(spx, spy - 4, spx, spy + 4);
+
+        g.setFont(AdminTheme.FONT_BOLD_11);
+        g.drawString("Add skill", addSkillBtnX + 26, addSkillBtnY + 22);
 
         int curY = y + 48;
 
-        // Search Input
+        // Dynamic Search Input with Clear Button
         skillSearchX = x;
         skillSearchY = curY;
         skillSearchW = w;
-        paintSearchBar(g, skillSearchX, skillSearchY, skillSearchW, skillSearchH, skillSearch, "Search skill tags...", skillSearchFocused);
+        skillClearSize = 18;
+        skillClearX = skillSearchX + skillSearchW - skillClearSize - 10;
+        skillClearY = skillSearchY + (skillSearchH - skillClearSize) / 2;
+
+        paintSearchBar(g, skillSearchX, skillSearchY, skillSearchW, skillSearchH, skillSearch, "Search skill tags...",
+                skillSearchFocused, skillClearHovered, skillClearX, skillClearY, skillClearSize);
 
         curY += 46;
 
@@ -346,7 +414,7 @@ public class AdminCategories {
 
         // Card Container - dynamic height
         int headH = 38;
-        int rowH = 43;
+        int rowH = 46;
         int displayLimit = showAllSkills ? filteredSkills.size() : Math.min(6, filteredSkills.size());
         int tableH = Math.max(300, headH + Math.max(1, displayLimit) * rowH + 8);
 
@@ -366,8 +434,8 @@ public class AdminCategories {
         g.setFont(AdminTheme.FONT_SEMIBOLD_11);
         g.setColor(AdminTheme.TEXT_MUTED);
         g.drawString("SKILL / USAGE", x + 16, curY + 23);
-        g.drawString("STATUS", x + w - 150, curY + 23);
-        g.drawString("ACTIONS", x + w - 75, curY + 23);
+        g.drawString("STATUS", x + w - 186, curY + 23);
+        g.drawString("ACTIONS", x + w - 110, curY + 23);
 
         // Rows
         int rowY = curY + headH;
@@ -376,7 +444,25 @@ public class AdminCategories {
         if (filteredSkills.isEmpty()) {
             g.setFont(AdminTheme.FONT_REGULAR_13);
             g.setColor(AdminTheme.TEXT_MUTED);
-            g.drawString("No skills match your search.", x + 24, rowY + 36);
+            g.drawString("No skills match \"" + skillSearch + "\".", x + 20, rowY + 36);
+
+            // Dynamic Reset search button
+            skillResetBtnX = x + 20;
+            skillResetBtnY = rowY + 54;
+            skillResetBtnW = 106;
+            skillResetBtnH = 28;
+            RoundRectangle2D rbox = new RoundRectangle2D.Float(skillResetBtnX, skillResetBtnY, skillResetBtnW, skillResetBtnH, 6, 6);
+            g.setColor(skillResetHovered ? new Color(0xF1, 0xF5, 0xF9) : Color.WHITE);
+            g.fill(rbox);
+            g.setColor(skillResetHovered ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.BORDER_COLOR);
+            g.setStroke(new BasicStroke(1f));
+            g.draw(rbox);
+            g.setFont(AdminTheme.FONT_BOLD_11);
+            g.setColor(skillResetHovered ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.TEXT_DARK);
+            g.drawString("Reset search", skillResetBtnX + 16, skillResetBtnY + 18);
+        } else {
+            skillResetBtnX = -9999;
+            skillResetBtnY = -9999;
         }
 
         for (int i = 0; i < displayLimit; i++) {
@@ -391,116 +477,138 @@ public class AdminCategories {
             // Skill Name & members
             g.setFont(AdminTheme.FONT_BOLD_13);
             g.setColor(AdminTheme.TEXT_MAIN);
-            g.drawString(item.name, x + 16, ry + 18);
+            g.drawString(item.name, x + 16, ry + 20);
 
             g.setFont(AdminTheme.FONT_REGULAR_11);
             g.setColor(AdminTheme.TEXT_MUTED);
-            g.drawString(String.format("%,d members", item.memberCount), x + 16, ry + 32);
+            g.drawString(String.format("%,d members", item.memberCount), x + 16, ry + 35);
 
-            // Status Pill
-            int badgeX = x + w - 152;
-            int badgeY = ry + 12;
+            // Status Badge
+            int badgeX = x + w - 190;
+            int badgeY = ry + 13;
             paintStatusBadge(g, badgeX, badgeY, item.active ? "Active" : "Disabled", item.active);
 
-            // Action Links: Edit | Disable/Enable
-            int actionX = x + w - 85;
-            int actionY = ry + 24;
-
+            // Dynamic Row Action Buttons: Edit | Disable / Enable
             SkillHitbox hb = new SkillHitbox();
             hb.model = item;
-            hb.editX = actionX;
-            hb.editY = ry + 10;
-            hb.editW = 28;
-            hb.editH = 20;
+            hb.editW = 44;
+            hb.editH = 24;
+            hb.editX = x + w - 128;
+            hb.editY = ry + 11;
 
-            hb.toggleX = actionX + 34;
-            hb.toggleY = ry + 10;
-            hb.toggleW = 46;
-            hb.toggleH = 20;
+            hb.toggleW = 58;
+            hb.toggleH = 24;
+            hb.toggleX = x + w - 74;
+            hb.toggleY = ry + 11;
 
             skillHitboxes.add(hb);
 
-            g.setFont(AdminTheme.FONT_BOLD_12);
-            g.setColor(AdminTheme.TEXT_MAIN);
-            g.drawString("Edit", hb.editX, actionY);
+            // 1. Dynamic "Edit" button pill
+            RoundRectangle2D editBtn = new RoundRectangle2D.Float(hb.editX, hb.editY, hb.editW, hb.editH, 6, 6);
+            g.setColor(hb.editHovered ? new Color(0xF1, 0xF5, 0xF9) : Color.WHITE);
+            g.fill(editBtn);
+            g.setColor(hb.editHovered ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.BORDER_COLOR);
+            g.setStroke(new BasicStroke(1f));
+            g.draw(editBtn);
 
+            g.setFont(AdminTheme.FONT_BOLD_11);
+            g.setColor(hb.editHovered ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.TEXT_MAIN);
+            FontMetrics efm = g.getFontMetrics();
+            int etw = efm.stringWidth("Edit");
+            g.drawString("Edit", hb.editX + (hb.editW - etw) / 2, hb.editY + 16);
+
+            // 2. Dynamic "Disable" / "Enable" toggle button pill
+            RoundRectangle2D togBtn = new RoundRectangle2D.Float(hb.toggleX, hb.toggleY, hb.toggleW, hb.toggleH, 6, 6);
             if (item.active) {
-                g.setColor(AdminTheme.STATUS_RED_TEXT);
-                g.drawString("Disable", hb.toggleX, actionY);
+                // Disable button (Soft Red styling)
+                String togText = "Disable";
+                g.setColor(hb.toggleHovered ? new Color(0xFE, 0xE2, 0xE2) : new Color(0xFE, 0xF2, 0xF2));
+                g.fill(togBtn);
+                g.setColor(hb.toggleHovered ? new Color(0xEF, 0x44, 0x44) : new Color(0xFE, 0xCD, 0xCD));
+                g.setStroke(new BasicStroke(1f));
+                g.draw(togBtn);
+
+                g.setFont(AdminTheme.FONT_BOLD_11);
+                g.setColor(hb.toggleHovered ? new Color(0x99, 0x1B, 0x1B) : AdminTheme.STATUS_RED_TEXT);
+                FontMetrics tfm = g.getFontMetrics();
+                int ttw = tfm.stringWidth(togText);
+                g.drawString(togText, hb.toggleX + (hb.toggleW - ttw) / 2, hb.toggleY + 16);
             } else {
-                g.setColor(AdminTheme.STATUS_GREEN_TEXT);
-                g.drawString("Enable", hb.toggleX, actionY);
+                // Enable button (Soft Green styling)
+                String togText = "Enable";
+                g.setColor(hb.toggleHovered ? new Color(0xDC, 0xFC, 0xE7) : new Color(0xEC, 0xFD, 0xF5));
+                g.fill(togBtn);
+                g.setColor(hb.toggleHovered ? new Color(0x16, 0xA3, 0x4A) : new Color(0xA7, 0xF3, 0xD0));
+                g.setStroke(new BasicStroke(1f));
+                g.draw(togBtn);
+
+                g.setFont(AdminTheme.FONT_BOLD_11);
+                g.setColor(hb.toggleHovered ? new Color(0x14, 0x53, 0x2D) : AdminTheme.STATUS_GREEN_TEXT);
+                FontMetrics tfm = g.getFontMetrics();
+                int ttw = tfm.stringWidth(togText);
+                g.drawString(togText, hb.toggleX + (hb.toggleW - ttw) / 2, hb.toggleY + 16);
             }
         }
 
-        // Footer "Showing X of Y skills · View all skills →"
+        // Footer "Showing X of Y skills" (View all button deleted)
         int footY = curY + tableH + 18;
         g.setFont(AdminTheme.FONT_REGULAR_12);
         g.setColor(AdminTheme.TEXT_MUTED);
-        String footPrefix = "Showing " + displayLimit + " of " + filteredSkills.size() + " skills · ";
-        g.drawString(footPrefix, x, footY + 4);
+        String footText = "Showing " + displayLimit + " of " + allSkills.size() + " skills";
+        g.drawString(footText, x, footY + 4);
 
-        FontMetrics fmFoot = g.getFontMetrics();
-        int preW = fmFoot.stringWidth(footPrefix);
+        viewAllSkillX = -9999;
+        viewAllSkillY = -9999;
+        viewAllSkillW = 0;
+        viewAllSkillH = 0;
 
-        String viewAllText = showAllSkills ? "Show less ↑" : ("View all (" + filteredSkills.size() + ") →");
-        g.setFont(AdminTheme.FONT_BOLD_11);
-        FontMetrics bfm = g.getFontMetrics();
-
-        viewAllSkillW = bfm.stringWidth(viewAllText) + 18;
-        viewAllSkillH = 24;
-        viewAllSkillX = x + preW;
-        viewAllSkillY = footY - 12;
-
-        RoundRectangle2D pill = new RoundRectangle2D.Float(viewAllSkillX, viewAllSkillY, viewAllSkillW, viewAllSkillH, 12, 12);
-        g.setColor(viewAllSkillHovered ? AdminTheme.BRAND_GREEN_DARK : new Color(0xEC, 0xFD, 0xF5));
-        g.fill(pill);
-        g.setColor(viewAllSkillHovered ? AdminTheme.BRAND_GREEN_DARK : new Color(0xA7, 0xF3, 0xD0));
-        g.setStroke(new BasicStroke(1.0f));
-        g.draw(pill);
-
-        g.setColor(viewAllSkillHovered ? Color.WHITE : AdminTheme.BRAND_GREEN_DARK);
-        int tx = viewAllSkillX + (viewAllSkillW - bfm.stringWidth(viewAllText)) / 2;
-        int ty = viewAllSkillY + (viewAllSkillH - bfm.getHeight()) / 2 + bfm.getAscent();
-        g.drawString(viewAllText, tx, ty);
-
-        return footY + viewAllSkillH + 8;
+        return footY + 28;
     }
 
-    private void paintSearchBar(Graphics2D g, int sx, int sy, int sw, int sh, String text, String placeholder, boolean focused) {
+    private void paintSearchBar(Graphics2D g, int sx, int sy, int sw, int sh, String text, String placeholder,
+                               boolean focused, boolean clearHovered, int clearX, int clearY, int clearSize) {
         RoundRectangle2D sbox = new RoundRectangle2D.Float(sx, sy, sw, sh, 8, 8);
         g.setColor(Color.WHITE);
         g.fill(sbox);
         g.setColor(focused ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.BORDER_COLOR);
-        g.setStroke(new BasicStroke(1.2f));
+        g.setStroke(new BasicStroke(focused ? 1.5f : 1.2f));
         g.draw(sbox);
 
         // Search lens icon
-        g.setColor(AdminTheme.TEXT_LIGHT);
-        g.drawOval(sx + 10, sy + 10, 10, 10);
-        g.drawLine(sx + 18, sy + 18, sx + 22, sy + 22);
+        g.setColor(focused ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.TEXT_LIGHT);
+        g.setStroke(new BasicStroke(1.4f));
+        g.drawOval(sx + 11, sy + 11, 10, 10);
+        g.drawLine(sx + 19, sy + 19, sx + 23, sy + 23);
 
-        // Text
+        // Text or Placeholder
         g.setFont(AdminTheme.FONT_REGULAR_12);
         if (text.isEmpty()) {
             g.setColor(AdminTheme.TEXT_LIGHT);
-            g.drawString(placeholder, sx + 28, sy + 21);
+            g.drawString(placeholder, sx + 32, sy + 22);
         } else {
             g.setColor(AdminTheme.TEXT_MAIN);
-            g.drawString(text, sx + 28, sy + 21);
+            g.drawString(text, sx + 32, sy + 22);
+
+            // Dynamic Clear '✕' button
+            g.setColor(clearHovered ? new Color(0xE2, 0xE8, 0xF0) : new Color(0xF1, 0xF5, 0xF9));
+            g.fillOval(clearX, clearY, clearSize, clearSize);
+            g.setFont(AdminTheme.FONT_BOLD_11);
+            g.setColor(clearHovered ? AdminTheme.TEXT_DARK : AdminTheme.TEXT_MUTED);
+            FontMetrics xfm = g.getFontMetrics();
+            g.drawString("✕", clearX + (clearSize - xfm.stringWidth("✕")) / 2, clearY + 13);
         }
     }
 
     private void paintStatusBadge(Graphics2D g, int bx, int by, String text, boolean active) {
-        int bw = active ? 52 : 62;
+        int bw = active ? 54 : 64;
         int bh = 20;
         RoundRectangle2D pill = new RoundRectangle2D.Float(bx, by, bw, bh, 10, 10);
         g.setColor(active ? AdminTheme.STATUS_GREEN_BG : AdminTheme.STATUS_GRAY_BG);
         g.fill(pill);
-
         g.setFont(AdminTheme.FONT_BOLD_10);
         g.setColor(active ? AdminTheme.STATUS_GREEN_TEXT : AdminTheme.STATUS_GRAY_TEXT);
-        g.drawString(text, bx + (active ? 10 : 8), by + 14);
+        FontMetrics fm = g.getFontMetrics();
+        g.drawString(text, bx + (bw - fm.stringWidth(text)) / 2, by + 14);
     }
 
     private void paintBottomBanner(Graphics2D g, int x, int y, int w) {
@@ -534,19 +642,49 @@ public class AdminCategories {
     }
 
     public boolean onClick(int mx, int my, AdminDashboard dashboard) {
-        // Add Category button
+        // 1. Add Category button
         if (mx >= addCatBtnX && mx <= addCatBtnX + addCatBtnW && my >= addCatBtnY && my <= addCatBtnY + addCatBtnH) {
             dashboard.openAddCategoryModal();
             return true;
         }
 
-        // Add Skill button
+        // 2. Add Skill button
         if (mx >= addSkillBtnX && mx <= addSkillBtnX + addSkillBtnW && my >= addSkillBtnY && my <= addSkillBtnY + addSkillBtnH) {
             dashboard.openAddSkillModal();
             return true;
         }
 
-        // Search focuses
+        // 3. Search Clear buttons
+        if (!catSearch.isEmpty() && mx >= catClearX && mx <= catClearX + catClearSize && my >= catClearY && my <= catClearY + catClearSize) {
+            catSearch = "";
+            catSearchFocused = false;
+            dashboard.showToast("Category search cleared");
+            return true;
+        }
+
+        if (!skillSearch.isEmpty() && mx >= skillClearX && mx <= skillClearX + skillClearSize && my >= skillClearY && my <= skillClearY + skillClearSize) {
+            skillSearch = "";
+            skillSearchFocused = false;
+            dashboard.showToast("Skill search cleared");
+            return true;
+        }
+
+        // 4. Empty State Reset Search buttons
+        if (catResetBtnX > 0 && mx >= catResetBtnX && mx <= catResetBtnX + catResetBtnW && my >= catResetBtnY && my <= catResetBtnY + catResetBtnH) {
+            catSearch = "";
+            catSearchFocused = false;
+            dashboard.showToast("Category search reset");
+            return true;
+        }
+
+        if (skillResetBtnX > 0 && mx >= skillResetBtnX && mx <= skillResetBtnX + skillResetBtnW && my >= skillResetBtnY && my <= skillResetBtnY + skillResetBtnH) {
+            skillSearch = "";
+            skillSearchFocused = false;
+            dashboard.showToast("Skill search reset");
+            return true;
+        }
+
+        // 5. Search Bar Focuses
         if (mx >= catSearchX && mx <= catSearchX + catSearchW && my >= catSearchY && my <= catSearchY + catSearchH) {
             catSearchFocused = true;
             skillSearchFocused = false;
@@ -560,10 +698,10 @@ public class AdminCategories {
         catSearchFocused = false;
         skillSearchFocused = false;
 
-        // Category Actions
+        // 6. Category Row Action Buttons (Edit & Disable/Enable)
         for (CatHitbox c : catHitboxes) {
             if (mx >= c.editX && mx <= c.editX + c.editW && my >= c.editY && my <= c.editY + c.editH) {
-                dashboard.showToast("Editing category: " + c.model.name);
+                dashboard.openEditCategoryModal(c.model.name);
                 return true;
             }
             if (mx >= c.toggleX && mx <= c.toggleX + c.toggleW && my >= c.toggleY && my <= c.toggleY + c.toggleH) {
@@ -573,10 +711,10 @@ public class AdminCategories {
             }
         }
 
-        // Skill Actions
+        // 7. Skill Row Action Buttons (Edit & Disable/Enable)
         for (SkillHitbox s : skillHitboxes) {
             if (mx >= s.editX && mx <= s.editX + s.editW && my >= s.editY && my <= s.editY + s.editH) {
-                dashboard.showToast("Editing skill: " + s.model.name);
+                dashboard.openEditSkillModal(s.model.name);
                 return true;
             }
             if (mx >= s.toggleX && mx <= s.toggleX + s.toggleW && my >= s.toggleY && my <= s.toggleY + s.toggleH) {
@@ -586,32 +724,41 @@ public class AdminCategories {
             }
         }
 
-        // Footers
-        if (mx >= viewAllCatX && mx <= viewAllCatX + viewAllCatW && my >= viewAllCatY && my <= viewAllCatY + viewAllCatH) {
-            showAllCategories = !showAllCategories;
-            dashboard.showToast(showAllCategories ? "Displaying all categories" : "Displaying compact categories view");
-            return true;
-        }
-        if (mx >= viewAllSkillX && mx <= viewAllSkillX + viewAllSkillW && my >= viewAllSkillY && my <= viewAllSkillY + viewAllSkillH) {
-            showAllSkills = !showAllSkills;
-            dashboard.showToast(showAllSkills ? "Displaying all skills" : "Displaying compact skills view");
-            return true;
-        }
-
         return false;
     }
 
     public boolean onMouseMove(int mx, int my) {
         boolean changed = false;
 
+        // Add Category button hover
         boolean pAddCat = addCatHovered;
         addCatHovered = (mx >= addCatBtnX && mx <= addCatBtnX + addCatBtnW && my >= addCatBtnY && my <= addCatBtnY + addCatBtnH);
         if (pAddCat != addCatHovered) changed = true;
 
+        // Add Skill button hover
         boolean pAddSkill = addSkillHovered;
         addSkillHovered = (mx >= addSkillBtnX && mx <= addSkillBtnX + addSkillBtnW && my >= addSkillBtnY && my <= addSkillBtnY + addSkillBtnH);
         if (pAddSkill != addSkillHovered) changed = true;
 
+        // Search clear hovers
+        boolean pClrCat = catClearHovered;
+        catClearHovered = (!catSearch.isEmpty() && mx >= catClearX && mx <= catClearX + catClearSize && my >= catClearY && my <= catClearY + catClearSize);
+        if (pClrCat != catClearHovered) changed = true;
+
+        boolean pClrSkill = skillClearHovered;
+        skillClearHovered = (!skillSearch.isEmpty() && mx >= skillClearX && mx <= skillClearX + skillClearSize && my >= skillClearY && my <= skillClearY + skillClearSize);
+        if (pClrSkill != skillClearHovered) changed = true;
+
+        // Reset search hovers
+        boolean pRstCat = catResetHovered;
+        catResetHovered = (catResetBtnX > 0 && mx >= catResetBtnX && mx <= catResetBtnX + catResetBtnW && my >= catResetBtnY && my <= catResetBtnY + catResetBtnH);
+        if (pRstCat != catResetHovered) changed = true;
+
+        boolean pRstSkill = skillResetHovered;
+        skillResetHovered = (skillResetBtnX > 0 && mx >= skillResetBtnX && mx <= skillResetBtnX + skillResetBtnW && my >= skillResetBtnY && my <= skillResetBtnY + skillResetBtnH);
+        if (pRstSkill != skillResetHovered) changed = true;
+
+        // Category rows hovers
         for (CatHitbox c : catHitboxes) {
             boolean pE = c.editHovered;
             boolean pT = c.toggleHovered;
@@ -620,6 +767,7 @@ public class AdminCategories {
             if (pE != c.editHovered || pT != c.toggleHovered) changed = true;
         }
 
+        // Skill rows hovers
         for (SkillHitbox s : skillHitboxes) {
             boolean pE = s.editHovered;
             boolean pT = s.toggleHovered;
@@ -628,13 +776,8 @@ public class AdminCategories {
             if (pE != s.editHovered || pT != s.toggleHovered) changed = true;
         }
 
-        boolean pVc = viewAllCatHovered;
-        viewAllCatHovered = (mx >= viewAllCatX && mx <= viewAllCatX + viewAllCatW && my >= viewAllCatY && my <= viewAllCatY + viewAllCatH);
-        if (pVc != viewAllCatHovered) changed = true;
-
-        boolean pVs = viewAllSkillHovered;
-        viewAllSkillHovered = (mx >= viewAllSkillX && mx <= viewAllSkillX + viewAllSkillW && my >= viewAllSkillY && my <= viewAllSkillY + viewAllSkillH);
-        if (pVs != viewAllSkillHovered) changed = true;
+        viewAllCatHovered = false;
+        viewAllSkillHovered = false;
 
         return changed;
     }
@@ -644,7 +787,7 @@ public class AdminCategories {
             if (keyCode == java.awt.event.KeyEvent.VK_BACK_SPACE) {
                 if (catSearch.length() > 0) catSearch = catSearch.substring(0, catSearch.length() - 1);
                 return true;
-            } else if (keyCode == java.awt.event.KeyEvent.VK_ESCAPE) {
+            } else if (keyCode == java.awt.event.KeyEvent.VK_ESCAPE || keyCode == java.awt.event.KeyEvent.VK_ENTER) {
                 catSearchFocused = false;
                 return true;
             } else if (ch >= 32 && ch <= 126) {
@@ -655,7 +798,7 @@ public class AdminCategories {
             if (keyCode == java.awt.event.KeyEvent.VK_BACK_SPACE) {
                 if (skillSearch.length() > 0) skillSearch = skillSearch.substring(0, skillSearch.length() - 1);
                 return true;
-            } else if (keyCode == java.awt.event.KeyEvent.VK_ESCAPE) {
+            } else if (keyCode == java.awt.event.KeyEvent.VK_ESCAPE || keyCode == java.awt.event.KeyEvent.VK_ENTER) {
                 skillSearchFocused = false;
                 return true;
             } else if (ch >= 32 && ch <= 126) {
@@ -666,6 +809,7 @@ public class AdminCategories {
         return false;
     }
 
+    // Getters and setters for testing & dynamic integration
     public boolean isShowAllCategories() {
         return showAllCategories;
     }
@@ -681,4 +825,43 @@ public class AdminCategories {
     public void setShowAllSkills(boolean show) {
         this.showAllSkills = show;
     }
+
+    public List<CatHitbox> getCatHitboxes() {
+        return catHitboxes;
+    }
+
+    public List<SkillHitbox> getSkillHitboxes() {
+        return skillHitboxes;
+    }
+
+    public int getAddCatBtnX() { return addCatBtnX; }
+    public int getAddCatBtnY() { return addCatBtnY; }
+    public int getAddSkillBtnX() { return addSkillBtnX; }
+    public int getAddSkillBtnY() { return addSkillBtnY; }
+
+    public int getViewAllCatX() { return viewAllCatX; }
+    public int getViewAllCatY() { return viewAllCatY; }
+    public int getViewAllSkillX() { return viewAllSkillX; }
+    public int getViewAllSkillY() { return viewAllSkillY; }
+
+    public String getCatSearch() { return catSearch; }
+    public void setCatSearch(String q) { this.catSearch = (q == null) ? "" : q; }
+
+    public String getSkillSearch() { return skillSearch; }
+    public void setSkillSearch(String q) { this.skillSearch = (q == null) ? "" : q; }
+
+    public boolean isCatClearHovered() { return catClearHovered; }
+    public boolean isSkillClearHovered() { return skillClearHovered; }
+    public boolean isAddCatHovered() { return addCatHovered; }
+    public boolean isAddSkillHovered() { return addSkillHovered; }
+
+    public int getCatClearX() { return catClearX; }
+    public int getCatClearY() { return catClearY; }
+    public int getSkillClearX() { return skillClearX; }
+    public int getSkillClearY() { return skillClearY; }
+
+    public int getCatResetBtnX() { return catResetBtnX; }
+    public int getCatResetBtnY() { return catResetBtnY; }
+    public int getSkillResetBtnX() { return skillResetBtnX; }
+    public int getSkillResetBtnY() { return skillResetBtnY; }
 }

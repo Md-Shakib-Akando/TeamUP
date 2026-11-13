@@ -213,33 +213,10 @@ public class AdminReviews {
         g.drawString("Monitor user ratings, peer collaboration feedback, reported reviews, and content moderation.", x,
                 y + 48);
 
-        // Action Buttons
-        boolean wrap = (w < 680);
-        int btnY = wrap ? y + 68 : y + 8;
-        int rightX = x + w;
-
-        // "+ Add review" Button (Primary Forest Green)
-        addReviewBtnW = 120;
-        addReviewBtnH = 36;
-        addReviewBtnX = rightX - addReviewBtnW;
-        addReviewBtnY = btnY;
-        RoundRectangle2D addBox = new RoundRectangle2D.Float(addReviewBtnX, addReviewBtnY, addReviewBtnW, addReviewBtnH,
-                8, 8);
-        g.setColor(addReviewHovered ? AdminTheme.BRAND_GREEN_DARK.darker() : AdminTheme.BRAND_GREEN_DARK);
-        g.fill(addBox);
-
-        // Plus icon
-        g.setColor(Color.WHITE);
-        g.setStroke(new BasicStroke(2f));
-        int px = addReviewBtnX + 15;
-        int py = addReviewBtnY + 18;
-        g.drawLine(px - 4, py, px + 4, py);
-        g.drawLine(px, py - 4, px, py + 4);
-
-        g.setFont(AdminTheme.FONT_BOLD_11);
-        g.drawString("Add review", addReviewBtnX + 26, addReviewBtnY + 22);
-
-        return wrap ? y + 104 : y + 60;
+        // Action Buttons - Add review button removed per user request
+        addReviewBtnX = -9999;
+        addReviewBtnY = -9999;
+        return y + 60;
     }
 
     private int paintMetricsSummary(Graphics2D g, int x, int y, int w) {
@@ -1032,12 +1009,7 @@ public class AdminReviews {
             return true;
         }
 
-        // 2. Header Buttons
-        if (mx >= addReviewBtnX && mx <= addReviewBtnX + addReviewBtnW && my >= addReviewBtnY
-                && my <= addReviewBtnY + addReviewBtnH) {
-            dashboard.openAddReviewModal();
-            return true;
-        }
+        // 2. Header Buttons - Add review button removed per user request
 
         // 3. Tabs Click
         for (int i = 0; i < tabBoxes.length; i++) {
@@ -1171,12 +1143,6 @@ public class AdminReviews {
 
     public boolean onMouseMove(int mx, int my) {
         boolean changed = false;
-
-        boolean p2 = addReviewHovered;
-        addReviewHovered = (mx >= addReviewBtnX && mx <= addReviewBtnX + addReviewBtnW && my >= addReviewBtnY
-                && my <= addReviewBtnY + addReviewBtnH);
-        if (addReviewHovered != p2)
-            changed = true;
 
         boolean p3 = clearSearchHovered;
         clearSearchHovered = (!searchQuery.isEmpty() && mx >= clearSearchX && mx <= clearSearchX + clearSearchSize

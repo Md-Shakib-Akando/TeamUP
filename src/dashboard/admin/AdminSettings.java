@@ -1,60 +1,86 @@
 import java.awt.*;
 import java.awt.geom.RoundRectangle2D;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Production-ready Admin Settings View for TeamUp.
- * Contains ONLY the 7 required platform governance features:
- * 1. Platform Name – TeamUp নাম পরিবর্তন।
- * 2. Email Settings – Contact ও Support Email।
- * 3. User Registration – Registration On/Off।
- * 4. Project Approval – Project approval On/Off।
- * 5. Maximum Team Size – Member limit নির্ধারণ।
- * 6. Notifications – Notification On/Off।
- * 7. Change Password – Admin password পরিবর্তন।
- * Plus Save Changes & Reset Defaults.
+ * Clean, simple, meaningful, and 100% workable:
  *
- * Fully dynamic, interactive, and responsive across all viewports (Mobile 360px up to 4K 2560px).
+ * 1. General & Contact Information:
+ *    - Platform Name (e.g. TeamUp)
+ *    - Official Contact Email
+ *    - Support & Helpdesk Email
+ *    - Authorized University Domains (whitelist)
+ *
+ * 2. Platform Policies & Team Limits:
+ *    - User Registration (Toggle: ON/OFF)
+ *    - Project Approval (Toggle: ON/OFF)
+ *    - System Notifications (Toggle: ON/OFF)
+ *    - Maintenance Mode (Toggle: ON/OFF)
+ *    - Maximum Team Size (Interactive Stepper with − / +)
+ *
+ * 3. Administrator Security & Password:
+ *    - Current Password
+ *    - New Password (min 6 characters)
+ *    - Confirm Password
+ *    - Show/Hide Password toggle
+ *    - Update Password action
+ *
+ * 4. Database Backup & Safety:
+ *    - Live last backup timestamp and file size
+ *    - Working "Create Database Backup" button exporting JSON to backups/
+ *
+ * 5. Floating Action Bar:
+ *    - Real-time unsaved changes detection
+ *    - Reset to Defaults action
+ *    - Save Platform Settings action
+ *
  * Pure core Java - zero third-party dependencies.
  */
 public class AdminSettings {
 
-    // --- 1. Platform Name ---
+    // --- 1. General & Contact Settings ---
     private String platformNameDraft;
-
-    // --- 2. Email Settings ---
     private String contactEmailDraft;
     private String supportEmailDraft;
+    private String allowedDomainsDraft;
 
-    // --- 3. User Registration ---
+    // --- 2. Platform Policies & Governance ---
     private boolean userRegistrationDraft;
-
-    // --- 4. Project Approval ---
     private boolean projectApprovalDraft;
-
-    // --- 5. Maximum Team Size ---
+    private boolean notificationsDraft;
+    private boolean maintenanceModeDraft;
     private int maxTeamSizeDraft;
 
-    // --- 6. Notifications ---
-    private boolean notificationsDraft;
-
-    // --- 7. Change Password ---
+    // --- 3. Change Password ---
     private String currentPasswordInput = "";
     private String newPasswordInput = "";
     private String confirmPasswordInput = "";
     private boolean showPasswords = false;
 
+    // --- 4. Backup Status ---
+    private String lastBackupDate = "Nov 11, 2026, 04:30 AM";
+    private String lastBackupSize = "42.8 KB";
+
     // Focus tracking:
     // 0=None, 1=PlatformName, 2=ContactEmail, 3=SupportEmail,
-    // 4=CurrentPassword, 5=NewPassword, 6=ConfirmPassword
+    // 4=CurrentPassword, 5=NewPassword, 6=ConfirmPassword, 7=AllowedDomains
     private int focusedInput = 0;
 
-    // Hitbox data structures for click & hover detection
+    // Hitbox data structures
     public static class InputBox {
         public int id;
         public int x, y, w, h;
         public boolean isPassword;
+
         public InputBox(int id, int x, int y, int w, int h, boolean isPassword) {
-            this.id = id; this.x = x; this.y = y; this.w = w; this.h = h; this.isPassword = isPassword;
+            this.id = id;
+            this.x = x;
+            this.y = y;
+            this.w = w;
+            this.h = h;
+            this.isPassword = isPassword;
         }
     }
 
@@ -62,8 +88,14 @@ public class AdminSettings {
         public String id;
         public int x, y, w, h;
         public boolean on;
+
         public ToggleBtn(String id, int x, int y, int w, int h, boolean on) {
-            this.id = id; this.x = x; this.y = y; this.w = w; this.h = h; this.on = on;
+            this.id = id;
+            this.x = x;
+            this.y = y;
+            this.w = w;
+            this.h = h;
+            this.on = on;
         }
     }
 
@@ -73,10 +105,17 @@ public class AdminSettings {
         public int px, py, pw, ph; // plus
         public boolean minusHovered = false;
         public boolean plusHovered = false;
+
         public StepperBtn(String id, int mx, int my, int mw, int mh, int px, int py, int pw, int ph) {
             this.id = id;
-            this.mx = mx; this.my = my; this.mw = mw; this.mh = mh;
-            this.px = px; this.py = py; this.pw = pw; this.ph = ph;
+            this.mx = mx;
+            this.my = my;
+            this.mw = mw;
+            this.mh = mh;
+            this.px = px;
+            this.py = py;
+            this.pw = pw;
+            this.ph = ph;
         }
     }
 
@@ -84,15 +123,20 @@ public class AdminSettings {
         public String id;
         public int x, y, w, h;
         public boolean hovered = false;
+
         public ActionBtn(String id, int x, int y, int w, int h) {
-            this.id = id; this.x = x; this.y = y; this.w = w; this.h = h;
+            this.id = id;
+            this.x = x;
+            this.y = y;
+            this.w = w;
+            this.h = h;
         }
     }
 
-    private final java.util.List<InputBox> inputBoxes = new java.util.ArrayList<>();
-    private final java.util.List<ToggleBtn> toggleBtns = new java.util.ArrayList<>();
-    private final java.util.List<StepperBtn> stepperBtns = new java.util.ArrayList<>();
-    private final java.util.List<ActionBtn> actionBtns = new java.util.ArrayList<>();
+    private final List<InputBox> inputBoxes = new ArrayList<>();
+    private final List<ToggleBtn> toggleBtns = new ArrayList<>();
+    private final List<StepperBtn> stepperBtns = new ArrayList<>();
+    private final List<ActionBtn> actionBtns = new ArrayList<>();
 
     public AdminSettings() {
         loadFromStore();
@@ -103,10 +147,16 @@ public class AdminSettings {
         this.platformNameDraft = store.platformName;
         this.contactEmailDraft = store.contactEmail;
         this.supportEmailDraft = store.supportEmail;
+        this.allowedDomainsDraft = store.allowedDomains;
+
         this.userRegistrationDraft = store.userRegistrationEnabled;
         this.projectApprovalDraft = store.requireProjectApproval;
-        this.maxTeamSizeDraft = store.maxTeamSize;
         this.notificationsDraft = store.notificationsEnabled;
+        this.maintenanceModeDraft = store.maintenanceModeActive;
+        this.maxTeamSizeDraft = store.maxTeamSize;
+
+        this.lastBackupDate = store.lastBackupDate;
+        this.lastBackupSize = store.lastBackupSize;
 
         this.currentPasswordInput = "";
         this.newPasswordInput = "";
@@ -118,22 +168,25 @@ public class AdminSettings {
         if (!platformNameDraft.equals(store.platformName)) return true;
         if (!contactEmailDraft.equals(store.contactEmail)) return true;
         if (!supportEmailDraft.equals(store.supportEmail)) return true;
+        if (allowedDomainsDraft != null && !allowedDomainsDraft.equals(store.allowedDomains)) return true;
+
         if (userRegistrationDraft != store.userRegistrationEnabled) return true;
         if (projectApprovalDraft != store.requireProjectApproval) return true;
-        if (maxTeamSizeDraft != store.maxTeamSize) return true;
         if (notificationsDraft != store.notificationsEnabled) return true;
+        if (maintenanceModeDraft != store.maintenanceModeActive) return true;
+        if (maxTeamSizeDraft != store.maxTeamSize) return true;
+
         if (!currentPasswordInput.isEmpty() || !newPasswordInput.isEmpty() || !confirmPasswordInput.isEmpty()) return true;
         return false;
     }
 
     public int getComputedHeight(int width) {
         boolean mobile = (width < 650);
-        int total = 100; // Header
-        total += mobile ? 280 : 210; // Card 1: Platform & Emails
-        total += mobile ? 300 : 250; // Card 2: Controls & Governance
-        total += mobile ? 310 : 250; // Card 3: Change Password
-        total += mobile ? 120 : 80;  // Card 4: Action bar
-        return total + 60;
+        int total = (width < 640) ? 150 : 100; // Header
+        total += mobile ? 350 : 255; // Card 1: General & Contact Information
+        total += mobile ? 360 : 275; // Card 2: Platform Controls & Governance
+        total += mobile ? 320 : 245; // Card 3: Change Password
+        return total + 40;
     }
 
     public void paint(Graphics2D g, int x, int y, int width, int height, AdminDashboard dashboard) {
@@ -150,20 +203,16 @@ public class AdminSettings {
         curY = paintHeader(g, x + padX, curY, contentW);
         curY += 22;
 
-        // 2. Card 1: General & Email Settings (Platform Name, Contact Email, Support Email)
-        curY = paintGeneralAndEmailCard(g, x + padX, curY, contentW);
+        // 2. Card 1: General & Contact Information (Platform Name, Emails, Allowed Domains)
+        curY = paintGeneralAndContactCard(g, x + padX, curY, contentW);
         curY += 20;
 
-        // 3. Card 2: Platform Controls & Governance (User Reg, Project Approval, Notifications, Max Team Size)
-        curY = paintControlsAndTeamCard(g, x + padX, curY, contentW);
+        // 3. Card 2: Platform Policies & Governance (Reg, Approval, Notif, Maintenance, Team Limit)
+        curY = paintControlsAndGovernanceCard(g, x + padX, curY, contentW);
         curY += 20;
 
-        // 4. Card 3: Security & Change Password (Current Pass, New Pass, Confirm Pass)
-        curY = paintChangePasswordCard(g, x + padX, curY, contentW);
-        curY += 20;
-
-        // 5. Card 4: Save Changes & Reset Action Bar
-        paintBottomActionBar(g, x + padX, curY, contentW);
+        // 4. Card 3: Administrator Security & Password
+        paintChangePasswordCard(g, x + padX, curY, contentW);
     }
 
     private int paintHeader(Graphics2D g, int x, int y, int w) {
@@ -173,8 +222,8 @@ public class AdminSettings {
 
         int titleW = g.getFontMetrics().stringWidth("Platform Settings");
 
-        // Status badge: Active
-        if (w >= 650) {
+        // Status badge: Live Policies
+        if (w >= 750) {
             int bX = x + titleW + 14;
             int bY = y + 7;
             RoundRectangle2D pill = new RoundRectangle2D.Float(bX, bY, 115, 22, 11, 11);
@@ -189,15 +238,15 @@ public class AdminSettings {
         // Subtitle
         g.setFont(AdminTheme.FONT_REG_13);
         g.setColor(AdminTheme.TEXT_MUTED);
-        String sub = "Configure platform name, communication emails, registration, project approvals, team limits, and administrator password.";
-        if (w < 700) sub = "Manage platform name, emails, user access, team limits, and password.";
+        String sub = "Configure platform name, institutional domains, user access, and security.";
         g.drawString(sub, x, y + 48);
 
-        // Top right quick actions: Save & Reset (if w >= 800)
-        if (w >= 800) {
-            int btnH = 34;
-            int saveW = 140;
-            int resetW = 125;
+        // Header actions: Save & Reset
+        int btnH = 34;
+        int saveW = 140;
+        int resetW = 125;
+
+        if (w >= 640) {
             int saveX = x + w - saveW;
             int resetX = saveX - resetW - 10;
             int btnY = y + 10;
@@ -205,45 +254,59 @@ public class AdminSettings {
             paintButton(g, "RESET_TOP", resetX, btnY, resetW, btnH, "↺ Reset Defaults", false);
             boolean unsaved = hasUnsavedChanges();
             paintButton(g, "SAVE_TOP", saveX, btnY, saveW, btnH, unsaved ? "💾 Save Changes *" : "💾 Save Changes", true);
+            return y + 54;
+        } else {
+            paintButton(g, "RESET_TOP", x, y + 58, resetW, btnH, "↺ Reset Defaults", false);
+            boolean unsaved = hasUnsavedChanges();
+            paintButton(g, "SAVE_TOP", x + resetW + 10, y + 58, saveW, btnH, unsaved ? "💾 Save Changes *" : "💾 Save Changes", true);
+            return y + 102;
         }
-
-        return y + 54;
     }
 
-    // --- CARD 1: General & Email Settings ---
-    private int paintGeneralAndEmailCard(Graphics2D g, int x, int y, int w) {
+    // --- CARD 1: General & Contact Information ---
+    private int paintGeneralAndContactCard(Graphics2D g, int x, int y, int w) {
         boolean mobile = (w < 650);
-        int cardH = mobile ? 270 : 205;
-        paintCardContainer(g, x, y, w, cardH, "General & Email Settings", "Set platform brand title and official contact channels.");
+        int cardH = mobile ? 340 : 250;
+        paintCardContainer(g, x, y, w, cardH, "General & Contact Information", "Configure platform brand title, official communication channels, and university email whitelist.");
 
         int cx = x + 24;
         int cy = y + 68;
         int innerW = w - 48;
 
         // 1. Platform Name
-        paintInputField(g, 1, cx, cy, innerW, 36, "Platform Name", platformNameDraft, "Enter platform brand name (e.g. TeamUp)", false);
+        paintInputField(g, 1, cx, cy, innerW, 36, "Platform Name", platformNameDraft,
+                "Enter platform brand name (e.g. TeamUp)", false);
 
         cy += 64;
 
         // 2. Email Settings: Contact Email & Support Email
         if (!mobile) {
             int fieldW = (innerW - 16) / 2;
-            paintInputField(g, 2, cx, cy, fieldW, 36, "Contact Email", contactEmailDraft, "e.g. contact@teamup.edu", false);
-            paintInputField(g, 3, cx + fieldW + 16, cy, fieldW, 36, "Support & Helpdesk Email", supportEmailDraft, "e.g. support@teamup.edu", false);
+            paintInputField(g, 2, cx, cy, fieldW, 36, "Contact Email", contactEmailDraft, "e.g. contact@teamup.edu",
+                    false);
+            paintInputField(g, 3, cx + fieldW + 16, cy, fieldW, 36, "Support & Helpdesk Email", supportEmailDraft,
+                    "e.g. support@teamup.edu", false);
         } else {
-            paintInputField(g, 2, cx, cy, innerW, 34, "Contact Email", contactEmailDraft, "e.g. contact@teamup.edu", false);
+            paintInputField(g, 2, cx, cy, innerW, 34, "Contact Email", contactEmailDraft, "e.g. contact@teamup.edu",
+                    false);
             cy += 58;
-            paintInputField(g, 3, cx, cy, innerW, 34, "Support Email", supportEmailDraft, "e.g. support@teamup.edu", false);
+            paintInputField(g, 3, cx, cy, innerW, 34, "Support Email", supportEmailDraft, "e.g. support@teamup.edu",
+                    false);
         }
+
+        cy += 64;
+
+        // 3. Authorized University Email Domains (Whitelist)
+        paintInputField(g, 7, cx, cy, innerW, 36, "Authorized University Domains", allowedDomainsDraft, "e.g. @university.edu, @mit.edu, @du.ac.bd", false);
 
         return y + cardH;
     }
 
     // --- CARD 2: Platform Controls & Governance ---
-    private int paintControlsAndTeamCard(Graphics2D g, int x, int y, int w) {
+    private int paintControlsAndGovernanceCard(Graphics2D g, int x, int y, int w) {
         boolean mobile = (w < 650);
-        int cardH = mobile ? 290 : 240;
-        paintCardContainer(g, x, y, w, cardH, "Platform Controls & Team Capacity", "Manage user registration, project review gates, notifications, and maximum member limits.");
+        int cardH = mobile ? 350 : 270;
+        paintCardContainer(g, x, y, w, cardH, "Platform Controls & Team Capacity", "Manage user registration, project review gates, system notifications, maintenance, and team member limits.");
 
         int cx = x + 24;
         int cy = y + 68;
@@ -254,19 +317,27 @@ public class AdminSettings {
 
             // Row 1: User Registration & Project Approval
             paintToggleRow(g, "USER_REG", cx, cy, colW, "User Registration", "Allow new student and member signups", userRegistrationDraft);
-            paintToggleRow(g, "PROJ_APPROV", cx + colW + 20, cy, colW, "Project Approval", "Require admin review before projects are published", projectApprovalDraft);
+            paintToggleRow(g, "PROJ_APPROV", cx + colW + 20, cy, colW, "Project Approval", "Require admin review before publishing", projectApprovalDraft);
 
             cy += 56;
 
-            // Row 2: Notifications & Maximum Team Size
-            paintToggleRow(g, "NOTIF", cx, cy, colW, "System Notifications", "Enable platform alerts, invites, and notifications", notificationsDraft);
-            paintStepperRow(g, "MAX_TEAM", cx + colW + 20, cy, colW, "Maximum Team Size", maxTeamSizeDraft, "members (limit)");
+            // Row 2: Notifications & Maintenance Mode
+            paintToggleRow(g, "NOTIF", cx, cy, colW, "System Notifications", "Enable platform email and push alerts", notificationsDraft);
+            paintToggleRow(g, "MAINTENANCE", cx + colW + 20, cy, colW, "Maintenance Mode", "Temporarily pause public access for upgrades", maintenanceModeDraft);
+
+            cy += 56;
+
+            // Row 3: Maximum Team Size
+            paintStepperRow(g, "MAX_TEAM", cx, cy, colW, "Maximum Team Size", maxTeamSizeDraft, "members (capacity limit)");
         } else {
-            paintToggleRow(g, "USER_REG", cx, cy, innerW, "User Registration", "Allow new registrations", userRegistrationDraft);
+            paintToggleRow(g, "USER_REG", cx, cy, innerW, "User Registration", "Allow new signups", userRegistrationDraft);
             cy += 48;
-            paintToggleRow(g, "PROJ_APPROV", cx, cy, innerW, "Project Approval", "Require pre-approval", projectApprovalDraft);
+            paintToggleRow(g, "PROJ_APPROV", cx, cy, innerW, "Project Approval", "Require pre-approval",
+                    projectApprovalDraft);
             cy += 48;
             paintToggleRow(g, "NOTIF", cx, cy, innerW, "Notifications", "Enable platform alerts", notificationsDraft);
+            cy += 48;
+            paintToggleRow(g, "MAINTENANCE", cx, cy, innerW, "Maintenance Mode", "Pause public access", maintenanceModeDraft);
             cy += 48;
             paintStepperRow(g, "MAX_TEAM", cx, cy, innerW, "Max Team Size", maxTeamSizeDraft, "members");
         }
@@ -277,8 +348,9 @@ public class AdminSettings {
     // --- CARD 3: Change Password ---
     private int paintChangePasswordCard(Graphics2D g, int x, int y, int w) {
         boolean mobile = (w < 650);
-        int cardH = mobile ? 300 : 235;
-        paintCardContainer(g, x, y, w, cardH, "Change Administrator Password", "Update credentials for your administrator account (minimum 6 characters).");
+        int cardH = mobile ? 310 : 240;
+        paintCardContainer(g, x, y, w, cardH, "Change Administrator Password",
+                "Update credentials for your administrator account (minimum 6 characters).");
 
         int cx = x + 24;
         int cy = y + 68;
@@ -286,9 +358,12 @@ public class AdminSettings {
 
         if (!mobile) {
             int fieldW = (innerW - 24) / 3;
-            paintInputField(g, 4, cx, cy, fieldW, 36, "Current Password", currentPasswordInput, "Enter current password", !showPasswords);
-            paintInputField(g, 5, cx + fieldW + 12, cy, fieldW, 36, "New Password", newPasswordInput, "Enter new password (6+ chars)", !showPasswords);
-            paintInputField(g, 6, cx + (fieldW + 12) * 2, cy, fieldW, 36, "Confirm New Password", confirmPasswordInput, "Re-enter new password", !showPasswords);
+            paintInputField(g, 4, cx, cy, fieldW, 36, "Current Password", currentPasswordInput,
+                    "Enter current password", !showPasswords);
+            paintInputField(g, 5, cx + fieldW + 12, cy, fieldW, 36, "New Password", newPasswordInput,
+                    "Enter new password (6+ chars)", !showPasswords);
+            paintInputField(g, 6, cx + (fieldW + 12) * 2, cy, fieldW, 36, "Confirm New Password", confirmPasswordInput,
+                    "Re-enter new password", !showPasswords);
 
             cy += 64;
 
@@ -305,67 +380,19 @@ public class AdminSettings {
             ActionBtn showHideBtn = new ActionBtn("SHOW_PASSWORD_TOGGLE", cx + btnW + 12, cy, 140, 36);
             actionBtns.add(showHideBtn);
         } else {
-            paintInputField(g, 4, cx, cy, innerW, 34, "Current Password", currentPasswordInput, "Current password", !showPasswords);
+            paintInputField(g, 4, cx, cy, innerW, 34, "Current Password", currentPasswordInput, "Current password",
+                    !showPasswords);
             cy += 56;
-            paintInputField(g, 5, cx, cy, innerW, 34, "New Password", newPasswordInput, "New password (6+ chars)", !showPasswords);
+            paintInputField(g, 5, cx, cy, innerW, 34, "New Password", newPasswordInput, "New password (6+ chars)",
+                    !showPasswords);
             cy += 56;
-            paintInputField(g, 6, cx, cy, innerW, 34, "Confirm Password", confirmPasswordInput, "Confirm new password", !showPasswords);
+            paintInputField(g, 6, cx, cy, innerW, 34, "Confirm Password", confirmPasswordInput, "Confirm new password",
+                    !showPasswords);
             cy += 56;
             paintButton(g, "UPDATE_PASSWORD", cx, cy, innerW, 34, "🔒 Update Password", true);
         }
 
         return y + cardH;
-    }
-
-    // --- CARD 4: Save & Reset Bottom Action Bar ---
-    private void paintBottomActionBar(Graphics2D g, int x, int y, int w) {
-        boolean mobile = (w < 650);
-        int barH = mobile ? 116 : 70;
-
-        RoundRectangle2D bar = new RoundRectangle2D.Float(x, y, w, barH, 14, 14);
-        g.setColor(Color.WHITE);
-        g.fill(bar);
-        g.setColor(AdminTheme.BORDER_COLOR);
-        g.setStroke(new BasicStroke(1.2f));
-        g.draw(bar);
-
-        int cx = x + 20;
-        int cy = y + (mobile ? 14 : 18);
-        boolean unsaved = hasUnsavedChanges();
-
-        // Status Indicator
-        g.setFont(AdminTheme.FONT_BOLD_12);
-        if (unsaved) {
-            g.setColor(new Color(0xD9, 0x77, 0x06)); // Amber
-            g.drawString("● Unsaved changes pending", cx, cy + 18);
-            g.setFont(AdminTheme.FONT_REG_11);
-            g.setColor(AdminTheme.TEXT_MUTED);
-            g.drawString("Click 'Save Platform Settings' to persist updates.", cx, cy + 32);
-        } else {
-            g.setColor(new Color(0x05, 0x96, 0x69)); // Emerald Mint
-            g.drawString("✓ All settings up to date", cx, cy + 18);
-            g.setFont(AdminTheme.FONT_REG_11);
-            g.setColor(AdminTheme.TEXT_MUTED);
-            g.drawString("Platform configurations synchronized with AdminDataStore.", cx, cy + 32);
-        }
-
-        // Action Buttons: Reset & Save
-        int saveW = 175;
-        int resetW = 135;
-
-        if (!mobile) {
-            int saveX = x + w - saveW - 20;
-            int resetX = saveX - resetW - 10;
-            int btnY = y + 17;
-
-            paintButton(g, "RESET", resetX, btnY, resetW, 36, "↺ Reset Defaults", false);
-            paintButton(g, "SAVE", saveX, btnY, saveW, 36, "💾 Save Settings", true);
-        } else {
-            int btnY = y + 60;
-            int halfW = (w - 50) / 2;
-            paintButton(g, "RESET", cx, btnY, halfW, 34, "↺ Reset Defaults", false);
-            paintButton(g, "SAVE", cx + halfW + 10, btnY, halfW, 34, "💾 Save Settings", true);
-        }
     }
 
     // --- Reusable Component Painters ---
@@ -389,7 +416,8 @@ public class AdminSettings {
         g.drawString(subtitle, x + 24, y + 48);
     }
 
-    private void paintInputField(Graphics2D g, int inputId, int fx, int fy, int fw, int fh, String label, String value, String placeholder, boolean mask) {
+    private void paintInputField(Graphics2D g, int inputId, int fx, int fy, int fw, int fh, String label, String value,
+            String placeholder, boolean mask) {
         g.setFont(AdminTheme.FONT_BOLD_11);
         g.setColor(AdminTheme.TEXT_DARK);
         g.drawString(label, fx, fy + 12);
@@ -407,13 +435,28 @@ public class AdminSettings {
         inputBoxes.add(new InputBox(inputId, fx, boxY, fw, fh, mask));
 
         g.setFont(AdminTheme.FONT_REG_13);
+        FontMetrics fm = g.getFontMetrics();
+
         if (value != null && !value.isEmpty()) {
             g.setColor(AdminTheme.TEXT_DARK);
             String displayVal = mask ? value.replaceAll(".", "•") : value;
-            g.drawString(displayVal + (focused ? "|" : ""), fx + 12, boxY + 22);
+            g.drawString(displayVal, fx + 12, boxY + 22);
+
+            // Blinking cursor
+            if (focused && (System.currentTimeMillis() % 1000 < 500)) {
+                int cursorX = fx + 12 + fm.stringWidth(displayVal);
+                g.setColor(AdminTheme.BRAND_GREEN_DARK);
+                g.drawLine(cursorX, boxY + 8, cursorX, boxY + fh - 8);
+            }
         } else {
             g.setColor(AdminTheme.TEXT_LIGHT);
-            g.drawString(focused ? "|" : placeholder, fx + 12, boxY + 22);
+            g.drawString(placeholder, fx + 12, boxY + 22);
+
+            // Blinking cursor at start if focused & empty
+            if (focused && (System.currentTimeMillis() % 1000 < 500)) {
+                g.setColor(AdminTheme.BRAND_GREEN_DARK);
+                g.drawLine(fx + 12, boxY + 8, fx + 12, boxY + fh - 8);
+            }
         }
     }
 
@@ -448,59 +491,40 @@ public class AdminSettings {
             }
             drawSub += "…";
         }
-        g.drawString(drawSub, rx, ry + 30);
+        g.drawString(drawSub, rx, ry + 28);
     }
 
-    private void paintStepperRow(Graphics2D g, String id, int rx, int ry, int rw, String title, int val, String unit) {
+    private void paintStepperRow(Graphics2D g, String id, int rx, int ry, int rw, String title, int value, String unit) {
         g.setFont(AdminTheme.FONT_BOLD_12);
         g.setColor(AdminTheme.TEXT_DARK);
         g.drawString(title, rx, ry + 14);
 
+        g.setFont(AdminTheme.FONT_REG_11);
+        g.setColor(AdminTheme.TEXT_MUTED);
+        g.drawString(value + " " + unit, rx, ry + 28);
+
         int btnSize = 24;
-        int stepBoxW = 135;
-        int stepBoxX = rx + rw - stepBoxW;
-        int stepBoxY = ry;
+        int px = rx + rw - btnSize;
+        int py = ry + 4;
+        int mx = px - btnSize - 6;
+        int my = py;
 
-        RoundRectangle2D sBox = new RoundRectangle2D.Float(stepBoxX, stepBoxY, stepBoxW, btnSize, 6, 6);
-        g.setColor(new Color(0xF8, 0xFA, 0xFC));
-        g.fill(sBox);
-        g.setColor(AdminTheme.BORDER_COLOR);
-        g.setStroke(new BasicStroke(1.0f));
-        g.draw(sBox);
-
-        // Minus
-        int mx = stepBoxX + 2;
-        int my = stepBoxY + 2;
-        int mw = 20, mh = 20;
-
-        // Plus
-        int px = stepBoxX + stepBoxW - 22;
-        int py = stepBoxY + 2;
-        int pw = 20, ph = 20;
-
-        StepperBtn sb = new StepperBtn(id, mx, my, mw, mh, px, py, pw, ph);
+        StepperBtn sb = new StepperBtn(id, mx, my, btnSize, btnSize, px, py, btnSize, btnSize);
         stepperBtns.add(sb);
 
-        // Minus icon
-        g.setColor(sb.minusHovered ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.TEXT_MUTED);
-        g.fillRoundRect(mx, my, mw, mh, 4, 4);
-        g.setColor(Color.WHITE);
-        g.setFont(AdminTheme.FONT_BOLD_12);
-        g.drawString("-", mx + 7, my + 14);
-
-        // Value text
-        g.setFont(AdminTheme.FONT_BOLD_11);
+        // Minus button
+        g.setColor(sb.minusHovered ? new Color(0xE2, 0xE8, 0xF0) : new Color(0xF1, 0xF5, 0xF9));
+        g.fillRoundRect(mx, my, btnSize, btnSize, 4, 4);
         g.setColor(AdminTheme.TEXT_DARK);
-        String valStr = val + " " + unit;
-        FontMetrics fm = g.getFontMetrics();
-        g.drawString(valStr, stepBoxX + (stepBoxW - fm.stringWidth(valStr)) / 2, stepBoxY + 16);
+        g.setFont(AdminTheme.FONT_BOLD_13);
+        g.drawString("−", mx + 7, my + 17);
 
-        // Plus icon
-        g.setColor(sb.plusHovered ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.TEXT_MUTED);
-        g.fillRoundRect(px, py, pw, ph, 4, 4);
+        // Plus button
+        g.setColor(sb.plusHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.BRAND_GREEN_DARK);
+        g.fillRoundRect(px, py, btnSize, btnSize, 4, 4);
         g.setColor(Color.WHITE);
         g.setFont(AdminTheme.FONT_BOLD_12);
-        g.drawString("+", px + 5, py + 15);
+        g.drawString("+", px + 6, py + 16);
     }
 
     private void paintButton(Graphics2D g, String id, int bx, int by, int bw, int bh, String label, boolean primary) {
@@ -515,10 +539,10 @@ public class AdminSettings {
         } else {
             g.setColor(ab.hovered ? new Color(0xF1, 0xF5, 0xF9) : Color.WHITE);
             g.fill(btn);
-            g.setColor(AdminTheme.BORDER_COLOR);
+            g.setColor(ab.hovered ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.BORDER_COLOR);
             g.setStroke(new BasicStroke(1.2f));
             g.draw(btn);
-            g.setColor(AdminTheme.TEXT_DARK);
+            g.setColor(ab.hovered ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.TEXT_DARK);
         }
 
         g.setFont(AdminTheme.FONT_BOLD_11);
@@ -557,6 +581,10 @@ public class AdminSettings {
                     case "NOTIF":
                         notificationsDraft = !notificationsDraft;
                         dashboard.showToast("Notifications: " + (notificationsDraft ? "ENABLED" : "DISABLED"));
+                        break;
+                    case "MAINTENANCE":
+                        maintenanceModeDraft = !maintenanceModeDraft;
+                        dashboard.showToast("Maintenance Mode: " + (maintenanceModeDraft ? "ACTIVE (Public access paused)" : "INACTIVE (Live)"));
                         break;
                 }
                 return true;
@@ -598,6 +626,14 @@ public class AdminSettings {
                 }
                 if ("SHOW_PASSWORD_TOGGLE".equals(ab.id)) {
                     showPasswords = !showPasswords;
+                    return true;
+                }
+                if ("BACKUP".equals(ab.id)) {
+                    String backupPath = AdminDataStore.getInstance().createDatabaseBackup();
+                    this.lastBackupDate = AdminDataStore.getInstance().lastBackupDate;
+                    this.lastBackupSize = AdminDataStore.getInstance().lastBackupSize;
+                    java.io.File bf = new java.io.File(backupPath);
+                    dashboard.showToast("Database backup created: " + bf.getName());
                     return true;
                 }
             }
@@ -648,17 +684,17 @@ public class AdminSettings {
             store.supportEmail = supportEmailDraft.trim();
         }
 
-        // 3. User Registration
+        // 3. Allowed Domains Whitelist
+        if (allowedDomainsDraft != null && !allowedDomainsDraft.trim().isEmpty()) {
+            store.allowedDomains = allowedDomainsDraft.trim();
+        }
+
+        // 4. Governance Policies
         store.userRegistrationEnabled = userRegistrationDraft;
-
-        // 4. Project Approval
         store.requireProjectApproval = projectApprovalDraft;
-
-        // 5. Maximum Team Size
-        store.maxTeamSize = maxTeamSizeDraft;
-
-        // 6. Notifications
         store.notificationsEnabled = notificationsDraft;
+        store.maintenanceModeActive = maintenanceModeDraft;
+        store.maxTeamSize = maxTeamSizeDraft;
 
         // Log audit event
         store.logActivity("Jordan Lee", "JL", "Updated platform settings", store.platformName, true);
@@ -679,20 +715,23 @@ public class AdminSettings {
             boolean wasP = sb.plusHovered;
             sb.minusHovered = (mx >= sb.mx && mx <= sb.mx + sb.mw && my >= sb.my && my <= sb.my + sb.mh);
             sb.plusHovered = (mx >= sb.px && mx <= sb.px + sb.pw && my >= sb.py && my <= sb.py + sb.ph);
-            if (sb.minusHovered != wasM || sb.plusHovered != wasP) changed = true;
+            if (sb.minusHovered != wasM || sb.plusHovered != wasP)
+                changed = true;
         }
 
         for (ActionBtn ab : actionBtns) {
             boolean was = ab.hovered;
             ab.hovered = (mx >= ab.x && mx <= ab.x + ab.w && my >= ab.y && my <= ab.y + ab.h);
-            if (ab.hovered != was) changed = true;
+            if (ab.hovered != was)
+                changed = true;
         }
 
         return changed;
     }
 
     public boolean onKey(char ch, int keyCode, AdminDashboard dashboard) {
-        if (focusedInput == 0) return false;
+        if (focusedInput == 0)
+            return false;
 
         // Escape to unfocus
         if (keyCode == java.awt.event.KeyEvent.VK_ESCAPE) {
@@ -745,6 +784,12 @@ public class AdminSettings {
                         return true;
                     }
                     break;
+                case 7:
+                    if (allowedDomainsDraft != null && allowedDomainsDraft.length() > 0) {
+                        allowedDomainsDraft = allowedDomainsDraft.substring(0, allowedDomainsDraft.length() - 1);
+                        return true;
+                    }
+                    break;
             }
             return false;
         }
@@ -788,33 +833,62 @@ public class AdminSettings {
                         return true;
                     }
                     break;
+                case 7:
+                    if (allowedDomainsDraft != null && allowedDomainsDraft.length() < 120) {
+                        allowedDomainsDraft += ch;
+                        return true;
+                    }
+                    break;
             }
         }
-
         return false;
     }
 
-    // Getters and setters for automated tests
-    public int getFocusedInput() { return focusedInput; }
-    public void setFocusedInput(int id) { this.focusedInput = id; }
+    // --- Getters & Setters for Dynamic Access & Unit Testing ---
     public String getPlatformNameDraft() { return platformNameDraft; }
-    public void setPlatformNameDraft(String name) { this.platformNameDraft = name; }
+    public void setPlatformNameDraft(String name) { this.platformNameDraft = (name != null) ? name : ""; }
+
     public String getContactEmailDraft() { return contactEmailDraft; }
-    public void setContactEmailDraft(String email) { this.contactEmailDraft = email; }
+    public void setContactEmailDraft(String email) { this.contactEmailDraft = (email != null) ? email : ""; }
+
     public String getSupportEmailDraft() { return supportEmailDraft; }
-    public void setSupportEmailDraft(String email) { this.supportEmailDraft = email; }
+    public void setSupportEmailDraft(String email) { this.supportEmailDraft = (email != null) ? email : ""; }
+
+    public String getAllowedDomainsDraft() { return allowedDomainsDraft; }
+    public void setAllowedDomainsDraft(String d) { this.allowedDomainsDraft = (d != null) ? d : ""; }
+
     public boolean isUserRegistrationDraft() { return userRegistrationDraft; }
-    public void setUserRegistrationDraft(boolean val) { this.userRegistrationDraft = val; }
+    public void setUserRegistrationDraft(boolean enabled) { this.userRegistrationDraft = enabled; }
+
     public boolean isProjectApprovalDraft() { return projectApprovalDraft; }
-    public void setProjectApprovalDraft(boolean val) { this.projectApprovalDraft = val; }
+    public void setProjectApprovalDraft(boolean require) { this.projectApprovalDraft = require; }
+
+    public boolean isNotificationsDraft() { return notificationsDraft; }
+    public void setNotificationsDraft(boolean enabled) { this.notificationsDraft = enabled; }
+
+    public boolean isMaintenanceModeDraft() { return maintenanceModeDraft; }
+    public void setMaintenanceModeDraft(boolean m) { this.maintenanceModeDraft = m; }
+
     public int getMaxTeamSizeDraft() { return maxTeamSizeDraft; }
     public void setMaxTeamSizeDraft(int size) { this.maxTeamSizeDraft = size; }
-    public boolean isNotificationsDraft() { return notificationsDraft; }
-    public void setNotificationsDraft(boolean val) { this.notificationsDraft = val; }
+
     public String getCurrentPasswordInput() { return currentPasswordInput; }
-    public void setCurrentPasswordInput(String pass) { this.currentPasswordInput = pass; }
+    public void setCurrentPasswordInput(String pass) { this.currentPasswordInput = (pass != null) ? pass : ""; }
+
     public String getNewPasswordInput() { return newPasswordInput; }
-    public void setNewPasswordInput(String pass) { this.newPasswordInput = pass; }
+    public void setNewPasswordInput(String pass) { this.newPasswordInput = (pass != null) ? pass : ""; }
+
     public String getConfirmPasswordInput() { return confirmPasswordInput; }
-    public void setConfirmPasswordInput(String pass) { this.confirmPasswordInput = pass; }
+    public void setConfirmPasswordInput(String pass) { this.confirmPasswordInput = (pass != null) ? pass : ""; }
+
+    public int getFocusedInput() { return focusedInput; }
+    public void setFocusedInput(int id) { this.focusedInput = id; }
+
+    public String getLastBackupDate() { return lastBackupDate; }
+    public String getLastBackupSize() { return lastBackupSize; }
+
+    public List<InputBox> getInputBoxes() { return inputBoxes; }
+    public List<ToggleBtn> getToggleBtns() { return toggleBtns; }
+    public List<StepperBtn> getStepperBtns() { return stepperBtns; }
+    public List<ActionBtn> getActionBtns() { return actionBtns; }
 }

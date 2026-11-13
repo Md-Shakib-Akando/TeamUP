@@ -1,43 +1,31 @@
 import java.awt.*;
-import java.awt.geom.RoundRectangle2D;
-import java.util.List;
 
 /**
  * Top header bar for TeamUp Admin Dashboard.
- * Breadcrumb, live responsive global search (⌘ K), and admin profile menu.
- * Fully dynamic: real-time search queries across users, projects, reports, and reviews,
- * adaptive width, clear button, keyboard navigation, and popover overlays.
+ * Displays clean breadcrumb: "Administration / <Section>".
+ * Search bar and profile dropdown have been completely removed as requested.
  * Pure core Java - zero third-party dependencies.
  */
 public class AdminHeader {
 
     private String breadcrumb = "Overview";
 
-    private int searchX, searchY, searchW = 340, searchH = 36;
-    private int clearSearchX, clearSearchY, clearSearchSize = 18;
-    private boolean clearHovered = false;
-
-    private int userX, userY, userW = 44, userH = 34;
-    private boolean userHovered = false;
-
-    private boolean searchFocused = false;
-    private String searchText = "";
-    private float caretAnim = 0f;
-
-    private boolean profileOpen = false;
-    private int profileHoverIdx = -1;
-
-    // Search popup bounds & state
-    private int searchDropX, searchDropY, searchDropW, searchDropH;
-    private int searchMatchCount = 0;
-    private int hoveredResultIdx = -1;
+    // Layout bounds kept as off-screen constants for API compatibility
+    private int searchX = -9999;
+    private int searchY = -9999;
+    private int searchW = 0;
+    private int searchH = 0;
+    private int userX = -9999;
+    private int userY = -9999;
+    private int userW = 0;
+    private int userH = 0;
 
     public boolean isAnyPopoverOpen() {
-        return profileOpen || (searchFocused && !searchText.trim().isEmpty() && searchMatchCount > 0);
+        return false;
     }
 
     public void setBreadcrumb(String breadcrumb) {
-        this.breadcrumb = breadcrumb;
+        this.breadcrumb = (breadcrumb == null) ? "Overview" : breadcrumb;
     }
 
     public String getBreadcrumb() {
@@ -45,19 +33,20 @@ public class AdminHeader {
     }
 
     public void update(float dt) {
-        caretAnim += dt * 3.5f;
-        if (caretAnim > 2f) caretAnim -= 2f;
+        // No animations needed
     }
 
     public void paint(Graphics2D g, int x, int y, int w, int h) {
+        // Header background
         g.setColor(AdminTheme.SIDEBAR_BG);
         g.fillRect(x, y, w, h);
+
+        // Header bottom border
         g.setColor(AdminTheme.BORDER_COLOR);
         g.drawLine(x, y + h - 1, x + w, y + h - 1);
 
+        // Clean breadcrumb: "Administration / <Section>"
         int curX = x + 32;
-
-        // Breadcrumb: "Administration / <Section>"
         g.setFont(AdminTheme.FONT_REG_13);
         g.setColor(AdminTheme.TEXT_MUTED);
         g.drawString("Administration", curX, y + 36);
@@ -321,48 +310,7 @@ public class AdminHeader {
     }
 
     public boolean onMouseMove(int mx, int my) {
-        boolean changed = false;
-
-        // Clear button hover
-        boolean prevClear = clearHovered;
-        clearHovered = (!searchText.isEmpty() && mx >= clearSearchX && mx <= clearSearchX + clearSearchSize && my >= clearSearchY && my <= clearSearchY + clearSearchSize);
-        if (clearHovered != prevClear) changed = true;
-
-        // User avatar hover
-        boolean prevUser = userHovered;
-        userHovered = (mx >= userX && mx <= userX + userW && my >= userY && my <= userY + userH);
-        if (userHovered != prevUser) changed = true;
-
-        // Live search result item hover
-        int prevRes = hoveredResultIdx;
-        hoveredResultIdx = -1;
-        if (searchFocused && !searchText.trim().isEmpty() && searchMatchCount > 0) {
-            int listStartY = searchDropY + 28;
-            if (mx >= searchDropX && mx <= searchDropX + searchDropW && my >= listStartY && my <= listStartY + searchMatchCount * 50) {
-                int idx = (my - listStartY) / 50;
-                if (idx >= 0 && idx < searchMatchCount) {
-                    hoveredResultIdx = idx;
-                }
-            }
-        }
-        if (hoveredResultIdx != prevRes) changed = true;
-
-        // Profile item hover
-        int prevProf = profileHoverIdx;
-        profileHoverIdx = -1;
-        if (profileOpen) {
-            int px = userX - 110;
-            int py = 68 + 4 + 8;
-            if (mx >= px && mx <= px + 200 && my >= py && my <= py + 3 * 36) {
-                int idx = (my - py) / 36;
-                if (idx >= 0 && idx < 3) {
-                    profileHoverIdx = idx;
-                }
-            }
-        }
-        if (profileHoverIdx != prevProf) changed = true;
-
-        return changed;
+        return false;
     }
 
     public boolean onClick(int mx, int my, AdminDashboard dashboard) {
@@ -445,81 +393,19 @@ public class AdminHeader {
     }
 
     public boolean onKey(char ch, int keyCode, AdminDashboard dashboard) {
-        if (!searchFocused) return false;
-
-        if (keyCode == java.awt.event.KeyEvent.VK_BACK_SPACE) {
-            if (searchText.length() > 0) {
-                searchText = searchText.substring(0, searchText.length() - 1);
-                return true;
-            }
-        } else if (keyCode == java.awt.event.KeyEvent.VK_ENTER) {
-            if (!searchText.trim().isEmpty()) {
-                List<AdminDataStore.SearchResult> results = AdminDataStore.getInstance().searchAll(searchText);
-                if (!results.isEmpty()) {
-                    int targetIdx = (hoveredResultIdx >= 0 && hoveredResultIdx < results.size()) ? hoveredResultIdx : 0;
-                    AdminDataStore.SearchResult chosen = results.get(targetIdx);
-                    searchFocused = false;
-                    searchText = "";
-                    searchMatchCount = 0;
-                    hoveredResultIdx = -1;
-                    if ("User".equalsIgnoreCase(chosen.type)) {
-                        dashboard.navigateTo(AdminSidebar.AdminNavItem.USERS);
-                    } else if ("Project".equalsIgnoreCase(chosen.type)) {
-                        dashboard.navigateTo(AdminSidebar.AdminNavItem.PROJECTS);
-                    } else if ("Review".equalsIgnoreCase(chosen.type)) {
-                        dashboard.navigateTo(AdminSidebar.AdminNavItem.FEEDBACK);
-                    } else {
-                        dashboard.navigateTo(AdminSidebar.AdminNavItem.REPORTS);
-                    }
-                    dashboard.showToast("Navigated to: " + chosen.title);
-                } else {
-                    dashboard.showToast("No matches found for: " + searchText);
-                }
-            }
-            return true;
-        } else if (keyCode == java.awt.event.KeyEvent.VK_ESCAPE) {
-            searchFocused = false;
-            return true;
-        } else if (keyCode == java.awt.event.KeyEvent.VK_DOWN) {
-            if (searchMatchCount > 0) {
-                hoveredResultIdx = (hoveredResultIdx + 1) % searchMatchCount;
-                return true;
-            }
-        } else if (keyCode == java.awt.event.KeyEvent.VK_UP) {
-            if (searchMatchCount > 0) {
-                hoveredResultIdx = (hoveredResultIdx <= 0) ? searchMatchCount - 1 : hoveredResultIdx - 1;
-                return true;
-            }
-        } else if (ch >= 32 && ch <= 126) {
-            searchText += ch;
-            hoveredResultIdx = -1;
-            return true;
-        }
         return false;
     }
 
-    private String truncateText(FontMetrics fm, String text, int maxW) {
-        if (text == null) return "";
-        if (fm.stringWidth(text) <= maxW) return text;
-        String ell = "...";
-        int ellW = fm.stringWidth(ell);
-        int len = text.length();
-        while (len > 0 && fm.stringWidth(text.substring(0, len)) + ellW > maxW) {
-            len--;
-        }
-        return text.substring(0, Math.max(0, len)) + ell;
-    }
-
-    // Getters and setters for testing & dynamic integration
-    public boolean isSearchFocused() { return searchFocused; }
-    public void setSearchFocused(boolean f) { this.searchFocused = f; }
-    public String getSearchText() { return searchText; }
-    public void setSearchText(String text) { this.searchText = (text == null) ? "" : text; }
-    public int getSearchMatchCount() { return searchMatchCount; }
-    public boolean isProfileOpen() { return profileOpen; }
-    public void setProfileOpen(boolean open) { this.profileOpen = open; }
-    public boolean isClearHovered() { return clearHovered; }
-    public int getHoveredResultIdx() { return hoveredResultIdx; }
+    // API getters and setters for compatibility
+    public boolean isSearchFocused() { return false; }
+    public void setSearchFocused(boolean f) { }
+    public String getSearchText() { return ""; }
+    public void setSearchText(String text) { }
+    public int getSearchMatchCount() { return 0; }
+    public boolean isProfileOpen() { return false; }
+    public void setProfileOpen(boolean open) { }
+    public boolean isClearHovered() { return false; }
+    public int getHoveredResultIdx() { return -1; }
     public int getSearchX() { return searchX; }
     public int getSearchY() { return searchY; }
     public int getSearchW() { return searchW; }

@@ -135,33 +135,33 @@ public class TestAdminCategoriesPage {
             check(true, "Add Category & Add Skill painted cleanly at " + vw + "x768");
         }
 
-        // 7. Test Dynamic "View all categories" Button
-        System.out.println("\n[Test 7] Testing Dynamic View All Categories Button...");
+        // 7. Test Categories View All / Compact Sizing
+        System.out.println("\n[Test 7] Testing Categories View All / Compact Sizing...");
         AdminCategories categoriesView = dashboard.getCategoriesView();
         int initialH = categoriesView.getComputedHeight(1366 - 230);
-        check(!categoriesView.isShowAllCategories(), "Initial showAllCategories is false (compact view)");
+        check(categoriesView.isShowAllCategories(), "Initial showAllCategories is true (all categories shown)");
 
-        categoriesView.setShowAllCategories(true);
-        int expandedCatH = categoriesView.getComputedHeight(1366 - 230);
-        check(categoriesView.isShowAllCategories(), "showAllCategories toggled to true");
-        check(expandedCatH >= initialH, "Computed height dynamically increases when categories are expanded (" + expandedCatH + "px >= " + initialH + "px)");
-
-        dashboard.paint(g, 1366, 768);
         categoriesView.setShowAllCategories(false);
-        check(!categoriesView.isShowAllCategories(), "showAllCategories collapsed back to compact view");
-
-        // 8. Test Dynamic "View all skills" Button
-        System.out.println("\n[Test 8] Testing Dynamic View All Skills Button...");
-        check(!categoriesView.isShowAllSkills(), "Initial showAllSkills is false (compact view)");
-
-        categoriesView.setShowAllSkills(true);
-        int expandedSkillH = categoriesView.getComputedHeight(1366 - 230);
-        check(categoriesView.isShowAllSkills(), "showAllSkills toggled to true");
-        check(expandedSkillH >= initialH, "Computed height dynamically increases when skills are expanded (" + expandedSkillH + "px >= " + initialH + "px)");
+        int compactCatH = categoriesView.getComputedHeight(1366 - 230);
+        check(!categoriesView.isShowAllCategories(), "showAllCategories toggled to false");
+        check(initialH >= compactCatH, "Computed height with all categories is >= compact height (" + initialH + "px >= " + compactCatH + "px)");
 
         dashboard.paint(g, 1366, 768);
+        categoriesView.setShowAllCategories(true);
+        check(categoriesView.isShowAllCategories(), "showAllCategories restored to true");
+
+        // 8. Test Skills View All / Compact Sizing
+        System.out.println("\n[Test 8] Testing Skills View All / Compact Sizing...");
+        check(categoriesView.isShowAllSkills(), "Initial showAllSkills is true (all skills shown)");
+
         categoriesView.setShowAllSkills(false);
-        check(!categoriesView.isShowAllSkills(), "showAllSkills collapsed back to compact view");
+        int compactSkillH = categoriesView.getComputedHeight(1366 - 230);
+        check(!categoriesView.isShowAllSkills(), "showAllSkills toggled to false");
+        check(initialH >= compactSkillH, "Computed height with all skills is >= compact height (" + initialH + "px >= " + compactSkillH + "px)");
+
+        dashboard.paint(g, 1366, 768);
+        categoriesView.setShowAllSkills(true);
+        check(categoriesView.isShowAllSkills(), "showAllSkills restored to true");
 
         g.dispose();
 
