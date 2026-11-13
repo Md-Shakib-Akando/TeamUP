@@ -281,6 +281,9 @@ const updateProfile = async (req, res) => {
     for (const [key, max] of Object.entries(PROFILE_FIELDS)) {
       if (typeof req.body[key] === 'string') me[key] = req.body[key].trim().slice(0, max);
     }
+    if (typeof req.body.availabilityStatus === 'string' && !req.body.availability) {
+      me.availability = req.body.availabilityStatus.trim().slice(0, 60);
+    }
     if (!me.name) return bad(res, 'Name cannot be empty.');
     if (['Beginner', 'Intermediate', 'Advanced'].includes(req.body.experience)) me.experience = req.body.experience;
     if (Array.isArray(req.body.skills)) {

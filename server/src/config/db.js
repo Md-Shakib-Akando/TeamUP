@@ -1,4 +1,15 @@
 const mongoose = require('mongoose');
+const path = require('path');
+const dotenv = require('dotenv');
+
+// Ensure env is loaded even if db.js is imported directly
+if (!process.env.MONGODB_URI) {
+  dotenv.config({ path: path.join(__dirname, '../../.env') });
+  dotenv.config({ path: path.join(__dirname, '../../../.env') });
+  dotenv.config();
+}
+
+let listenersAttached = false;
 
 /**
  * TeamUp keeps its data in its own database (default "teamup") so it never mixes
@@ -13,6 +24,19 @@ const connectDB = async () => {
       return null;
     }
 
+    if (!listenersAttached) {
+      listenersAttached = true;
+      mongoose.connection.on('connected', () => {
+        console.log('[MongoDB Atlas] Connection established.');
+      });
+      mongoose.connection.on('error', (err) => {
+        console.error('[MongoDB Atlas] Connection error event:', err.message);
+      });
+      mongoose.connection.on('disconnected', () => {
+        console.warn('[MongoDB Atlas] Disconnected from database.');
+      });
+    }
+
     const conn = await mongoose.connect(connUri, {
       dbName: process.env.MONGODB_DB_NAME || 'teamup',
       serverSelectionTimeoutMS: 8000,
@@ -22,7 +46,6 @@ const connectDB = async () => {
     return conn;
   } catch (error) {
     console.error(`[MongoDB Atlas] Connection error: ${error.message}`);
-    // Don't crash server immediately, allowing health check and helpful error response
     return null;
   }
 };

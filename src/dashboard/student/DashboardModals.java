@@ -42,14 +42,27 @@ public class DashboardModals {
     private final List<StudentDashboard.PillHitbox> skillChips = new ArrayList<>();
 
     // Profile Form state & hitboxes
-    private int profileFocusField = 0; // 0: Name, 1: Bio, 2: Portfolio
+    private String editName = "";
+    private String editHeadline = "";
+    private String editUniversity = "";
+    private String editDepartment = "";
+    private String editAvailability = "";
+    private String editPortfolio = "";
+    private String editBio = "";
+    private final List<String> editSkills = new ArrayList<>();
+    private int profileFocusField = 0; // 0: Name, 1: Headline, 2: Uni, 3: Dept, 4: Avail, 5: Port, 6: Bio
     private int profNameX, profNameY, profNameW, profNameH;
-    private int profBioX, profBioY, profBioW, profBioH;
+    private int profHeadX, profHeadY, profHeadW, profHeadH;
+    private int profUniX, profUniY, profUniW, profUniH;
+    private int profDeptX, profDeptY, profDeptW, profDeptH;
+    private int profAvailX, profAvailY, profAvailW, profAvailH;
     private int profPortX, profPortY, profPortW, profPortH;
+    private int profBioX, profBioY, profBioW, profBioH;
     private int profSaveBtnX, profSaveBtnY, profSaveBtnW, profSaveBtnH;
     private int profCancelBtnX, profCancelBtnY, profCancelBtnW, profCancelBtnH;
     private boolean profSaveHovered = false;
     private boolean profCancelHovered = false;
+    private final List<StudentDashboard.PillHitbox> profSkillChips = new ArrayList<>();
 
     // Project Details hitboxes
     private int projJoinBtnX, projJoinBtnY, projJoinBtnW, projJoinBtnH;
@@ -80,6 +93,27 @@ public class DashboardModals {
     public void open(StudentDashboard.ActiveModal modal) {
         this.activeModal = modal;
         this.modalAnim = 1.0f; // Instant open
+    }
+
+    public void initProfileForm(StudentDashboard dashboard) {
+        ProfileData pd = dashboard.getProfileData();
+        this.editName = dashboard.getProfileName() != null ? dashboard.getProfileName() : "";
+        this.editHeadline = pd.headline != null ? pd.headline : "";
+        this.editUniversity = (pd.university != null && !pd.university.equals("Add your university")) ? pd.university : "";
+        this.editDepartment = pd.department != null ? pd.department : "";
+        this.editAvailability = pd.availabilityStatus != null ? pd.availabilityStatus : "Available for new teams (10–15 hrs/wk)";
+        this.editPortfolio = pd.portfolio != null ? pd.portfolio : (dashboard.getProfilePortfolio() != null ? dashboard.getProfilePortfolio() : "");
+        this.editBio = pd.bio != null ? pd.bio : (dashboard.getProfileBio() != null ? dashboard.getProfileBio() : "");
+        this.editSkills.clear();
+        for (ProfileData.ProfileSkill s : pd.skills) {
+            this.editSkills.add(s.name);
+        }
+        if (this.editSkills.isEmpty()) {
+            this.editSkills.addAll(Arrays.asList("React", "Java", "Node.js"));
+        }
+        this.profileFocusField = 0;
+        this.caretBlinkTimer = 0f;
+        this.caretVisible = true;
     }
 
     /**
@@ -121,8 +155,8 @@ public class DashboardModals {
         int modalW = 560;
         int modalH = 590;
         if (activeModal == StudentDashboard.ActiveModal.COMPLETE_PROFILE) {
-            modalW = 540;
-            modalH = 510;
+            modalW = 580;
+            modalH = 580;
         } else if (activeModal == StudentDashboard.ActiveModal.PROJECT_DETAILS) {
             modalW = 540;
             modalH = 490;
@@ -469,82 +503,133 @@ public class DashboardModals {
         g.drawString(subText, projSubmitBtnX + (projSubmitBtnW - g.getFontMetrics().stringWidth(subText)) / 2, projSubmitBtnY + 23);
     }
 
+    private void drawFormField(Graphics2D g, String label, String val, int x, int y, int w, int h, boolean focused) {
+        g.setFont(DashboardTheme.FONT_BOLD_11);
+        g.setColor(new Color(0x47, 0x55, 0x69));
+        g.drawString(label, x, y - 5);
+
+        RoundRectangle2D box = new RoundRectangle2D.Float(x, y, w, h, 8, 8);
+        g.setColor(focused ? Color.WHITE : new Color(0xF8, 0xFA, 0xFC));
+        g.fill(box);
+        g.setColor(focused ? DashboardTheme.BRAND_PURPLE : new Color(0xE2, 0xE8, 0xF0));
+        g.setStroke(new BasicStroke(focused ? 1.6f : 1.1f));
+        g.draw(box);
+
+        g.setFont(DashboardTheme.FONT_REG_12);
+        g.setColor(DashboardTheme.TEXT_DARK);
+        String textToDraw = (val != null) ? val : "";
+        FontMetrics fm = g.getFontMetrics();
+        int maxTextW = w - 24;
+        String display = textToDraw;
+        if (fm.stringWidth(display) > maxTextW) {
+            while (!display.isEmpty() && fm.stringWidth("…" + display) > maxTextW) {
+                display = display.substring(1);
+            }
+            display = "…" + display;
+        }
+        g.drawString(display, x + 10, y + (h / 2) + 5);
+
+        if (focused && caretVisible) {
+            int tw = fm.stringWidth(display);
+            g.setColor(DashboardTheme.BRAND_PURPLE);
+            g.drawLine(x + 10 + tw + 2, y + 7, x + 10 + tw + 2, y + h - 7);
+        }
+    }
+
     private void paintCompleteProfileModal(Graphics2D g, int x, int y, int w, int h, StudentDashboard dashboard) {
         int padX = 26;
         int innerW = w - padX * 2;
 
         // Header with icon badge
         int iconBadgeSize = 36;
-        RoundRectangle2D badgeShape = new RoundRectangle2D.Float(x + padX, y + 18, iconBadgeSize, iconBadgeSize, 10, 10);
+        RoundRectangle2D badgeShape = new RoundRectangle2D.Float(x + padX, y + 16, iconBadgeSize, iconBadgeSize, 10, 10);
         g.setColor(new Color(0xDC, 0xFC, 0xE7));
         g.fill(badgeShape);
         g.setColor(new Color(0x86, 0xEF, 0xAC));
         g.setStroke(new BasicStroke(1f));
         g.draw(badgeShape);
 
-        // User icon / check inside badge
+        // Star / Edit symbol
         g.setColor(new Color(0x16, 0xA3, 0x4A));
         g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 16));
-        g.drawString("★", x + padX + 11, y + 42);
+        g.drawString("★", x + padX + 11, y + 40);
 
         g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 17));
         g.setColor(DashboardTheme.TEXT_DARK);
-        g.drawString("Complete Student Profile", x + padX + iconBadgeSize + 12, y + 33);
+        g.drawString("Edit Student Profile", x + padX + iconBadgeSize + 12, y + 31);
 
         g.setFont(DashboardTheme.FONT_REG_12);
         g.setColor(DashboardTheme.TEXT_MUTED);
-        g.drawString("Add your bio and portfolio link to reach 100% profile strength.", x + padX + iconBadgeSize + 12, y + 50);
+        g.drawString("Update your academic details, availability, headline, and bio.", x + padX + iconBadgeSize + 12, y + 48);
 
         // Separator
-        int curY = y + 66;
+        int curY = y + 62;
         g.setColor(new Color(0xF1, 0xF5, 0xF9));
         g.setStroke(new BasicStroke(1f));
         g.drawLine(x, curY, x + w, curY);
         curY += 16;
 
-        // 1. Full Name
-        g.setFont(DashboardTheme.FONT_BOLD_11);
-        g.setColor(new Color(0x47, 0x55, 0x69));
-        g.drawString("FULL NAME", x + padX, curY);
-        curY += 7;
+        int colGap = 12;
+        int colW = (innerW - colGap) / 2;
+        int fieldH = 34;
 
+        // Row 1: Full Name & Headline
         profNameX = x + padX;
         profNameY = curY;
-        profNameW = innerW;
-        profNameH = 38;
+        profNameW = colW;
+        profNameH = fieldH;
+        drawFormField(g, "FULL NAME", editName, profNameX, profNameY, profNameW, profNameH, profileFocusField == 0);
 
-        RoundRectangle2D nameBox = new RoundRectangle2D.Float(profNameX, profNameY, profNameW, profNameH, 8, 8);
-        boolean nameFocused = (profileFocusField == 0);
-        g.setColor(nameFocused ? Color.WHITE : new Color(0xF8, 0xFA, 0xFC));
-        g.fill(nameBox);
-        g.setColor(nameFocused ? DashboardTheme.BRAND_PURPLE : new Color(0xE2, 0xE8, 0xF0));
-        g.setStroke(new BasicStroke(nameFocused ? 1.6f : 1.1f));
-        g.draw(nameBox);
+        profHeadX = profNameX + colW + colGap;
+        profHeadY = curY;
+        profHeadW = colW;
+        profHeadH = fieldH;
+        drawFormField(g, "HEADLINE / TITLE", editHeadline, profHeadX, profHeadY, profHeadW, profHeadH, profileFocusField == 1);
 
-        g.setFont(DashboardTheme.FONT_REG_13);
-        g.setColor(DashboardTheme.TEXT_DARK);
-        g.drawString(dashboard.getProfileName(), profNameX + 12, profNameY + 24);
-        if (nameFocused && caretVisible) {
-            int tw = g.getFontMetrics().stringWidth(dashboard.getProfileName());
-            g.setColor(DashboardTheme.BRAND_PURPLE);
-            g.drawLine(profNameX + 12 + tw + 2, profNameY + 10, profNameX + 12 + tw + 2, profNameY + 28);
-        }
+        curY += fieldH + 16;
 
-        curY += profNameH + 14;
+        // Row 2: University & Department
+        profUniX = x + padX;
+        profUniY = curY;
+        profUniW = colW;
+        profUniH = fieldH;
+        drawFormField(g, "UNIVERSITY", editUniversity, profUniX, profUniY, profUniW, profUniH, profileFocusField == 2);
 
-        // 2. Bio & Background
-        g.setFont(DashboardTheme.FONT_BOLD_11);
-        g.setColor(new Color(0x47, 0x55, 0x69));
-        g.drawString("BIO & BACKGROUND", x + padX, curY);
-        curY += 7;
+        profDeptX = profUniX + colW + colGap;
+        profDeptY = curY;
+        profDeptW = colW;
+        profDeptH = fieldH;
+        drawFormField(g, "DEPARTMENT / MAJOR", editDepartment, profDeptX, profDeptY, profDeptW, profDeptH, profileFocusField == 3);
 
+        curY += fieldH + 16;
+
+        // Row 3: Availability & Portfolio
+        profAvailX = x + padX;
+        profAvailY = curY;
+        profAvailW = colW;
+        profAvailH = fieldH;
+        drawFormField(g, "AVAILABILITY STATUS", editAvailability, profAvailX, profAvailY, profAvailW, profAvailH, profileFocusField == 4);
+
+        profPortX = profAvailX + colW + colGap;
+        profPortY = curY;
+        profPortW = colW;
+        profPortH = fieldH;
+        drawFormField(g, "PORTFOLIO / GITHUB URL", editPortfolio, profPortX, profPortY, profPortW, profPortH, profileFocusField == 5);
+
+        curY += fieldH + 16;
+
+        // Row 4: Bio & Background (Full width)
         profBioX = x + padX;
         profBioY = curY;
         profBioW = innerW;
-        profBioH = 54;
+        profBioH = 46;
+
+        g.setFont(DashboardTheme.FONT_BOLD_11);
+        g.setColor(new Color(0x47, 0x55, 0x69));
+        g.drawString("BIO & BACKGROUND", profBioX, profBioY - 5);
 
         RoundRectangle2D bioBox = new RoundRectangle2D.Float(profBioX, profBioY, profBioW, profBioH, 8, 8);
-        boolean bioFocused = (profileFocusField == 1);
+        boolean bioFocused = (profileFocusField == 6);
         g.setColor(bioFocused ? Color.WHITE : new Color(0xF8, 0xFA, 0xFC));
         g.fill(bioBox);
         g.setColor(bioFocused ? DashboardTheme.BRAND_PURPLE : new Color(0xE2, 0xE8, 0xF0));
@@ -553,50 +638,76 @@ public class DashboardModals {
 
         g.setFont(DashboardTheme.FONT_REG_12);
         g.setColor(DashboardTheme.TEXT_DARK);
-        List<String> wrappedBio = Draw.wrapText(dashboard.getProfileBio(), g.getFontMetrics(), profBioW - 24);
-        int byPos = profBioY + 20;
+        List<String> wrappedBio = Draw.wrapText(editBio, g.getFontMetrics(), profBioW - 20);
+        int byPos = profBioY + 16;
+        int lastLineIdx = 0;
         for (int i = 0; i < wrappedBio.size() && i < 2; i++) {
-            g.drawString(wrappedBio.get(i), profBioX + 12, byPos);
-            byPos += 18;
+            g.drawString(wrappedBio.get(i), profBioX + 10, byPos);
+            lastLineIdx = i;
+            byPos += 15;
+        }
+        if (bioFocused && caretVisible) {
+            String lastLine = wrappedBio.isEmpty() ? "" : wrappedBio.get(lastLineIdx);
+            int tw = g.getFontMetrics().stringWidth(lastLine);
+            int cyPos = profBioY + 16 + lastLineIdx * 15;
+            g.setColor(DashboardTheme.BRAND_PURPLE);
+            g.drawLine(profBioX + 10 + tw + 2, cyPos - 10, profBioX + 10 + tw + 2, cyPos + 3);
         }
 
-        curY += profBioH + 14;
+        curY += profBioH + 16;
 
-        // 3. Portfolio URL
+        // Row 5: Skills chips (Interactive click to toggle)
         g.setFont(DashboardTheme.FONT_BOLD_11);
         g.setColor(new Color(0x47, 0x55, 0x69));
-        g.drawString("PORTFOLIO / GITHUB URL", x + padX, curY);
-        curY += 7;
+        g.drawString("SKILLS & EXPERTISE (CLICK TO TOGGLE)", x + padX, curY - 5);
 
-        profPortX = x + padX;
-        profPortY = curY;
-        profPortW = innerW;
-        profPortH = 38;
+        profSkillChips.clear();
+        String[] availableSkills = {"Java", "React", "Python", "Node.js", "TypeScript", "UI/UX Design", "PostgreSQL", "Figma", "Spring Boot", "REST APIs"};
+        int chipX = x + padX;
+        int chipY = curY;
+        int chipH = 24;
 
-        RoundRectangle2D portBox = new RoundRectangle2D.Float(profPortX, profPortY, profPortW, profPortH, 8, 8);
-        boolean portFocused = (profileFocusField == 2);
-        g.setColor(portFocused ? Color.WHITE : new Color(0xF8, 0xFA, 0xFC));
-        g.fill(portBox);
-        g.setColor(portFocused ? DashboardTheme.BRAND_PURPLE : new Color(0xE2, 0xE8, 0xF0));
-        g.setStroke(new BasicStroke(portFocused ? 1.6f : 1.1f));
-        g.draw(portBox);
+        for (String sk : availableSkills) {
+            boolean selected = editSkills.contains(sk);
+            g.setFont(DashboardTheme.FONT_BOLD_11);
+            String displayLabel = selected ? "✓ " + sk : "+ " + sk;
+            int chipW = g.getFontMetrics().stringWidth(displayLabel) + 16;
 
-        g.setFont(DashboardTheme.FONT_REG_12);
-        g.setColor(DashboardTheme.BRAND_PURPLE);
-        g.drawString(dashboard.getProfilePortfolio(), profPortX + 12, profPortY + 24);
-        if (portFocused && caretVisible) {
-            int tw = g.getFontMetrics().stringWidth(dashboard.getProfilePortfolio());
-            g.drawLine(profPortX + 12 + tw + 2, profPortY + 10, profPortX + 12 + tw + 2, profPortY + 28);
+            if (chipX + chipW > x + padX + innerW) {
+                chipX = x + padX;
+                chipY += chipH + 6;
+            }
+
+            profSkillChips.add(new StudentDashboard.PillHitbox(sk, chipX, chipY, chipW, chipH));
+
+            RoundRectangle2D chipShape = new RoundRectangle2D.Float(chipX, chipY, chipW, chipH, 6, 6);
+            if (selected) {
+                g.setColor(DashboardTheme.PURPLE_TINT_BG);
+                g.fill(chipShape);
+                g.setColor(DashboardTheme.BRAND_PURPLE);
+                g.setStroke(new BasicStroke(1.2f));
+                g.draw(chipShape);
+                g.setColor(DashboardTheme.BRAND_PURPLE);
+            } else {
+                g.setColor(new Color(0xF8, 0xFA, 0xFC));
+                g.fill(chipShape);
+                g.setColor(new Color(0xCB, 0xD5, 0xE1));
+                g.setStroke(new BasicStroke(1f));
+                g.draw(chipShape);
+                g.setColor(new Color(0x64, 0x74, 0x8B));
+            }
+            g.drawString(displayLabel, chipX + 8, chipY + 16);
+            chipX += chipW + 6;
         }
 
         // Footer Actions
-        curY = y + h - 60;
+        curY = y + h - 56;
         g.setColor(new Color(0xF1, 0xF5, 0xF9));
         g.setStroke(new BasicStroke(1f));
         g.drawLine(x, curY, x + w, curY);
-        curY += 12;
+        curY += 10;
 
-        int btnH = 38;
+        int btnH = 36;
         // Cancel Button
         profCancelBtnX = x + padX;
         profCancelBtnY = curY;
@@ -611,7 +722,7 @@ public class DashboardModals {
         g.draw(cancelShape);
         g.setFont(DashboardTheme.FONT_BOLD_12);
         g.setColor(new Color(0x47, 0x55, 0x69));
-        g.drawString("Cancel", profCancelBtnX + (profCancelBtnW - g.getFontMetrics().stringWidth("Cancel")) / 2, profCancelBtnY + 23);
+        g.drawString("Cancel", profCancelBtnX + (profCancelBtnW - g.getFontMetrics().stringWidth("Cancel")) / 2, profCancelBtnY + 22);
 
         // Save Button
         profSaveBtnX = x + padX + profCancelBtnW + 12;
@@ -624,8 +735,8 @@ public class DashboardModals {
         g.fill(saveShape);
         g.setFont(DashboardTheme.FONT_BOLD_13);
         g.setColor(Color.WHITE);
-        String saveText = "Save Profile & Reach 100%  →";
-        g.drawString(saveText, profSaveBtnX + (profSaveBtnW - g.getFontMetrics().stringWidth(saveText)) / 2, profSaveBtnY + 23);
+        String saveText = "Save Profile & Sync Database  →";
+        g.drawString(saveText, profSaveBtnX + (profSaveBtnW - g.getFontMetrics().stringWidth(saveText)) / 2, profSaveBtnY + 22);
     }
 
     private void paintProjectDetailsModal(Graphics2D g, int x, int y, int w, int h, StudentDashboard dashboard) {
@@ -895,14 +1006,52 @@ public class DashboardModals {
 
     /** Save button / Enter in the Complete Profile modal. */
     private void saveProfileForm(StudentDashboard dashboard) {
+        String finalName = editName.trim().isEmpty() ? dashboard.getProfileName() : editName.trim();
+        dashboard.setProfileName(finalName);
+        dashboard.setProfileBio(editBio.trim());
+        dashboard.setProfilePortfolio(editPortfolio.trim());
+
+        ProfileData pd = dashboard.getProfileData();
+        pd.name = finalName;
+        pd.headline = editHeadline.trim();
+        pd.university = editUniversity.trim();
+        pd.department = editDepartment.trim();
+        pd.availabilityStatus = editAvailability.trim();
+        pd.portfolio = editPortfolio.trim();
+        pd.bio = editBio.trim();
+
+        // Sync skills
+        List<ProfileData.ProfileSkill> updatedSkills = new ArrayList<>();
+        for (String sk : editSkills) {
+            boolean found = false;
+            for (ProfileData.ProfileSkill existing : pd.skills) {
+                if (existing.name.equalsIgnoreCase(sk)) {
+                    updatedSkills.add(existing);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                updatedSkills.add(new ProfileData.ProfileSkill(sk, "Skills", 1, true));
+            }
+        }
+        pd.skills.clear();
+        pd.skills.addAll(updatedSkills);
+
+        SettingsData sd = dashboard.getSettingsData();
+        if (sd != null) {
+            sd.fullName = finalName;
+            sd.originalFullName = finalName;
+        }
+
+        dashboard.setProfileCompletePercent(100);
         closeModal();
+
         if (DashboardSync.isOnline()) {
-            DashboardSync.saveProfile(dashboard, dashboard.getProfileName(), dashboard.getProfileBio(),
-                    dashboard.getProfilePortfolio());
-            dashboard.showToast("Profile saved! 🚀");
+            DashboardSync.saveProfile(dashboard, pd);
+            dashboard.showToast("Profile saved & synced to MongoDB Atlas! 🚀");
         } else {
-            dashboard.setProfileCompletePercent(100);
-            dashboard.showToast("Profile reached 100%! Ready to get discovered. 🚀");
+            dashboard.showToast("Profile updated successfully! (100% complete) 🚀");
         }
     }
 
@@ -989,18 +1138,53 @@ public class DashboardModals {
                 caretVisible = true;
                 return true;
             }
-            if (mx >= profBioX && mx <= profBioX + profBioW && my >= profBioY && my <= profBioY + profBioH) {
+            if (mx >= profHeadX && mx <= profHeadX + profHeadW && my >= profHeadY && my <= profHeadY + profHeadH) {
                 profileFocusField = 1;
                 caretBlinkTimer = 0f;
                 caretVisible = true;
                 return true;
             }
-            if (mx >= profPortX && mx <= profPortX + profPortW && my >= profPortY && my <= profPortY + profPortH) {
+            if (mx >= profUniX && mx <= profUniX + profUniW && my >= profUniY && my <= profUniY + profUniH) {
                 profileFocusField = 2;
                 caretBlinkTimer = 0f;
                 caretVisible = true;
                 return true;
             }
+            if (mx >= profDeptX && mx <= profDeptX + profDeptW && my >= profDeptY && my <= profDeptY + profDeptH) {
+                profileFocusField = 3;
+                caretBlinkTimer = 0f;
+                caretVisible = true;
+                return true;
+            }
+            if (mx >= profAvailX && mx <= profAvailX + profAvailW && my >= profAvailY && my <= profAvailY + profAvailH) {
+                profileFocusField = 4;
+                caretBlinkTimer = 0f;
+                caretVisible = true;
+                return true;
+            }
+            if (mx >= profPortX && mx <= profPortX + profPortW && my >= profPortY && my <= profPortY + profPortH) {
+                profileFocusField = 5;
+                caretBlinkTimer = 0f;
+                caretVisible = true;
+                return true;
+            }
+            if (mx >= profBioX && mx <= profBioX + profBioW && my >= profBioY && my <= profBioY + profBioH) {
+                profileFocusField = 6;
+                caretBlinkTimer = 0f;
+                caretVisible = true;
+                return true;
+            }
+            for (StudentDashboard.PillHitbox s : profSkillChips) {
+                if (mx >= s.x && mx <= s.x + s.w && my >= s.y && my <= s.y + s.h) {
+                    if (editSkills.contains(s.name)) {
+                        editSkills.remove(s.name);
+                    } else {
+                        editSkills.add(s.name);
+                    }
+                    return true;
+                }
+            }
+            return true;
         }
 
         // 4. PROJECT_DETAILS
@@ -1122,7 +1306,12 @@ public class DashboardModals {
                     my >= profSaveBtnY && my <= profSaveBtnY + profSaveBtnH);
             if (profSaveHovered != prevSave) changed = true;
 
-            return modalCloseHovered || profCancelHovered || profSaveHovered || changed;
+            boolean chipHov = false;
+            for (StudentDashboard.PillHitbox s : profSkillChips) {
+                if (mx >= s.x && mx <= s.x + s.w && my >= s.y && my <= s.y + s.h) { chipHov = true; break; }
+            }
+
+            return modalCloseHovered || profCancelHovered || profSaveHovered || chipHov || changed;
         }
 
         if (activeModal == StudentDashboard.ActiveModal.PROJECT_DETAILS) {
@@ -1216,35 +1405,51 @@ public class DashboardModals {
         // Typing into Profile Modal
         if (activeModal == StudentDashboard.ActiveModal.COMPLETE_PROFILE) {
             if (e.getKeyCode() == KeyEvent.VK_TAB) {
-                profileFocusField = (profileFocusField + 1) % 3;
+                profileFocusField = (profileFocusField + 1) % 7;
                 caretBlinkTimer = 0f;
                 caretVisible = true;
                 return true;
             }
             if (e.getKeyCode() == KeyEvent.VK_ENTER) {
-                saveProfileForm(dashboard);
+                if (profileFocusField == 6) {
+                    saveProfileForm(dashboard);
+                } else {
+                    profileFocusField = (profileFocusField + 1) % 7;
+                    caretBlinkTimer = 0f;
+                    caretVisible = true;
+                }
                 return true;
             }
             if (e.getKeyCode() == KeyEvent.VK_BACK_SPACE) {
-                if (profileFocusField == 0 && dashboard.getProfileName().length() > 0) {
-                    dashboard.setProfileName(dashboard.getProfileName().substring(0, dashboard.getProfileName().length() - 1));
-                } else if (profileFocusField == 1 && dashboard.getProfileBio().length() > 0) {
-                    dashboard.setProfileBio(dashboard.getProfileBio().substring(0, dashboard.getProfileBio().length() - 1));
-                } else if (profileFocusField == 2 && dashboard.getProfilePortfolio().length() > 0) {
-                    dashboard.setProfilePortfolio(dashboard.getProfilePortfolio().substring(0, dashboard.getProfilePortfolio().length() - 1));
+                switch (profileFocusField) {
+                    case 0: if (editName.length() > 0) editName = editName.substring(0, editName.length() - 1); break;
+                    case 1: if (editHeadline.length() > 0) editHeadline = editHeadline.substring(0, editHeadline.length() - 1); break;
+                    case 2: if (editUniversity.length() > 0) editUniversity = editUniversity.substring(0, editUniversity.length() - 1); break;
+                    case 3: if (editDepartment.length() > 0) editDepartment = editDepartment.substring(0, editDepartment.length() - 1); break;
+                    case 4: if (editAvailability.length() > 0) editAvailability = editAvailability.substring(0, editAvailability.length() - 1); break;
+                    case 5: if (editPortfolio.length() > 0) editPortfolio = editPortfolio.substring(0, editPortfolio.length() - 1); break;
+                    case 6: if (editBio.length() > 0) editBio = editBio.substring(0, editBio.length() - 1); break;
                 }
                 caretBlinkTimer = 0f;
                 caretVisible = true;
                 return true;
             }
+            int kc = e.getKeyCode();
+            if (kc == KeyEvent.VK_SHIFT || kc == KeyEvent.VK_CONTROL || kc == KeyEvent.VK_ALT ||
+                kc == KeyEvent.VK_CAPS_LOCK || kc == KeyEvent.VK_META || kc == KeyEvent.VK_WINDOWS ||
+                kc == KeyEvent.VK_LEFT || kc == KeyEvent.VK_RIGHT || kc == KeyEvent.VK_UP || kc == KeyEvent.VK_DOWN) {
+                return false;
+            }
             char c = e.getKeyChar();
-            if (c >= 32 && c <= 126) {
-                if (profileFocusField == 0 && dashboard.getProfileName().length() < 30) {
-                    dashboard.setProfileName(dashboard.getProfileName() + c);
-                } else if (profileFocusField == 1 && dashboard.getProfileBio().length() < 100) {
-                    dashboard.setProfileBio(dashboard.getProfileBio() + c);
-                } else if (profileFocusField == 2 && dashboard.getProfilePortfolio().length() < 50) {
-                    dashboard.setProfilePortfolio(dashboard.getProfilePortfolio() + c);
+            if (c >= 32 && c != 127) {
+                switch (profileFocusField) {
+                    case 0: if (editName.length() < 40) editName += c; break;
+                    case 1: if (editHeadline.length() < 60) editHeadline += c; break;
+                    case 2: if (editUniversity.length() < 60) editUniversity += c; break;
+                    case 3: if (editDepartment.length() < 60) editDepartment += c; break;
+                    case 4: if (editAvailability.length() < 60) editAvailability += c; break;
+                    case 5: if (editPortfolio.length() < 60) editPortfolio += c; break;
+                    case 6: if (editBio.length() < 240) editBio += c; break;
                 }
                 caretBlinkTimer = 0f;
                 caretVisible = true;

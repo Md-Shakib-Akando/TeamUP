@@ -67,6 +67,7 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
 
         modal.setAuthListener(user -> {
             if (user != null) {
+                navBar.setLoggedInUser(user);
                 if ("Admin".equalsIgnoreCase(user.role)) {
                     openAdminDashboard();
                 } else {
@@ -410,6 +411,7 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
     public void openAdminDashboard() {
         this.showDashboard = false;
         this.showAdminDashboard = true;
+        adminDashboard.loadFromServer();
         this.canvas.requestFocus();
     }
 
@@ -424,6 +426,7 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
     public void switchToAdminDashboard() {
         this.showDashboard = false;
         this.showAdminDashboard = true;
+        adminDashboard.loadFromServer();
         this.canvas.requestFocus();
     }
 

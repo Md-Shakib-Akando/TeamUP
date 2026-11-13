@@ -45,7 +45,7 @@ public class AuthStore {
 
     // Node.js Backend API configuration
     private static volatile String apiBaseUrl = System.getProperty("teamup.api.url",
-            System.getenv("TEAMUP_API_URL") != null ? System.getenv("TEAMUP_API_URL") : "http://localhost:5000/api");
+            System.getenv("TEAMUP_API_URL") != null ? System.getenv("TEAMUP_API_URL") : "http://localhost:5050/api");
     private static volatile String currentToken = null;
     private static volatile UserRecord currentUser = null;
     private static volatile boolean offlineMode = false;
@@ -151,7 +151,7 @@ public class AuthStore {
             long start = System.currentTimeMillis();
             while (System.currentTimeMillis() - start < 3500) {
                 if (isServerAlive()) {
-                    System.out.println("[AuthStore] Node.js backend server auto-started and connected on port 5000.");
+                    System.out.println("[AuthStore] Node.js backend server auto-started and connected on port 5050.");
                     return;
                 }
                 Thread.sleep(200);
@@ -170,7 +170,16 @@ public class AuthStore {
             conn.setConnectTimeout(800);
             conn.setReadTimeout(800);
             int code = conn.getResponseCode();
-            return (code >= 200 && code < 300);
+            if (code >= 200 && code < 300) {
+                try (InputStream is = conn.getInputStream(); ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
+                    byte[] buf = new byte[1024];
+                    int r;
+                    while ((r = is.read(buf)) != -1) bos.write(buf, 0, r);
+                    String body = new String(bos.toByteArray(), StandardCharsets.UTF_8);
+                    return body.contains("TeamUp");
+                }
+            }
+            return false;
         } catch (Exception e) {
             return false;
         }
@@ -234,6 +243,10 @@ public class AuthStore {
 
             try {
                 HttpResp resp = postJson("/auth/register", jsonPayload);
+                if (resp.status == 503) {
+                    try { Thread.sleep(1200); } catch (InterruptedException ignored) {}
+                    resp = postJson("/auth/register", jsonPayload);
+                }
                 boolean ok = extractJsonBoolean(resp.body, "success");
                 String msg = extractJsonString(resp.body, "message");
 
@@ -308,6 +321,10 @@ public class AuthStore {
 
             try {
                 HttpResp resp = postJson("/auth/login", jsonPayload);
+                if (resp.status == 503) {
+                    try { Thread.sleep(1200); } catch (InterruptedException ignored) {}
+                    resp = postJson("/auth/login", jsonPayload);
+                }
                 boolean ok = extractJsonBoolean(resp.body, "success");
                 String msg = extractJsonString(resp.body, "message");
 

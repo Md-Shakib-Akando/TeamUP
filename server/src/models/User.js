@@ -58,8 +58,13 @@ const userSchema = new mongoose.Schema(
     // Public registration defaults to 'Student' (or student's chosen discipline).
     role: {
       type: String,
-      enum: ['Student', 'Developer', 'UI/UX Designer', 'Team Leader', 'Researcher', 'Freelancer', 'Admin'],
+      enum: ['Student', 'Developer', 'UI/UX Designer', 'Team Leader', 'Researcher', 'Freelancer', 'Member', 'Moderator', 'Admin'],
       default: 'Student',
+    },
+    status: {
+      type: String,
+      enum: ['Active', 'Suspended'],
+      default: 'Active',
     },
 
     // ---- Public profile (shown on Find Teammates / My Profile) ----

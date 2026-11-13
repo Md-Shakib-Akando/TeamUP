@@ -64,6 +64,10 @@ public final class ApiClient {
         return send("PUT", path, body == null ? Json.obj() : body);
     }
 
+    public static Response delete(String path) throws IOException {
+        return send("DELETE", path, null);
+    }
+
     @SuppressWarnings("unchecked")
     private static Response send(String method, String path, Object body) throws IOException {
         String base = AuthStore.getApiBaseUrl();

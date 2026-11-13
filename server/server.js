@@ -1,10 +1,14 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const dotenv = require('dotenv');
-const connectDB = require('./src/config/db');
 
-// Load environment variables
+// Load environment variables reliably from server/.env, workspace root, or cwd
+dotenv.config({ path: path.join(__dirname, '.env') });
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
 dotenv.config();
+
+const connectDB = require('./src/config/db');
 
 // Connect to MongoDB Atlas
 connectDB();
@@ -22,8 +26,22 @@ app.use((req, res, next) => {
   next();
 });
 
+// Auto-reconnect to MongoDB Atlas if connection dropped or delayed
+app.use(async (req, res, next) => {
+  const mongoose = require('mongoose');
+  if (mongoose.connection.readyState === 0 && process.env.MONGODB_URI) {
+    try {
+      await connectDB();
+    } catch (e) {
+      // Handled in connectDB
+    }
+  }
+  next();
+});
+
 // Routes
 app.use('/api/auth', require('./src/routes/authRoutes'));
+app.use('/api/admin', require('./src/routes/adminRoutes'));
 app.use('/api', require('./src/routes/studentRoutes'));
 
 // Health check endpoint
@@ -55,9 +73,9 @@ app.use((err, req, res, next) => {
   });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5050;
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`====================================================`);
   console.log(` TeamUp Node.js API Server running on port ${PORT}`);
   console.log(` Health check: http://localhost:${PORT}/api/health`);

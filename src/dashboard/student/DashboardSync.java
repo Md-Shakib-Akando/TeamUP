@@ -461,9 +461,39 @@ public final class DashboardSync {
         submit(d, () -> ApiClient.post("/users/" + userId + "/collab", Json.obj("active", active)), null, false, false);
     }
 
+    public static void saveProfile(StudentDashboard d, ProfileData p) {
+        List<String> skillNames = new ArrayList<String>();
+        for (ProfileData.ProfileSkill s : p.skills) {
+            skillNames.add(s.name);
+        }
+        final Map<String, Object> body = Json.obj(
+                "name", p.name != null ? p.name : "",
+                "headline", p.headline != null ? p.headline : "",
+                "university", p.university != null ? p.university : "",
+                "department", p.department != null ? p.department : "",
+                "gradYear", p.gradYear != null ? p.gradYear : "",
+                "location", p.location != null ? p.location : "",
+                "bio", p.bio != null ? p.bio : "",
+                "github", p.github != null ? p.github : "",
+                "portfolio", p.portfolio != null ? p.portfolio : "",
+                "availability", p.availabilityStatus != null ? p.availabilityStatus : "",
+                "availabilityStatus", p.availabilityStatus != null ? p.availabilityStatus : "",
+                "skills", skillNames
+        );
+        submit(d, () -> ApiClient.put("/me/profile", body), null, true, true);
+    }
+
     public static void saveProfile(StudentDashboard d, String name, String bio, String portfolio) {
-        final Map<String, Object> body = Json.obj("name", name, "bio", bio, "portfolio", portfolio);
-        submit(d, () -> ApiClient.put("/me/profile", body), null, false, true);
+        ProfileData pd = d.getProfileData();
+        pd.name = name;
+        pd.bio = bio;
+        pd.portfolio = portfolio;
+        saveProfile(d, pd);
+    }
+
+    public static void changePassword(StudentDashboard d, String currentPassword, String newPassword) {
+        final Map<String, Object> body = Json.obj("currentPassword", currentPassword, "newPassword", newPassword);
+        submit(d, () -> ApiClient.post("/auth/change-password", body), null, true, false);
     }
 
     public static void saveAccount(StudentDashboard d, SettingsData s) {

@@ -1,5 +1,19 @@
+const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+
+const waitForDB = async (timeoutMs = 5000) => {
+  if (mongoose.connection.readyState === 1) return true;
+  if (mongoose.connection.readyState === 0) {
+    const connectDB = require('../config/db');
+    connectDB();
+  }
+  const start = Date.now();
+  while (mongoose.connection.readyState !== 1 && (Date.now() - start < timeoutMs)) {
+    await new Promise(resolve => setTimeout(resolve, 150));
+  }
+  return mongoose.connection.readyState === 1;
+};
 
 // Generate JWT Token
 const generateToken = (id) => {
@@ -15,6 +29,14 @@ const generateToken = (id) => {
  */
 const register = async (req, res) => {
   try {
+    const isReady = await waitForDB(5000);
+    if (!isReady) {
+      return res.status(503).json({
+        success: false,
+        message: 'Database is currently connecting to MongoDB Atlas. Please try again in a moment.',
+      });
+    }
+
     const { name, email, password, role } = req.body;
 
     if (!name || !name.trim()) {
@@ -61,10 +83,18 @@ const register = async (req, res) => {
       success: true,
       message: `Account created! Welcome, ${user.name}.`,
       user: user.toSafeObject(),
+      name: user.name,
+      role: user.role,
       token,
     });
   } catch (error) {
     console.error('[Auth Register Error]:', error);
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: 'An account with this email already exists.',
+      });
+    }
     return res.status(500).json({
       success: false,
       message: error.message || 'Server error during registration.',
@@ -79,6 +109,14 @@ const register = async (req, res) => {
  */
 const login = async (req, res) => {
   try {
+    const isReady = await waitForDB(5000);
+    if (!isReady) {
+      return res.status(503).json({
+        success: false,
+        message: 'Database is currently connecting to MongoDB Atlas. Please try again in a moment.',
+      });
+    }
+
     const { email, password } = req.body;
 
     if (!email || !email.trim()) {
@@ -97,6 +135,14 @@ const login = async (req, res) => {
       return res.status(401).json({ success: false, message: 'No account found with this email.' });
     }
 
+    // Check account status
+    if (user.status === 'Suspended') {
+      return res.status(403).json({
+        success: false,
+        message: 'Your account has been suspended by an administrator.',
+      });
+    }
+
     // Check password
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
@@ -109,6 +155,8 @@ const login = async (req, res) => {
       success: true,
       message: `Welcome back, ${user.name}!`,
       user: user.toSafeObject(),
+      name: user.name,
+      role: user.role,
       token,
     });
   } catch (error) {
@@ -155,10 +203,40 @@ const listUsers = async (req, res) => {
   }
 };
 
+/**
+ * @route   POST /api/auth/change-password
+ * @desc    Change current user's password
+ * @access  Private
+ */
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: 'New password must be at least 6 characters.' });
+    }
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+    if (currentPassword) {
+      const isMatch = await user.matchPassword(currentPassword);
+      if (!isMatch) {
+        return res.status(400).json({ success: false, message: 'Current password is incorrect.' });
+      }
+    }
+    user.password = newPassword;
+    await user.save();
+    return res.status(200).json({ success: true, message: 'Password changed successfully.' });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message || 'Error changing password.' });
+  }
+};
+
 module.exports = {
   register,
   login,
   getMe,
   listUsers,
+  changePassword,
 };
 

@@ -408,8 +408,12 @@ public class StudentDashboard {
     public void openModal(ActiveModal modal) {
         if (header != null)
             header.closePopups();
-        if (modals != null)
+        if (modals != null) {
+            if (modal == ActiveModal.COMPLETE_PROFILE) {
+                modals.initProfileForm(this);
+            }
             modals.open(modal);
+        }
     }
 
     public void closeModal() {
@@ -2414,15 +2418,19 @@ public class StudentDashboard {
         }
 
         if (editProfileBtnBox.contains(mx, my)) {
-            if (listener != null) {
-                listener.openModal("Edit Profile - " + profileData.name,
-                        "Update your academic details, availability, headline, and bio.", false);
-            }
+            openModal(ActiveModal.COMPLETE_PROFILE);
             return true;
         }
 
         if (shareProfileBtnBox.contains(mx, my)) {
-            showToast("Profile link copied: teamup.com/u/" + profileData.handle.replace("@", ""));
+            String url = "https://teamup.com/u/" + (profileData.handle != null ? profileData.handle.replace("@", "") : "alex");
+            try {
+                java.awt.datatransfer.StringSelection sel = new java.awt.datatransfer.StringSelection(url);
+                java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(sel, sel);
+                showToast("Profile link copied to clipboard: " + url + " 📋");
+            } catch (Exception ex) {
+                showToast("Profile link: " + url);
+            }
             return true;
         }
 
@@ -2474,9 +2482,15 @@ public class StudentDashboard {
 
             if (saveAccountBtnBox.contains(mx, my)) {
                 settingsData.saveAccountChanges();
-                profileName = settingsData.fullName;
+                setProfileName(settingsData.fullName);
+                if (settingsData.username != null && !settingsData.username.isEmpty()) {
+                    profileData.handle = "@" + settingsData.username.replace("@", "");
+                }
+                if (settingsData.email != null && !settingsData.email.isEmpty()) {
+                    profileData.email = settingsData.email;
+                }
                 DashboardSync.saveAccount(this, settingsData);
-                showToast("Account details updated successfully!");
+                showToast("Account details updated successfully! 🚀");
                 return true;
             }
             if (cancelAccountBtnBox.contains(mx, my)) {
@@ -2485,9 +2499,24 @@ public class StudentDashboard {
                 return true;
             }
             if (changePassBtnBox.contains(mx, my)) {
-                if (listener != null) {
-                    listener.openModal("Update Account Password",
-                            "Enter your current password and choose a secure new password.", false);
+                javax.swing.JPanel panel = new javax.swing.JPanel(new java.awt.GridLayout(2, 2, 8, 8));
+                javax.swing.JPasswordField curPass = new javax.swing.JPasswordField();
+                javax.swing.JPasswordField newPass = new javax.swing.JPasswordField();
+                panel.add(new javax.swing.JLabel("Current Password:"));
+                panel.add(curPass);
+                panel.add(new javax.swing.JLabel("New Password:"));
+                panel.add(newPass);
+                int res = javax.swing.JOptionPane.showConfirmDialog(
+                        null, panel, "Update Account Password",
+                        javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.PLAIN_MESSAGE);
+                if (res == javax.swing.JOptionPane.OK_OPTION) {
+                    String curP = new String(curPass.getPassword()).trim();
+                    String newP = new String(newPass.getPassword()).trim();
+                    if (newP.length() < 6) {
+                        showToast("New password must be at least 6 characters.");
+                    } else {
+                        DashboardSync.changePassword(this, curP, newP);
+                    }
                 }
                 return true;
             }
@@ -2598,17 +2627,28 @@ public class StudentDashboard {
 
         if (settingsData.activeTab == SettingsData.SettingsTab.DANGER_ZONE) {
             if (deactivateBtnBox.contains(mx, my)) {
-                if (listener != null) {
-                    listener.openModal("Deactivate TeamUp Account",
-                            "Take a break without deleting projects. You can reactivate anytime.", false);
+                int opt = javax.swing.JOptionPane.showConfirmDialog(
+                        null,
+                        "Are you sure you want to deactivate your account?\nYou can reactivate anytime by logging back in.",
+                        "Deactivate TeamUp Account",
+                        javax.swing.JOptionPane.YES_NO_OPTION,
+                        javax.swing.JOptionPane.WARNING_MESSAGE);
+                if (opt == javax.swing.JOptionPane.YES_OPTION) {
+                    showToast("Account deactivated. Logging out...");
+                    if (listener != null) listener.returnToLanding();
                 }
                 return true;
             }
             if (deleteAccountBtnBox.contains(mx, my)) {
-                if (listener != null) {
-                    listener.openModal("Delete Account Permanently",
-                            "Warning: You own '" + settingsData.ownedProject + "'. Transfer ownership before deleting.",
-                            true);
+                int opt = javax.swing.JOptionPane.showConfirmDialog(
+                        null,
+                        "Warning: Are you sure you want to permanently delete your account?\nAll your data and project ownership will be removed.",
+                        "Delete Account Permanently",
+                        javax.swing.JOptionPane.YES_NO_OPTION,
+                        javax.swing.JOptionPane.ERROR_MESSAGE);
+                if (opt == javax.swing.JOptionPane.YES_OPTION) {
+                    showToast("Account deleted. Returning to home...");
+                    if (listener != null) listener.returnToLanding();
                 }
                 return true;
             }
@@ -2944,7 +2984,22 @@ public class StudentDashboard {
     }
 
     public void setProfileName(String n) {
+        if (n == null) n = "";
         this.profileName = n;
+        if (profileData != null) {
+            profileData.name = n;
+        }
+        if (settingsData != null) {
+            settingsData.fullName = n;
+            settingsData.originalFullName = n;
+        }
+        // Recalculate initials
+        String[] parts = n.trim().split("\\s+");
+        if (parts.length >= 2 && !parts[0].isEmpty() && !parts[1].isEmpty()) {
+            setProfileInitials(("" + parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase());
+        } else if (parts.length == 1 && !parts[0].isEmpty()) {
+            setProfileInitials(parts[0].substring(0, Math.min(2, parts[0].length())).toUpperCase());
+        }
     }
 
     public String getProfileBio() {
@@ -2953,6 +3008,9 @@ public class StudentDashboard {
 
     public void setProfileBio(String b) {
         this.profileBio = b;
+        if (profileData != null) {
+            profileData.bio = b;
+        }
     }
 
     public String getProfilePortfolio() {
@@ -2961,6 +3019,9 @@ public class StudentDashboard {
 
     public void setProfilePortfolio(String u) {
         this.profilePortfolio = u;
+        if (profileData != null) {
+            profileData.portfolio = u;
+        }
     }
 
     public String getProfileInitials() {
