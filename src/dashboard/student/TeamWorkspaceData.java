@@ -62,6 +62,7 @@ public class TeamWorkspaceData {
     }
 
     public static class RecruitmentRequest {
+        public String remoteId; // JoinRequest id when loaded from the backend
         public String name;
         public String initials;
         public String roleSkill;
@@ -108,6 +109,9 @@ public class TeamWorkspaceData {
             this.author = author;
         }
     }
+
+    // Backend project id of this workspace (null for demo data)
+    public String projectId;
 
     // Workspace identity & meta
     public String workspaceName = "CampusConnect workspace";

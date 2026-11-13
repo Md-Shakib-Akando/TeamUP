@@ -34,6 +34,7 @@ public class DashboardMyProjects {
     }
 
     public static class ProjectTask {
+        public volatile String remoteId; // set from the IO thread once the backend creates the task
         public String title;
         public String dueDate;
         public boolean done;
@@ -53,6 +54,7 @@ public class DashboardMyProjects {
         public Color bg;
         public Color text;
         public String matchPct;
+        public String remoteId; // JoinRequest id when loaded from the backend
         public boolean accepted = false;
         public boolean declined = false;
         public int acceptX, acceptY, acceptW = 74, acceptH = 28;
@@ -70,6 +72,7 @@ public class DashboardMyProjects {
 
     public static class MyProjectCard {
         public int id;
+        public String remoteId; // MongoDB project id when loaded from the backend
         public String title;
         public String category;
         public String description;
@@ -165,6 +168,13 @@ public class DashboardMyProjects {
 
     public DashboardMyProjects() {
         initMyProjectsData();
+        applyFilters();
+    }
+
+    /** Replaces the project list with data loaded from the backend, keeping tab & filters. */
+    public void setProjects(List<MyProjectCard> projects) {
+        allProjects.clear();
+        allProjects.addAll(projects);
         applyFilters();
     }
 
@@ -1027,7 +1037,11 @@ public class DashboardMyProjects {
     // EVENT HANDLING
     // =========================================================================
 
+    // Captured from onClick so keyboard-added tasks can be persisted too
+    private StudentDashboard dashboardRef;
+
     public boolean onClick(int mx, int my, StudentDashboard dashboard) {
+        this.dashboardRef = dashboard;
         // 1. Sub-modal takes top priority
         if (activeSubModal != SubModal.NONE && modalProject != null) {
             // Close (X) button
@@ -1044,12 +1058,14 @@ public class DashboardMyProjects {
                     if (!c.accepted && !c.declined) {
                         if (mx >= c.acceptX && mx <= c.acceptX + c.acceptW && my >= c.acceptY && my <= c.acceptY + c.acceptH) {
                             c.accepted = true;
+                            DashboardSync.decideRequest(dashboard, c.remoteId, true);
                             modalProject.members.add(new MemberAvatar(c.initials, c.name, c.role, c.bg, c.text));
                             dashboard.showToast(c.name + " accepted into " + modalProject.title + "!");
                             return true;
                         }
                         if (mx >= c.declineX && mx <= c.declineX + c.declineW && my >= c.declineY && my <= c.declineY + c.declineH) {
                             c.declined = true;
+                            DashboardSync.decideRequest(dashboard, c.remoteId, false);
                             dashboard.showToast(c.name + "'s request was declined.");
                             return true;
                         }
@@ -1063,6 +1079,7 @@ public class DashboardMyProjects {
                 for (ProjectTask task : modalProject.tasks) {
                     if (mx >= task.hitX && mx <= task.hitX + task.hitW && my >= task.hitY && my <= task.hitY + task.hitH) {
                         task.done = !task.done;
+                        DashboardSync.setTaskDone(dashboard, task, task.done);
                         // update project progress pct
                         long doneCount = modalProject.tasks.stream().filter(t -> t.done).count();
                         modalProject.progressPct = (int) Math.round(((double) doneCount / modalProject.tasks.size()) * 100);
@@ -1082,7 +1099,9 @@ public class DashboardMyProjects {
                 // Add Task button
                 if (mx >= addTaskBtnX && mx <= addTaskBtnX + addTaskBtnW && my >= addTaskBtnY && my <= addTaskBtnY + addTaskBtnH) {
                     if (!newTaskTitle.trim().isEmpty()) {
-                        modalProject.tasks.add(new ProjectTask(newTaskTitle.trim(), "Upcoming", false));
+                        ProjectTask added = new ProjectTask(newTaskTitle.trim(), "Upcoming", false);
+                        modalProject.tasks.add(added);
+                        DashboardSync.addTask(dashboard, modalProject.remoteId, added);
                         long doneCount = modalProject.tasks.stream().filter(t -> t.done).count();
                         modalProject.progressPct = (int) Math.round(((double) doneCount / modalProject.tasks.size()) * 100);
                         dashboard.showToast("Task added to " + modalProject.title + "!");
@@ -1210,7 +1229,9 @@ public class DashboardMyProjects {
         if (activeSubModal == SubModal.PROJECT_BOARD && newTaskFocused) {
             if (code == KeyEvent.VK_ENTER) {
                 if (modalProject != null && !newTaskTitle.trim().isEmpty()) {
-                    modalProject.tasks.add(new ProjectTask(newTaskTitle.trim(), "Upcoming", false));
+                    ProjectTask added = new ProjectTask(newTaskTitle.trim(), "Upcoming", false);
+                    modalProject.tasks.add(added);
+                    if (dashboardRef != null) DashboardSync.addTask(dashboardRef, modalProject.remoteId, added);
                     long doneCount = modalProject.tasks.stream().filter(t -> t.done).count();
                     modalProject.progressPct = (int) Math.round(((double) doneCount / modalProject.tasks.size()) * 100);
                     newTaskTitle = "";

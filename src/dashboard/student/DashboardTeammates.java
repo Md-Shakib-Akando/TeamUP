@@ -17,6 +17,7 @@ public class DashboardTeammates {
 
     public static class TeammateCard {
         public int id;
+        public String remoteId; // MongoDB user id when loaded from the backend
         public String name;
         public String role;
         public String university;
@@ -128,6 +129,14 @@ public class DashboardTeammates {
 
     public DashboardTeammates() {
         initDemoTeammates();
+        applyFilters();
+    }
+
+    /** Replaces the teammate list with data loaded from the backend, keeping filters & page. */
+    public void setTeammates(List<TeammateCard> teammates) {
+        allTeammates.clear();
+        allTeammates.addAll(teammates);
+        if (activeProfileTeammate != null) activeProfileTeammate = null;
         applyFilters();
     }
 
@@ -995,6 +1004,7 @@ public class DashboardTeammates {
             // Invite button
             if (mx >= modalInviteBtnX && mx <= modalInviteBtnX + modalInviteBtnW && my >= modalInviteBtnY && my <= modalInviteBtnY + modalInviteBtnH) {
                 activeProfileTeammate.invited = !activeProfileTeammate.invited;
+                DashboardSync.setInvite(dashboard, activeProfileTeammate.remoteId, activeProfileTeammate.invited);
                 dashboard.showToast(activeProfileTeammate.invited ? "Invite sent to " + activeProfileTeammate.name + "!" : "Invite cancelled.");
                 return true;
             }
@@ -1099,6 +1109,7 @@ public class DashboardTeammates {
             // + Invite button
             if (mx >= tm.inviteBtnX && mx <= tm.inviteBtnX + tm.inviteBtnW && my >= tm.inviteBtnY && my <= tm.inviteBtnY + tm.inviteBtnH) {
                 tm.invited = !tm.invited;
+                DashboardSync.setInvite(dashboard, tm.remoteId, tm.invited);
                 dashboard.showToast(tm.invited ? "Invite sent to " + tm.name + "!" : "Invite cancelled.");
                 return true;
             }
@@ -1106,6 +1117,7 @@ public class DashboardTeammates {
             // Request button
             if (mx >= tm.requestBtnX && mx <= tm.requestBtnX + tm.requestBtnW && my >= tm.requestBtnY && my <= tm.requestBtnY + tm.requestBtnH) {
                 tm.requested = !tm.requested;
+                DashboardSync.setCollab(dashboard, tm.remoteId, tm.requested);
                 dashboard.showToast(tm.requested ? "Collaboration request sent to " + tm.name : "Request cancelled.");
                 return true;
             }

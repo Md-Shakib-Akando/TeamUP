@@ -871,8 +871,18 @@ public class DashboardModals {
         String[] skills = newProjSkills.isEmpty() ? new String[]{"React", "Node.js"} : newProjSkills.toArray(new String[0]);
         String category = newProjCategory.isEmpty() ? "Sustainability" : newProjCategory;
 
+        if (DashboardSync.isOnline()) {
+            // Persist to MongoDB; the dashboard reloads when the server confirms
+            DashboardSync.createProject(dashboard, title, desc, category, skills);
+            closeModal();
+            newProjTitle = "";
+            newProjDesc = "";
+            dashboard.showToast("Publishing '" + title + "'...");
+            return;
+        }
+
         dashboard.getProjects().add(0, new StudentDashboard.ProjectItem(
-                title, "Alex Morgan · " + category,
+                title, dashboard.getProfileName() + " · " + category,
                 desc, skills,
                 "3 open roles · 1 / 4 members", true, 0
         ));
@@ -881,6 +891,19 @@ public class DashboardModals {
         newProjTitle = "";
         newProjDesc = "";
         dashboard.showToast("Project '" + title + "' published to student feed! 🎉");
+    }
+
+    /** Save button / Enter in the Complete Profile modal. */
+    private void saveProfileForm(StudentDashboard dashboard) {
+        closeModal();
+        if (DashboardSync.isOnline()) {
+            DashboardSync.saveProfile(dashboard, dashboard.getProfileName(), dashboard.getProfileBio(),
+                    dashboard.getProfilePortfolio());
+            dashboard.showToast("Profile saved! 🚀");
+        } else {
+            dashboard.setProfileCompletePercent(100);
+            dashboard.showToast("Profile reached 100%! Ready to get discovered. 🚀");
+        }
     }
 
     public boolean onClick(int mx, int my, StudentDashboard dashboard) {
@@ -957,9 +980,7 @@ public class DashboardModals {
             }
             if (mx >= profSaveBtnX && mx <= profSaveBtnX + profSaveBtnW &&
                     my >= profSaveBtnY && my <= profSaveBtnY + profSaveBtnH) {
-                dashboard.setProfileCompletePercent(100);
-                closeModal();
-                dashboard.showToast("Profile reached 100%! Ready to get discovered. 🚀");
+                saveProfileForm(dashboard);
                 return true;
             }
             if (mx >= profNameX && mx <= profNameX + profNameW && my >= profNameY && my <= profNameY + profNameH) {
@@ -991,6 +1012,14 @@ public class DashboardModals {
             }
             if (mx >= projJoinBtnX && mx <= projJoinBtnX + projJoinBtnW &&
                     my >= projJoinBtnY && my <= projJoinBtnY + projJoinBtnH) {
+                StudentDashboard.ProjectItem sel = dashboard.getSelectedProject();
+                if (sel.requested) {
+                    closeModal();
+                    dashboard.showToast("Your request to join '" + sel.title + "' is already pending.");
+                    return true;
+                }
+                sel.requested = true;
+                DashboardSync.requestJoin(dashboard, sel.remoteId);
                 dashboard.setPendingRequestsCount(dashboard.getPendingRequestsCount() + 1);
                 closeModal();
                 dashboard.showToast("Request to join '" + dashboard.getSelectedProject().title + "' submitted! Pending: " + dashboard.getPendingRequestsCount());
@@ -1008,6 +1037,7 @@ public class DashboardModals {
             if (mx >= teamInviteBtnX && mx <= teamInviteBtnX + teamInviteBtnW &&
                     my >= teamInviteBtnY && my <= teamInviteBtnY + teamInviteBtnH) {
                 dashboard.getSelectedTeammate().invited = true;
+                DashboardSync.setInvite(dashboard, dashboard.getSelectedTeammate().remoteId, true);
                 dashboard.setPendingRequestsCount(dashboard.getPendingRequestsCount() + 1);
                 closeModal();
                 dashboard.showToast("Invitation sent to " + dashboard.getSelectedTeammate().name + "!");
@@ -1026,6 +1056,7 @@ public class DashboardModals {
             for (StudentDashboard.TaskItem t : dashboard.getTasks()) {
                 if (mx >= activeModalX + 26 && mx <= activeModalX + activeModalW - 26 && my >= tY && my <= tY + 46) {
                     t.completed = !t.completed;
+                    DashboardSync.setTaskDone(dashboard, t.remoteId, t.completed);
                     if (t.completed) {
                         dashboard.setTasksDueCount(Math.max(0, dashboard.getTasksDueCount() - 1));
                         dashboard.showToast("Task completed: " + t.title + " ✓");
@@ -1191,9 +1222,7 @@ public class DashboardModals {
                 return true;
             }
             if (e.getKeyCode() == KeyEvent.VK_ENTER) {
-                dashboard.setProfileCompletePercent(100);
-                closeModal();
-                dashboard.showToast("Profile reached 100%! Ready to get discovered. 🚀");
+                saveProfileForm(dashboard);
                 return true;
             }
             if (e.getKeyCode() == KeyEvent.VK_BACK_SPACE) {

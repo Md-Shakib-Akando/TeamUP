@@ -72,6 +72,9 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
                 } else {
                     dashboard.getProfileData().name = user.name;
                     dashboard.getProfileData().email = user.email;
+                    dashboard.setProfileName(user.name);
+                    // Pull this user's projects, tasks, teammates... from MongoDB
+                    dashboard.loadFromServer();
                     openDashboard();
                 }
             } else {

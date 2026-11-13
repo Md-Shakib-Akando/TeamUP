@@ -16,6 +16,10 @@ public class DashboardProjects {
 
     public static class ProjectCard {
         public int id;
+        public String remoteId;      // MongoDB id when loaded from the backend
+        public boolean isMember;     // current user already on the team
+        public boolean requested;    // current user has a pending join request
+        public int openRoleCount = 2;
         public String title;
         public String category; // Campus life, Sustainability, Research, Social impact, Education
         public String experience; // Beginner, Intermediate, Advanced
@@ -114,6 +118,13 @@ public class DashboardProjects {
 
     public DashboardProjects() {
         initDemoProjects();
+        applyFilters();
+    }
+
+    /** Replaces the project list with data loaded from the backend, keeping filters & page. */
+    public void setProjects(List<ProjectCard> projects) {
+        allProjects.clear();
+        allProjects.addAll(projects);
         applyFilters();
     }
 
@@ -1035,6 +1046,7 @@ public class DashboardProjects {
             // Bookmark icon
             if (mx >= p.bmX - 6 && mx <= p.bmX + p.bmSize + 6 && my >= p.bmY - 6 && my <= p.bmY + p.bmSize + 6) {
                 p.bookmarked = !p.bookmarked;
+                DashboardSync.setBookmark(dashboard, p.remoteId, p.bookmarked);
                 dashboard.showToast(p.bookmarked ? p.title + " added to Bookmarks ★" : p.title + " removed from Bookmarks");
                 return true;
             }
@@ -1047,6 +1059,8 @@ public class DashboardProjects {
                         p.recruiting, p.iconType
                 );
                 pi.bookmarked = p.bookmarked;
+                pi.remoteId = p.remoteId;
+                pi.requested = p.requested;
                 dashboard.setSelectedProject(pi);
                 dashboard.openModal(StudentDashboard.ActiveModal.PROJECT_DETAILS);
                 return true;
@@ -1059,6 +1073,8 @@ public class DashboardProjects {
                         p.recruiting, p.iconType
                 );
                 pi.bookmarked = p.bookmarked;
+                pi.remoteId = p.remoteId;
+                pi.requested = p.requested;
                 dashboard.setSelectedProject(pi);
                 dashboard.openModal(StudentDashboard.ActiveModal.PROJECT_DETAILS);
                 return true;

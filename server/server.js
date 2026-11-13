@@ -24,6 +24,7 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api/auth', require('./src/routes/authRoutes'));
+app.use('/api', require('./src/routes/studentRoutes'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -63,6 +64,7 @@ app.listen(PORT, () => {
   console.log(` Auth endpoints:`);
   console.log(`   POST http://localhost:${PORT}/api/auth/register`);
   console.log(`   POST http://localhost:${PORT}/api/auth/login`);
+  console.log(` Student dashboard (JWT): GET http://localhost:${PORT}/api/dashboard`);
   console.log(`====================================================`);
 });
 
