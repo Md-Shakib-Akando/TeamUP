@@ -97,7 +97,8 @@ public class DashboardSidebar {
         g.fillOval(avX, avY, avSize, avSize);
         g.setFont(DashboardTheme.FONT_BOLD_12);
         g.setColor(DashboardTheme.BRAND_PURPLE);
-        g.drawString("AM", avX + 9, avY + 23);
+        String ini = dashboard.getProfileInitials();
+        g.drawString(ini, avX + (avSize - g.getFontMetrics().stringWidth(ini)) / 2, avY + 23);
 
         g.setFont(DashboardTheme.FONT_BOLD_12);
         g.setColor(DashboardTheme.TEXT_DARK);
@@ -105,7 +106,7 @@ public class DashboardSidebar {
 
         g.setFont(DashboardTheme.FONT_REG_11);
         g.setColor(DashboardTheme.TEXT_LIGHT);
-        g.drawString("Student · Free plan", avX + 44, avY + 31);
+        g.drawString(dashboard.getProfileRole() + " · Free plan", avX + 44, avY + 31);
 
         Draw.drawChevronDown(g, x + w - padX - 10, avY + 14, 10, DashboardTheme.TEXT_LIGHT, 0f);
     }

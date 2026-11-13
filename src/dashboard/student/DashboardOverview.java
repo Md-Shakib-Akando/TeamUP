@@ -40,7 +40,7 @@ public class DashboardOverview {
         // 1. Welcome Title & Subtitle + "+ Create Project" button
         g.setFont(DashboardTheme.FONT_HEADING);
         g.setColor(DashboardTheme.TEXT_DARK);
-        g.drawString("Welcome back, Alex!", startX + padX, curY + 26);
+        g.drawString("Welcome back, " + dashboard.getFirstName() + "!", startX + padX, curY + 26);
 
         g.setFont(DashboardTheme.FONT_REG_13);
         g.setColor(DashboardTheme.TEXT_MUTED);
@@ -134,10 +134,10 @@ public class DashboardOverview {
         int statW = (contentW - statGap * 3) / 4;
         int statH = 116;
 
-        paintStatCard(g, startX + padX, curY, statW, statH, "Active Projects", String.valueOf(dashboard.getActiveProjectsCount()), "Across " + dashboard.getActiveProjectsCount() + " collaborative teams", 0);
-        paintStatCard(g, startX + padX + (statW + statGap), curY, statW, statH, "My Teams", String.valueOf(dashboard.getMyTeamsCount()), (dashboard.getMyTeamsCount() - 1) + " active · 1 completed", 1);
-        paintStatCard(g, startX + padX + (statW + statGap) * 2, curY, statW, statH, "Pending Requests", String.valueOf(dashboard.getPendingRequestsCount()), "3 received · " + Math.max(0, dashboard.getPendingRequestsCount() - 3) + " sent", 2);
-        paintStatCard(g, startX + padX + (statW + statGap) * 3, curY, statW, statH, "Tasks Due Soon", String.valueOf(dashboard.getTasksDueCount()), "Next 7 days · 1 overdue", 3);
+        paintStatCard(g, startX + padX, curY, statW, statH, "Active Projects", String.valueOf(dashboard.getActiveProjectsCount()), dashboard.getStatSubtitle(0, "Across " + dashboard.getActiveProjectsCount() + " collaborative teams"), 0);
+        paintStatCard(g, startX + padX + (statW + statGap), curY, statW, statH, "My Teams", String.valueOf(dashboard.getMyTeamsCount()), dashboard.getStatSubtitle(1, (dashboard.getMyTeamsCount() - 1) + " active · 1 completed"), 1);
+        paintStatCard(g, startX + padX + (statW + statGap) * 2, curY, statW, statH, "Pending Requests", String.valueOf(dashboard.getPendingRequestsCount()), dashboard.getStatSubtitle(2, "3 received · " + Math.max(0, dashboard.getPendingRequestsCount() - 3) + " sent"), 2);
+        paintStatCard(g, startX + padX + (statW + statGap) * 3, curY, statW, statH, "Tasks Due Soon", String.valueOf(dashboard.getTasksDueCount()), dashboard.getStatSubtitle(3, "Next 7 days · 1 overdue"), 3);
 
         curY += statH + 24;
 
@@ -644,6 +644,7 @@ public class DashboardOverview {
             // Bookmark click
             if (mx >= p.bmX - 6 && mx <= p.bmX + 18 && my >= p.bmY - 6 && my <= p.bmY + 18) {
                 p.bookmarked = !p.bookmarked;
+                DashboardSync.setBookmark(dashboard, p.remoteId, p.bookmarked);
                 dashboard.showToast(p.bookmarked ? p.title + " added to Bookmarks ★" : p.title + " removed from Bookmarks");
                 return true;
             }
@@ -668,6 +669,7 @@ public class DashboardOverview {
         for (StudentDashboard.TaskItem t : dashboard.getTasks()) {
             if (mx >= t.hitX && mx <= t.hitX + t.hitW && my >= t.hitY && my <= t.hitY + t.hitH) {
                 t.completed = !t.completed;
+                DashboardSync.setTaskDone(dashboard, t.remoteId, t.completed);
                 if (t.completed) {
                     dashboard.setTasksDueCount(Math.max(0, dashboard.getTasksDueCount() - 1));
                     dashboard.showToast("Completed: " + t.title + " ✓");

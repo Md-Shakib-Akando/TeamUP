@@ -67,11 +67,15 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
 
         modal.setAuthListener(user -> {
             if (user != null) {
+                navBar.setLoggedInUser(user);
                 if ("Admin".equalsIgnoreCase(user.role)) {
                     openAdminDashboard();
                 } else {
                     dashboard.getProfileData().name = user.name;
                     dashboard.getProfileData().email = user.email;
+                    dashboard.setProfileName(user.name);
+                    // Pull this user's projects, tasks, teammates... from MongoDB
+                    dashboard.loadFromServer();
                     openDashboard();
                 }
             } else {
@@ -407,6 +411,7 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
     public void openAdminDashboard() {
         this.showDashboard = false;
         this.showAdminDashboard = true;
+        adminDashboard.loadFromServer();
         this.canvas.requestFocus();
     }
 
@@ -421,6 +426,7 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
     public void switchToAdminDashboard() {
         this.showDashboard = false;
         this.showAdminDashboard = true;
+        adminDashboard.loadFromServer();
         this.canvas.requestFocus();
     }
 

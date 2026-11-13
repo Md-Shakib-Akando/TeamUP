@@ -202,14 +202,20 @@ public class NavBar implements Section {
             n.setColor(Fx.border());
             n.drawLine(right - 4, cy - 12, right - 4, cy + 12);
             right -= 12;
-            int dw = fm.stringWidth("Dashboard") + 28;
-            dashR.setBounds(right - dw, cy - 20, dw, 40);
-            paintTextButton(n, dashR, "Dashboard", dashH);
-            right = dashR.x - 2;
-            int aw = fm.stringWidth("Admin") + 28;
-            adminR.setBounds(right - aw, cy - 20, aw, 40);
-            paintTextButton(n, adminR, "Admin", adminH);
-            right = adminR.x - 4;
+            adminR.setBounds(-100, -100, 0, 0);
+            if (loggedIn) {
+                // Logged in (student or admin): one Dashboard button, routed by role
+                int dw = fm.stringWidth("Dashboard") + 46;
+                dashR.setBounds(right - dw, cy - 20, dw, 40);
+                paintDashboardButton(n, dashR, dashH);
+                right = dashR.x - 4;
+            } else {
+                dashR.setBounds(-100, -100, 0, 0);
+                int lw = fm.stringWidth("Log in") + 28;
+                loginR.setBounds(right - lw, cy - 20, lw, 40);
+                paintTextButton(n, loginR, "Log in", loginH);
+                right = loginR.x - 4;
+            }
         }
 
         // Theme toggle
@@ -272,6 +278,24 @@ public class NavBar implements Section {
             dropDashR.setBounds(-100, -100, 0, 0);
             dropLogoutR.setBounds(-100, -100, 0, 0);
         }
+    }
+
+    /** "Dashboard" pill with a small grid icon, shown only to logged-in users. */
+    private void paintDashboardButton(Graphics2D g, Rectangle r, boolean hover) {
+        Graphics2D b = (Graphics2D) g.create();
+        Draw.setQualityHints(b);
+        b.setColor(hover ? Fx.subtle() : Fx.a(Fx.VIOLET, Fx.dark() ? 34 : 20));
+        b.fill(Fx.rr(r.x, r.y, r.width, r.height, 12));
+        // 2x2 grid icon
+        int ix = r.x + 13, iy = r.y + r.height / 2 - 6, cell = 5;
+        b.setColor(hover ? Fx.text() : Fx.VIOLET);
+        for (int k = 0; k < 4; k++) {
+            b.fill(Fx.rr(ix + (k % 2) * (cell + 2), iy + (k / 2) * (cell + 2), cell, cell, 2));
+        }
+        b.setFont(Fx.bold(14));
+        b.setColor(hover ? Fx.text() : Fx.text2());
+        Fx.textMid(b, "Dashboard", ix + cell * 2 + 9, r.y + r.height / 2f);
+        b.dispose();
     }
 
     private void paintTextButton(Graphics2D g, Rectangle r, String label, boolean hover) {
@@ -465,7 +489,7 @@ public class NavBar implements Section {
         Draw.setQualityHints(n);
         int rowH = 46;
         AuthStore.UserRecord menuUser = getLoggedInUser();
-        int rows = links.size() + 2 + (menuUser != null ? 2 : 0);
+        int rows = links.size() + 1 + (menuUser != null ? 2 : 0);
         int h = 16 + rows * rowH + (tiny && menuUser == null ? 62 : 0) + 8;
         menuR.setBounds(x, y, w, h);
         Fx.fadeBy(n, m);
@@ -496,15 +520,19 @@ public class NavBar implements Section {
         n.setColor(Fx.border());
         n.drawLine(x + 18, cy + 2, x + w - 18, cy + 2);
         cy += 6;
-        dashR.setBounds(x + 10, cy, w - 20, rowH - 4);
-        paintMenuRow(n, dashR, "Student dashboard", dashH);
-        cy += rowH;
-        adminR.setBounds(x + 10, cy, w - 20, rowH - 4);
-        paintMenuRow(n, adminR, "Admin panel", adminH);
+        adminR.setBounds(-100, -100, 0, 0);
+        if (menuUser != null) {
+            loginR.setBounds(-100, -100, 0, 0);
+            dashR.setBounds(x + 10, cy, w - 20, rowH - 4);
+            paintMenuRow(n, dashR, isAdmin(menuUser) ? "Admin dashboard" : "Dashboard", dashH);
+        } else {
+            dashR.setBounds(-100, -100, 0, 0);
+            loginR.setBounds(x + 10, cy, w - 20, rowH - 4);
+            paintMenuRow(n, loginR, "Log in", loginH);
+        }
         cy += rowH;
         if (menuUser != null) {
             startR.setBounds(-100, -100, 0, 0);
-            loginR.setBounds(-100, -100, 0, 0);
             int profH = 42;
             profileR.setBounds(x + 10, cy, w - 20, profH);
             if (profileH) {
@@ -538,7 +566,6 @@ public class NavBar implements Section {
         } else if (tiny) {
             profileR.setBounds(-100, -100, 0, 0);
             dropLogoutR.setBounds(-100, -100, 0, 0);
-            loginR.setBounds(-100, -100, 0, 0);
             startR.setBounds(x + 12, cy + 6, w - 24, 44);
             Fx.primaryButton(n, startR.x, startR.y, w - 24, 44, "Get started", startHov.getValue(), 0f, false);
         }
@@ -562,8 +589,12 @@ public class NavBar implements Section {
     public boolean onClick(int mx, int my) {
         if (themeR.contains(mx, my)) { Theme.toggleTheme(); return true; }
         if (burgerR.contains(mx, my)) { menuOpen = !menuOpen; return true; }
-        if (dashR.contains(mx, my)) { menuOpen = false; if (listener != null) listener.openDashboard(); return true; }
-        if (adminR.contains(mx, my)) { menuOpen = false; if (listener != null) listener.openAdminDashboard(); return true; }
+        if (dashR.contains(mx, my)) {
+            menuOpen = false;
+            profileMenuOpen = false;
+            openDashboardForRole();
+            return true;
+        }
         if (loginR.contains(mx, my)) {
             menuOpen = false;
             if (listener != null) listener.openModal("TeamUp Account Login",
@@ -575,14 +606,7 @@ public class NavBar implements Section {
             if (dropDashR.contains(mx, my)) {
                 profileMenuOpen = false;
                 menuOpen = false;
-                if (listener != null) {
-                    AuthStore.UserRecord u = getLoggedInUser();
-                    if (u != null && "Admin".equalsIgnoreCase(u.role)) {
-                        listener.openAdminDashboard();
-                    } else {
-                        listener.openDashboard();
-                    }
-                }
+                openDashboardForRole();
                 return true;
             }
             if (dropLogoutR.contains(mx, my)) {
@@ -648,6 +672,19 @@ public class NavBar implements Section {
             hand |= i.hovered;
         }
         return hand;
+    }
+
+    private static boolean isAdmin(AuthStore.UserRecord u) {
+        return u != null && "Admin".equalsIgnoreCase(u.role);
+    }
+
+    /** Admins go to the admin dashboard, everyone else to the student dashboard. */
+    private void openDashboardForRole() {
+        if (listener == null) return;
+        AuthStore.UserRecord u = getLoggedInUser();
+        if (u == null) return;
+        if (isAdmin(u)) listener.openAdminDashboard();
+        else listener.openDashboard();
     }
 
     public boolean isMenuOpen() { return menuOpen; }

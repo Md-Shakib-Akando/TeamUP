@@ -36,6 +36,7 @@ public class AdminDataStore {
 
     public static class UserModel {
         public String id;
+        public String mongoId = "";
         public String name;
         public String initials;
         public String email;
@@ -57,6 +58,7 @@ public class AdminDataStore {
 
     public static class ProjectModel {
         public String id;
+        public String mongoId = "";
         public String name;
         public String category;
         public String owner;
@@ -80,6 +82,7 @@ public class AdminDataStore {
 
     public static class ReportModel {
         public String id;
+        public String mongoId = "";
         public String type; // "Message", "Project", "Profile", "Comment"
         public String title;
         public String category; // "Harassment", "Misleading content", "Spam", "Inappropriate content",
@@ -119,6 +122,7 @@ public class AdminDataStore {
 
     public static class CategoryModel {
         public String id;
+        public String mongoId = "";
         public String name;
         public int projectCount;
         public boolean active;
@@ -133,6 +137,7 @@ public class AdminDataStore {
 
     public static class SkillModel {
         public String id;
+        public String mongoId = "";
         public String name;
         public int memberCount;
         public boolean active;
@@ -147,6 +152,7 @@ public class AdminDataStore {
 
     public static class AuditLogModel {
         public String id;
+        public String mongoId = "";
         public String actorName;
         public String actorInitials;
         public String action;
@@ -170,6 +176,7 @@ public class AdminDataStore {
 
     public static class ReviewModel {
         public String id;
+        public String mongoId = "";
         public String reviewerName;
         public String reviewerInitials;
         public String revieweeName;
@@ -218,6 +225,27 @@ public class AdminDataStore {
     private final List<SkillModel> skills = new ArrayList<>();
     private final List<AuditLogModel> auditLogs = new ArrayList<>();
     private final List<ReviewModel> reviews = new ArrayList<>();
+
+    public synchronized void clearUsers() { users.clear(); }
+    public synchronized List<UserModel> getUsersRaw() { return users; }
+
+    public synchronized void clearProjects() { projects.clear(); }
+    public synchronized List<ProjectModel> getProjectsRaw() { return projects; }
+
+    public synchronized void clearReports() { reports.clear(); }
+    public synchronized List<ReportModel> getReportsRaw() { return reports; }
+
+    public synchronized void clearCategories() { categories.clear(); }
+    public synchronized List<CategoryModel> getCategoriesRaw() { return categories; }
+
+    public synchronized void clearSkills() { skills.clear(); }
+    public synchronized List<SkillModel> getSkillsRaw() { return skills; }
+
+    public synchronized void clearAuditLogs() { auditLogs.clear(); }
+    public synchronized List<AuditLogModel> getAuditLogsRaw() { return auditLogs; }
+
+    public synchronized void clearReviews() { reviews.clear(); }
+    public synchronized List<ReviewModel> getReviewsRaw() { return reviews; }
 
     // =========================================================================
     // 12 PLATFORM SETTINGS SUITE (Comprehensive, Reactive, & Audited)
@@ -547,6 +575,7 @@ public class AdminDataStore {
         users.add(0, newUser);
         baseTotalUsers++;
         logActivity("Jordan Lee", "JL", "Added new user", cleanName + " (" + cleanRole + ")", true);
+        AdminSync.syncAddUser(cleanName, cleanEmail, cleanRole);
         return true;
     }
 
@@ -558,6 +587,7 @@ public class AdminDataStore {
                 UserModel removed = users.remove(i);
                 baseTotalUsers = Math.max(0, baseTotalUsers - 1);
                 logActivity("Jordan Lee", "JL", "Deleted user", removed.name, true);
+                AdminSync.syncDeleteUser(removed.mongoId != null && !removed.mongoId.isEmpty() ? removed.mongoId : removed.id, removed.name);
                 return true;
             }
         }
@@ -589,6 +619,7 @@ public class AdminDataStore {
             if (u.name.equalsIgnoreCase(name)) {
                 u.status = "Suspended";
                 logActivity("Jordan Lee", "JL", "Suspended user", u.name, true);
+                AdminSync.syncUpdateUserStatus(u.mongoId != null && !u.mongoId.isEmpty() ? u.mongoId : u.id, u.name, "Suspended");
                 return true;
             }
         }
@@ -600,6 +631,7 @@ public class AdminDataStore {
             if (u.name.equalsIgnoreCase(name)) {
                 u.status = "Active";
                 logActivity("Jordan Lee", "JL", "Reactivated user", u.name, true);
+                AdminSync.syncUpdateUserStatus(u.mongoId != null && !u.mongoId.isEmpty() ? u.mongoId : u.id, u.name, "Active");
                 return true;
             }
         }
@@ -612,6 +644,7 @@ public class AdminDataStore {
                 String oldRole = u.role;
                 u.role = newRole;
                 logActivity("Jordan Lee", "JL", "Changed user role", u.name + " → " + newRole, true);
+                AdminSync.syncUpdateUserRole(u.mongoId != null && !u.mongoId.isEmpty() ? u.mongoId : u.id, u.name, newRole);
                 return true;
             }
         }
@@ -723,6 +756,7 @@ public class AdminDataStore {
         projects.add(0, newProj);
         baseTotalProjects++;
         logActivity("Jordan Lee", "JL", "Created project", cleanName + " (" + cleanCat + ")", true);
+        AdminSync.syncAddProject(cleanName, cleanCat, cleanOwner, cleanSize, cleanStatus, cleanDesc);
         return true;
     }
 
@@ -735,6 +769,7 @@ public class AdminDataStore {
                 ProjectModel removed = projects.remove(i);
                 baseTotalProjects = Math.max(0, baseTotalProjects - 1);
                 logActivity("Jordan Lee", "JL", "Deleted project", removed.name, true);
+                AdminSync.syncDeleteProject(removed.mongoId != null && !removed.mongoId.isEmpty() ? removed.mongoId : removed.id, removed.name);
                 return true;
             }
         }
@@ -748,6 +783,7 @@ public class AdminDataStore {
                 p.status = newStatus;
                 logActivity("Jordan Lee", "JL", "Updated project status",
                         p.name + " (" + oldStatus + " → " + newStatus + ")", true);
+                AdminSync.syncUpdateProjectStatus(p.mongoId != null && !p.mongoId.isEmpty() ? p.mongoId : p.id, p.name, newStatus);
                 return true;
             }
         }
@@ -830,6 +866,7 @@ public class AdminDataStore {
                 if (note != null && !note.isEmpty())
                     r.internalNote = note;
                 logActivity("Jordan Lee", "JL", "Resolved report", r.id + " · " + r.title, true);
+                AdminSync.syncResolveReport(r.mongoId != null && !r.mongoId.isEmpty() ? r.mongoId : r.id, note);
                 return true;
             }
         }
@@ -843,6 +880,7 @@ public class AdminDataStore {
                 if (note != null && !note.isEmpty())
                     r.internalNote = note;
                 logActivity("Jordan Lee", "JL", "Issued warning", r.flaggedAuthor + " (Report " + r.id + ")", true);
+                AdminSync.syncActionReport(r.mongoId != null && !r.mongoId.isEmpty() ? r.mongoId : r.id, "warn", note);
                 return true;
             }
         }
@@ -856,6 +894,7 @@ public class AdminDataStore {
                 if (note != null && !note.isEmpty())
                     r.internalNote = note;
                 logActivity("Jordan Lee", "JL", "Removed content", r.id + " · " + r.type, true);
+                AdminSync.syncActionReport(r.mongoId != null && !r.mongoId.isEmpty() ? r.mongoId : r.id, "remove", note);
                 return true;
             }
         }
@@ -869,6 +908,7 @@ public class AdminDataStore {
                 if (note != null && !note.isEmpty())
                     r.internalNote = note;
                 logActivity("Jordan Lee", "JL", "Escalated report", r.id + " to safety council", true);
+                AdminSync.syncActionReport(r.mongoId != null && !r.mongoId.isEmpty() ? r.mongoId : r.id, "escalate", note);
                 return true;
             }
         }
@@ -898,6 +938,7 @@ public class AdminDataStore {
         CategoryModel cat = new CategoryModel("C-" + (categories.size() + 1), trimmed, 0, true);
         categories.add(0, cat);
         logActivity("Jordan Lee", "JL", "Created category", trimmed, true);
+        AdminSync.syncAddCategory(trimmed);
         return true;
     }
 
@@ -906,6 +947,7 @@ public class AdminDataStore {
             if (c.name.equalsIgnoreCase(name)) {
                 c.active = !c.active;
                 logActivity("Jordan Lee", "JL", (c.active ? "Enabled category" : "Disabled category"), c.name, true);
+                AdminSync.syncToggleCategory(c.mongoId, c.name, c.active);
                 return true;
             }
         }
@@ -923,6 +965,7 @@ public class AdminDataStore {
         SkillModel skill = new SkillModel("S-" + (skills.size() + 1), trimmed, 1, true);
         skills.add(0, skill);
         logActivity("Jordan Lee", "JL", "Created skill tag", trimmed, true);
+        AdminSync.syncAddSkill(trimmed);
         return true;
     }
 
@@ -931,6 +974,7 @@ public class AdminDataStore {
             if (s.name.equalsIgnoreCase(name)) {
                 s.active = !s.active;
                 logActivity("Jordan Lee", "JL", (s.active ? "Enabled skill tag" : "Disabled skill tag"), s.name, true);
+                AdminSync.syncToggleSkill(s.mongoId, s.name, s.active);
                 return true;
             }
         }
@@ -951,6 +995,7 @@ public class AdminDataStore {
                 String prev = c.name;
                 c.name = trimmed;
                 logActivity("Jordan Lee", "JL", "Updated category name", prev + " → " + trimmed, true);
+                AdminSync.syncUpdateCategory(oldName, trimmed);
                 return true;
             }
         }
@@ -971,6 +1016,7 @@ public class AdminDataStore {
                 String prev = s.name;
                 s.name = trimmed;
                 logActivity("Jordan Lee", "JL", "Updated skill tag name", prev + " → " + trimmed, true);
+                AdminSync.syncUpdateSkill(oldName, trimmed);
                 return true;
             }
         }
@@ -1089,6 +1135,7 @@ public class AdminDataStore {
                 ReviewModel removed = reviews.remove(i);
                 logActivity("Jordan Lee", "JL", "Deleted inappropriate feedback",
                         removed.id + " (" + removed.reviewerName + ")", true);
+                AdminSync.syncDeleteReview(removed.mongoId != null && !removed.mongoId.isEmpty() ? removed.mongoId : removed.id);
                 return true;
             }
         }
@@ -1104,6 +1151,7 @@ public class AdminDataStore {
                 r.reportReason = null;
                 r.reportedBy = null;
                 logActivity("Jordan Lee", "JL", "Approved reported feedback", r.id + " (" + r.reviewerName + ")", true);
+                AdminSync.syncUpdateReview(r.mongoId != null && !r.mongoId.isEmpty() ? r.mongoId : r.id, "approve", "Published");
                 return true;
             }
         }
@@ -1118,9 +1166,11 @@ public class AdminDataStore {
                 if ("Hidden".equalsIgnoreCase(r.status)) {
                     r.status = "Published";
                     logActivity("Jordan Lee", "JL", "Unhid feedback", r.id, true);
+                    AdminSync.syncUpdateReview(r.mongoId != null && !r.mongoId.isEmpty() ? r.mongoId : r.id, "unhide", "Published");
                 } else {
                     r.status = "Hidden";
                     logActivity("Jordan Lee", "JL", "Hid feedback", r.id, true);
+                    AdminSync.syncUpdateReview(r.mongoId != null && !r.mongoId.isEmpty() ? r.mongoId : r.id, "hide", "Hidden");
                 }
                 return true;
             }
@@ -1171,6 +1221,7 @@ public class AdminDataStore {
         reviews.add(0, newRev);
         logActivity("Jordan Lee", "JL", "Added review", newId + " (" + cleanReviewer + " → " + cleanReviewee + ")",
                 true);
+        AdminSync.syncAddReview(cleanReviewer, cleanReviewee, cleanProject, cleanRole, cleanRating, text, cleanType);
         return true;
     }
 
@@ -1391,6 +1442,7 @@ public class AdminDataStore {
             universityDomainsList.add(clean);
             allowedDomains = String.join(", ", universityDomainsList);
             logActivity("Jordan Lee", "JL", "Added university domain", clean, true);
+            AdminSync.syncAddDomain(clean);
             return true;
         }
         return false;
@@ -1404,6 +1456,7 @@ public class AdminDataStore {
         if (removed) {
             allowedDomains = String.join(", ", universityDomainsList);
             logActivity("Jordan Lee", "JL", "Removed university domain", clean, true);
+            AdminSync.syncRemoveDomain(clean);
             return true;
         }
         return false;
@@ -1473,6 +1526,7 @@ public class AdminDataStore {
             return false;
         this.adminPassword = newPass;
         logActivity("Jordan Lee", "JL", "Changed admin password", "Security Settings", true);
+        AdminSync.syncChangePassword(currentPass, newPass);
         return true;
     }
 
@@ -1531,5 +1585,6 @@ public class AdminDataStore {
         dataRetentionDays = 365;
 
         logActivity("Jordan Lee", "JL", "Reset platform settings to default", "Global Configuration", true);
+        AdminSync.syncResetSettings();
     }
 }

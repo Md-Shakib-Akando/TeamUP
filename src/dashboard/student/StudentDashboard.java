@@ -4,6 +4,7 @@ import java.awt.geom.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Pixel-perfect Student Workspace Desktop Application for TeamUp.
@@ -95,6 +96,13 @@ public class StudentDashboard {
     private String profileName = "Alex Morgan";
     private String profileBio = "Computer Science student passionate about distributed systems, React, and UX.";
     private String profilePortfolio = "https://alexmorgan.dev";
+    private String profileInitials = "AM";
+    private String profileRole = "Student";
+
+    // Backend sync: stat card subtitles from the API, and work queued for the render thread
+    private String[] statSubtitles = null;
+    private final ConcurrentLinkedQueue<Runnable> uiQueue = new ConcurrentLinkedQueue<Runnable>();
+    private volatile boolean serverDataLoaded = false;
 
     // Toast notification
     private String toastMessage = "";
@@ -109,6 +117,8 @@ public class StudentDashboard {
         public String[] skills;
         public String footer;
         public boolean isGreen, bookmarked;
+        public String remoteId;   // backend project id (null for demo data)
+        public boolean requested; // pending join request already sent
         public int type;
         public int hitX, hitY, hitW, hitH;
         public int bmX, bmY;
@@ -130,6 +140,7 @@ public class StudentDashboard {
         public String initials;
         public Color avBg, avText;
         public String name, role, matchScore, bio, university;
+        public String remoteId; // backend user id (null for demo data)
         public boolean invited;
         public int hitX, hitY, hitW, hitH;
 
@@ -150,6 +161,7 @@ public class StudentDashboard {
     public static class TaskItem {
         public String title, subtitle;
         public int statusType; // 0: Overdue, 1: Today, 2: Normal
+        public String remoteId; // backend task id (null for demo data)
         public boolean completed;
         public int hitX, hitY, hitW, hitH;
 
@@ -396,8 +408,12 @@ public class StudentDashboard {
     public void openModal(ActiveModal modal) {
         if (header != null)
             header.closePopups();
-        if (modals != null)
+        if (modals != null) {
+            if (modal == ActiveModal.COMPLETE_PROFILE) {
+                modals.initProfileForm(this);
+            }
             modals.open(modal);
+        }
     }
 
     public void closeModal() {
@@ -420,6 +436,16 @@ public class StudentDashboard {
     }
 
     public void update(float dt) {
+        // Apply results from background API calls on the render thread (same thread as paint)
+        Runnable job;
+        while ((job = uiQueue.poll()) != null) {
+            try {
+                job.run();
+            } catch (RuntimeException e) {
+                System.err.println("[Dashboard] Failed to apply server data: " + e);
+            }
+        }
+
         if (activeNav != lastNav) {
             lastNav = activeNav;
             targetScrollY = 0f;
@@ -603,7 +629,7 @@ public class StudentDashboard {
         int avY = curY + 30;
         g.setColor(Color.WHITE);
         g.fillOval(avX - 4, avY - 4, avD + 8, avD + 8);
-        drawAvatar(g, avX + avD / 2, avY + avD / 2, avD / 2, "AM", Theme.PASTEL_PINK, BRAND_ACCENT);
+        drawAvatar(g, avX + avD / 2, avY + avD / 2, avD / 2, profileInitials, Theme.PASTEL_PINK, BRAND_ACCENT);
 
         // Right Top Buttons: [✎ Edit profile] & [🔗 Share profile]
         int btnH = 32;
@@ -879,7 +905,7 @@ public class StudentDashboard {
 
         g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 10));
         g.setColor(TEXT_LIGHT);
-        g.drawString("Click any skill to endorse Alex", x + 16, curY + card1H - 14);
+        g.drawString("Click any skill to endorse " + getFirstName(), x + 16, curY + card1H - 14);
 
         curY += card1H + 16;
 
@@ -1163,7 +1189,7 @@ public class StudentDashboard {
 
         g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 10));
         g.setColor(TEXT_LIGHT);
-        g.drawString("Updated from Alex Morgan", fnX, fnY + inputH + 14);
+        g.drawString("Updated from " + settingsData.originalFullName, fnX, fnY + inputH + 14);
 
         int unX = fnX + halfW + gap;
         int unY = fnY;
@@ -2392,15 +2418,19 @@ public class StudentDashboard {
         }
 
         if (editProfileBtnBox.contains(mx, my)) {
-            if (listener != null) {
-                listener.openModal("Edit Profile - Alex Morgan",
-                        "Update your academic details, availability, headline, and bio.", false);
-            }
+            openModal(ActiveModal.COMPLETE_PROFILE);
             return true;
         }
 
         if (shareProfileBtnBox.contains(mx, my)) {
-            showToast("Profile link copied: teamup.com/u/alexmorgan");
+            String url = "https://teamup.com/u/" + (profileData.handle != null ? profileData.handle.replace("@", "") : "alex");
+            try {
+                java.awt.datatransfer.StringSelection sel = new java.awt.datatransfer.StringSelection(url);
+                java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(sel, sel);
+                showToast("Profile link copied to clipboard: " + url + " 📋");
+            } catch (Exception ex) {
+                showToast("Profile link: " + url);
+            }
             return true;
         }
 
@@ -2408,6 +2438,7 @@ public class StudentDashboard {
             if (profileSkillBounds.get(i).contains(mx, my)) {
                 profileData.toggleEndorsement(i % profileData.skills.size());
                 ProfileData.ProfileSkill s = profileData.skills.get(i % profileData.skills.size());
+                DashboardSync.setEndorsement(this, s.name, s.userEndorsed);
                 showToast(s.userEndorsed ? ("Endorsed " + s.name + " (" + s.endorsements + ")")
                         : ("Removed endorsement for " + s.name));
                 return true;
@@ -2451,7 +2482,15 @@ public class StudentDashboard {
 
             if (saveAccountBtnBox.contains(mx, my)) {
                 settingsData.saveAccountChanges();
-                showToast("Account details updated successfully!");
+                setProfileName(settingsData.fullName);
+                if (settingsData.username != null && !settingsData.username.isEmpty()) {
+                    profileData.handle = "@" + settingsData.username.replace("@", "");
+                }
+                if (settingsData.email != null && !settingsData.email.isEmpty()) {
+                    profileData.email = settingsData.email;
+                }
+                DashboardSync.saveAccount(this, settingsData);
+                showToast("Account details updated successfully! 🚀");
                 return true;
             }
             if (cancelAccountBtnBox.contains(mx, my)) {
@@ -2460,9 +2499,24 @@ public class StudentDashboard {
                 return true;
             }
             if (changePassBtnBox.contains(mx, my)) {
-                if (listener != null) {
-                    listener.openModal("Update Account Password",
-                            "Enter your current password and choose a secure new password.", false);
+                javax.swing.JPanel panel = new javax.swing.JPanel(new java.awt.GridLayout(2, 2, 8, 8));
+                javax.swing.JPasswordField curPass = new javax.swing.JPasswordField();
+                javax.swing.JPasswordField newPass = new javax.swing.JPasswordField();
+                panel.add(new javax.swing.JLabel("Current Password:"));
+                panel.add(curPass);
+                panel.add(new javax.swing.JLabel("New Password:"));
+                panel.add(newPass);
+                int res = javax.swing.JOptionPane.showConfirmDialog(
+                        null, panel, "Update Account Password",
+                        javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.PLAIN_MESSAGE);
+                if (res == javax.swing.JOptionPane.OK_OPTION) {
+                    String curP = new String(curPass.getPassword()).trim();
+                    String newP = new String(newPass.getPassword()).trim();
+                    if (newP.length() < 6) {
+                        showToast("New password must be at least 6 characters.");
+                    } else {
+                        DashboardSync.changePassword(this, curP, newP);
+                    }
                 }
                 return true;
             }
@@ -2495,6 +2549,7 @@ public class StudentDashboard {
                 return true;
             }
             if (savePrivacyBtnBox.contains(mx, my)) {
+                DashboardSync.savePreferences(this, settingsData);
                 showToast("Privacy preferences saved!");
                 return true;
             }
@@ -2564,6 +2619,7 @@ public class StudentDashboard {
                 return true;
             }
             if (saveCollabBtnBox.contains(mx, my)) {
+                DashboardSync.savePreferences(this, settingsData);
                 showToast("Collaboration preferences saved!");
                 return true;
             }
@@ -2571,17 +2627,28 @@ public class StudentDashboard {
 
         if (settingsData.activeTab == SettingsData.SettingsTab.DANGER_ZONE) {
             if (deactivateBtnBox.contains(mx, my)) {
-                if (listener != null) {
-                    listener.openModal("Deactivate TeamUp Account",
-                            "Take a break without deleting projects. You can reactivate anytime.", false);
+                int opt = javax.swing.JOptionPane.showConfirmDialog(
+                        null,
+                        "Are you sure you want to deactivate your account?\nYou can reactivate anytime by logging back in.",
+                        "Deactivate TeamUp Account",
+                        javax.swing.JOptionPane.YES_NO_OPTION,
+                        javax.swing.JOptionPane.WARNING_MESSAGE);
+                if (opt == javax.swing.JOptionPane.YES_OPTION) {
+                    showToast("Account deactivated. Logging out...");
+                    if (listener != null) listener.returnToLanding();
                 }
                 return true;
             }
             if (deleteAccountBtnBox.contains(mx, my)) {
-                if (listener != null) {
-                    listener.openModal("Delete Account Permanently",
-                            "Warning: You own '" + settingsData.ownedProject + "'. Transfer ownership before deleting.",
-                            true);
+                int opt = javax.swing.JOptionPane.showConfirmDialog(
+                        null,
+                        "Warning: Are you sure you want to permanently delete your account?\nAll your data and project ownership will be removed.",
+                        "Delete Account Permanently",
+                        javax.swing.JOptionPane.YES_NO_OPTION,
+                        javax.swing.JOptionPane.ERROR_MESSAGE);
+                if (opt == javax.swing.JOptionPane.YES_OPTION) {
+                    showToast("Account deleted. Returning to home...");
+                    if (listener != null) listener.returnToLanding();
                 }
                 return true;
             }
@@ -2609,7 +2676,8 @@ public class StudentDashboard {
         if (mx >= inviteMemberBtnX && mx <= inviteMemberBtnX + inviteMemberBtnW &&
                 my >= inviteMemberBtnY && my <= inviteMemberBtnY + inviteMemberBtnH) {
             if (listener != null) {
-                listener.openModal("Invite Member to CampusConnect", "Enter student email or UW NetID to invite them.",
+                listener.openModal("Invite Member to " + teamData.breadcrumbs.replace("My Teams / ", "").replace(" / Workspace", ""),
+                        "Enter student email or UW NetID to invite them.",
                         true);
             }
             return true;
@@ -2617,14 +2685,14 @@ public class StudentDashboard {
 
         if (mx >= viewRoadmapBtnX && mx <= viewRoadmapBtnX + viewRoadmapBtnW &&
                 my >= viewRoadmapBtnY && my <= viewRoadmapBtnY + viewRoadmapBtnH) {
-            showToast("CampusConnect Q4 Roadmap: MVP Nov 06, Beta Launch Nov 20.");
+            showToast("Next milestone: " + teamData.nextMilestoneDate + " · " + teamData.nextMilestoneSub);
             return true;
         }
 
         if (mx >= openBoardBtnX && mx <= openBoardBtnX + openBoardBtnW &&
                 my >= openBoardBtnY && my <= openBoardBtnY + openBoardBtnH) {
             teamData.activeTabIndex = 2;
-            showToast("Opening Sprint Tasks Kanban Board (28 tasks)...");
+            showToast("Opening Sprint Tasks Kanban Board (" + teamData.tasksTotal + " tasks)...");
             return true;
         }
 
@@ -2633,7 +2701,7 @@ public class StudentDashboard {
                 (mx >= reviewAppsBtnX && mx <= reviewAppsBtnX + reviewAppsBtnW &&
                         my >= reviewAppsBtnY && my <= reviewAppsBtnY + reviewAppsBtnH)) {
             teamData.activeTabIndex = 4;
-            showToast("Viewing 3 pending candidate applications...");
+            showToast("Viewing " + teamData.pendingRequestsCount + " pending candidate applications...");
             return true;
         }
         return false;
@@ -2916,7 +2984,22 @@ public class StudentDashboard {
     }
 
     public void setProfileName(String n) {
+        if (n == null) n = "";
         this.profileName = n;
+        if (profileData != null) {
+            profileData.name = n;
+        }
+        if (settingsData != null) {
+            settingsData.fullName = n;
+            settingsData.originalFullName = n;
+        }
+        // Recalculate initials
+        String[] parts = n.trim().split("\\s+");
+        if (parts.length >= 2 && !parts[0].isEmpty() && !parts[1].isEmpty()) {
+            setProfileInitials(("" + parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase());
+        } else if (parts.length == 1 && !parts[0].isEmpty()) {
+            setProfileInitials(parts[0].substring(0, Math.min(2, parts[0].length())).toUpperCase());
+        }
     }
 
     public String getProfileBio() {
@@ -2925,6 +3008,9 @@ public class StudentDashboard {
 
     public void setProfileBio(String b) {
         this.profileBio = b;
+        if (profileData != null) {
+            profileData.bio = b;
+        }
     }
 
     public String getProfilePortfolio() {
@@ -2933,6 +3019,64 @@ public class StudentDashboard {
 
     public void setProfilePortfolio(String u) {
         this.profilePortfolio = u;
+        if (profileData != null) {
+            profileData.portfolio = u;
+        }
+    }
+
+    public String getProfileInitials() {
+        return profileInitials;
+    }
+
+    public void setProfileInitials(String i) {
+        this.profileInitials = i;
+    }
+
+    public String getProfileRole() {
+        return profileRole;
+    }
+
+    public void setProfileRole(String r) {
+        this.profileRole = r;
+    }
+
+    /** First name for the greeting ("Welcome back, Alex!"). */
+    public String getFirstName() {
+        String n = profileName == null ? "" : profileName.trim();
+        int sp = n.indexOf(' ');
+        return n.isEmpty() ? "there" : (sp > 0 ? n.substring(0, sp) : n);
+    }
+
+    /** Stat card subtitle from the backend, or the demo fallback when offline. */
+    public String getStatSubtitle(int index, String fallback) {
+        String[] subs = statSubtitles;
+        return (subs != null && index >= 0 && index < subs.length && subs[index] != null) ? subs[index] : fallback;
+    }
+
+    public void setStatSubtitles(String[] subs) {
+        this.statSubtitles = subs;
+    }
+
+    // =========================================================================
+    // BACKEND SYNC
+    // =========================================================================
+
+    /** Queue work to run on the render thread before the next frame. Safe to call from any thread. */
+    public void runOnUi(Runnable r) {
+        if (r != null) uiQueue.add(r);
+    }
+
+    /** Fetch the logged-in user's dashboard from the API (no-op when offline / demo mode). */
+    public void loadFromServer() {
+        DashboardSync.load(this);
+    }
+
+    public boolean isServerDataLoaded() {
+        return serverDataLoaded;
+    }
+
+    void markServerDataLoaded() {
+        this.serverDataLoaded = true;
     }
 
     public ProjectItem getSelectedProject() {

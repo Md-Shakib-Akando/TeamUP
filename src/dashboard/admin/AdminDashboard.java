@@ -67,6 +67,13 @@ public class AdminDashboard {
 
         // Initial breadcrumb
         this.header.setBreadcrumb(sidebar.getActiveNav().label);
+
+        // Synchronize state with MongoDB Atlas backend
+        loadFromServer();
+    }
+
+    public void loadFromServer() {
+        AdminSync.load(this);
     }
 
     public void update(float dt) {

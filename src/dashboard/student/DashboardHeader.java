@@ -83,7 +83,8 @@ public class DashboardHeader {
         g.fillOval(avatarBtnX, avatarBtnY, avatarBtnSize, avatarBtnSize);
         g.setFont(DashboardTheme.FONT_BOLD_12);
         g.setColor(DashboardTheme.BRAND_PURPLE);
-        g.drawString("AM", avatarBtnX + 8, avatarBtnY + 22);
+        String ini = dashboard.getProfileInitials();
+        g.drawString(ini, avatarBtnX + (avatarBtnSize - g.getFontMetrics().stringWidth(ini)) / 2, avatarBtnY + 22);
 
         // Bell Icon
         rightX -= 36;
@@ -229,6 +230,7 @@ public class DashboardHeader {
         // Notification popup click to dismiss
         if (notifOpen) {
             notifOpen = false;
+            DashboardSync.markNotificationsRead(dashboard);
             dashboard.showToast("Notifications marked as read.");
             return true;
         }
