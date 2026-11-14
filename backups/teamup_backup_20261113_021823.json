@@ -1,0 +1,11 @@
+{
+  "timestamp": "Fri Nov 13 02:18:23 GMT+06:00 2026",
+  "platformName": "TeamUp",
+  "supportEmail": "support@teamup.edu",
+  "usersCount": 8,
+  "projectsCount": 8,
+  "reviewsCount": 9,
+  "reportsCount": 5,
+  "allowedDomains": "@university.edu, @stanford.edu, @mit.edu, @berkeley.edu, @du.ac.bd, @buet.ac.bd",
+  "maintenanceMode": false
+}
