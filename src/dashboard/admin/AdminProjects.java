@@ -250,7 +250,7 @@ public class AdminProjects {
         // Dynamic total counter Pill
         int pillX = x + titleW + 12;
         int pillY = y + 7;
-        int totalProjects = AdminDataStore.getInstance().getTotalProjectsCount();
+        int totalProjects = AdminDataStore.getInstance().getAllProjects().size();
         String totalLabel = String.format("%,d total", totalProjects);
         g.setFont(AdminTheme.FONT_BOLD_10);
         int pillW = g.getFontMetrics().stringWidth(totalLabel) + 18;
@@ -294,10 +294,16 @@ public class AdminProjects {
 
     private int paintStatusTabs(Graphics2D g, int x, int y, int w) {
         AdminDataStore store = AdminDataStore.getInstance();
-        int allCount = store.getTotalProjectsCount();
-        int actCount = store.getActiveProjectsCount();
-        int recCount = store.getRecruitingProjectsCount();
-        int revCount = store.getUnderReviewProjectsCount();
+        List<AdminDataStore.ProjectModel> allList = store.getAllProjects();
+        int allCount = allList.size();
+        int actCount = 0;
+        int recCount = 0;
+        int revCount = 0;
+        for (AdminDataStore.ProjectModel p : allList) {
+            if ("Active".equalsIgnoreCase(p.status)) actCount++;
+            else if ("Recruiting".equalsIgnoreCase(p.status)) recCount++;
+            else if ("Under review".equalsIgnoreCase(p.status)) revCount++;
+        }
 
         String[] tabs = {
                 String.format("All projects · %,d", allCount),
