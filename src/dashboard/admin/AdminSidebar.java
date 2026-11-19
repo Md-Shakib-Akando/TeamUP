@@ -93,6 +93,15 @@ public class AdminSidebar {
         g.setColor(AdminTheme.BORDER_COLOR);
         g.drawLine(x, bottomY, x + w, bottomY);
 
+        AuthStore.UserRecord cur = AuthStore.getCurrentUser();
+        String adminName = (cur != null && cur.name != null && !cur.name.trim().isEmpty())
+                ? cur.name.trim()
+                : AdminDataStore.getInstance().getActorName();
+        String adminInitials = AdminDataStore.getInstance().getActorInitials();
+        String adminRole = (cur != null && cur.role != null && !cur.role.trim().isEmpty())
+                ? (cur.role.equalsIgnoreCase("Admin") ? "Platform administrator" : cur.role + " · Admin")
+                : "Platform administrator";
+
         int avX = x + padX;
         int avY = bottomY + 14;
         int avSize = 36;
@@ -100,15 +109,16 @@ public class AdminSidebar {
         g.fillOval(avX, avY, avSize, avSize);
         g.setFont(AdminTheme.FONT_BOLD_12);
         g.setColor(AdminTheme.BRAND_PRIMARY);
-        g.drawString("JL", avX + 10, avY + 23);
+        FontMetrics afm = g.getFontMetrics();
+        g.drawString(adminInitials, avX + (avSize - afm.stringWidth(adminInitials)) / 2, avY + 23);
 
         g.setFont(AdminTheme.FONT_BOLD_12);
         g.setColor(AdminTheme.TEXT_DARK);
-        g.drawString("Jordan Lee", avX + 44, avY + 16);
+        g.drawString(adminName, avX + 44, avY + 16);
 
         g.setFont(AdminTheme.FONT_REG_11);
         g.setColor(AdminTheme.TEXT_LIGHT);
-        g.drawString("Platform administrator", avX + 44, avY + 31);
+        g.drawString(adminRole, avX + 44, avY + 31);
 
         AdminTheme.drawChevronDown(g, x + w - padX - 8, avY + 14, 10, AdminTheme.TEXT_LIGHT, 0f);
     }

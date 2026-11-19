@@ -50,6 +50,7 @@ public class AdminDashboard {
 
     // Active sub-view tracker for change detection
     private AdminSidebar.AdminNavItem lastNav = AdminSidebar.AdminNavItem.OVERVIEW;
+    private float autoSyncTimer = 0f;
 
     public AdminDashboard(AdminListener listener) {
         this.listener = listener;
@@ -73,6 +74,7 @@ public class AdminDashboard {
     }
 
     public void loadFromServer() {
+        AdminDataStore.getInstance().syncLoggedInAdmin();
         AdminSync.load(this);
     }
 
@@ -83,6 +85,18 @@ public class AdminDashboard {
             header.setBreadcrumb(lastNav.label);
             targetScrollY = 0f;
             scrollY = 0f;
+            if (lastNav == AdminSidebar.AdminNavItem.OVERVIEW || lastNav == AdminSidebar.AdminNavItem.REPORTS) {
+                AdminSync.refresh(this);
+            }
+        }
+
+        // Periodic background auto-sync every 45s if online
+        autoSyncTimer += dt;
+        if (autoSyncTimer >= 45f) {
+            autoSyncTimer = 0f;
+            if (AdminSync.isOnline()) {
+                AdminSync.load(this);
+            }
         }
 
         // Smooth scroll interpolation
@@ -233,6 +247,9 @@ public class AdminDashboard {
         header.setBreadcrumb(item.label);
         targetScrollY = 0f;
         scrollY = 0f;
+        if (item == AdminSidebar.AdminNavItem.OVERVIEW || item == AdminSidebar.AdminNavItem.REPORTS) {
+            AdminSync.refresh(this);
+        }
     }
 
     public void openReviewModal(AdminOverview.ModerationItem item) {
@@ -248,11 +265,19 @@ public class AdminDashboard {
     }
 
     public void openAddCategoryModal() {
-        modals.openAddCategory();
+        modals.openAddCategory("");
+    }
+
+    public void openAddCategoryModal(String prefill) {
+        modals.openAddCategory(prefill);
     }
 
     public void openAddSkillModal() {
-        modals.openAddSkill();
+        modals.openAddSkill("");
+    }
+
+    public void openAddSkillModal(String prefill) {
+        modals.openAddSkill(prefill);
     }
 
     public void openUserDetailsModal(AdminDataStore.UserModel user) {

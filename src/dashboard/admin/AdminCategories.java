@@ -49,6 +49,13 @@ public class AdminCategories {
     private int skillResetBtnX = -9999, skillResetBtnY = -9999, skillResetBtnW = 104, skillResetBtnH = 28;
     private boolean skillResetHovered = false;
 
+    // Empty state Quick-Add buttons
+    private int catQuickAddBtnX = -9999, catQuickAddBtnY = -9999, catQuickAddBtnW, catQuickAddBtnH;
+    private boolean catQuickAddHovered = false;
+
+    private int skillQuickAddBtnX = -9999, skillQuickAddBtnY = -9999, skillQuickAddBtnW, skillQuickAddBtnH;
+    private boolean skillQuickAddHovered = false;
+
     // Header buttons
     private int addCatBtnX, addCatBtnY, addCatBtnW = 132, addCatBtnH = 36;
     private boolean addCatHovered = false;
@@ -254,9 +261,31 @@ public class AdminCategories {
             g.setFont(AdminTheme.FONT_BOLD_11);
             g.setColor(catResetHovered ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.TEXT_DARK);
             g.drawString("Reset search", catResetBtnX + 16, catResetBtnY + 18);
+
+            // Dynamic Quick Add Button "+ Add <catSearch>"
+            if (!catSearch.trim().isEmpty()) {
+                String qLabel = "+ Add \"" + (catSearch.length() > 14 ? catSearch.substring(0, 14) + "..." : catSearch) + "\"";
+                g.setFont(AdminTheme.FONT_BOLD_11);
+                int qW = g.getFontMetrics().stringWidth(qLabel) + 20;
+                catQuickAddBtnX = catResetBtnX + catResetBtnW + 10;
+                catQuickAddBtnY = catResetBtnY;
+                catQuickAddBtnW = qW;
+                catQuickAddBtnH = catResetBtnH;
+
+                RoundRectangle2D qBox = new RoundRectangle2D.Float(catQuickAddBtnX, catQuickAddBtnY, catQuickAddBtnW, catQuickAddBtnH, 6, 6);
+                g.setColor(catQuickAddHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.BRAND_GREEN_DARK);
+                g.fill(qBox);
+                g.setColor(Color.WHITE);
+                g.drawString(qLabel, catQuickAddBtnX + 10, catQuickAddBtnY + 18);
+            } else {
+                catQuickAddBtnX = -9999;
+                catQuickAddBtnY = -9999;
+            }
         } else {
             catResetBtnX = -9999;
             catResetBtnY = -9999;
+            catQuickAddBtnX = -9999;
+            catQuickAddBtnY = -9999;
         }
 
         for (int i = 0; i < displayLimit; i++) {
@@ -460,9 +489,31 @@ public class AdminCategories {
             g.setFont(AdminTheme.FONT_BOLD_11);
             g.setColor(skillResetHovered ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.TEXT_DARK);
             g.drawString("Reset search", skillResetBtnX + 16, skillResetBtnY + 18);
+
+            // Dynamic Quick Add Button "+ Add <skillSearch>"
+            if (!skillSearch.trim().isEmpty()) {
+                String qLabel = "+ Add \"" + (skillSearch.length() > 14 ? skillSearch.substring(0, 14) + "..." : skillSearch) + "\"";
+                g.setFont(AdminTheme.FONT_BOLD_11);
+                int qW = g.getFontMetrics().stringWidth(qLabel) + 20;
+                skillQuickAddBtnX = skillResetBtnX + skillResetBtnW + 10;
+                skillQuickAddBtnY = skillResetBtnY;
+                skillQuickAddBtnW = qW;
+                skillQuickAddBtnH = skillResetBtnH;
+
+                RoundRectangle2D qBox = new RoundRectangle2D.Float(skillQuickAddBtnX, skillQuickAddBtnY, skillQuickAddBtnW, skillQuickAddBtnH, 6, 6);
+                g.setColor(skillQuickAddHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.BRAND_GREEN_DARK);
+                g.fill(qBox);
+                g.setColor(Color.WHITE);
+                g.drawString(qLabel, skillQuickAddBtnX + 10, skillQuickAddBtnY + 18);
+            } else {
+                skillQuickAddBtnX = -9999;
+                skillQuickAddBtnY = -9999;
+            }
         } else {
             skillResetBtnX = -9999;
             skillResetBtnY = -9999;
+            skillQuickAddBtnX = -9999;
+            skillQuickAddBtnY = -9999;
         }
 
         for (int i = 0; i < displayLimit; i++) {
@@ -684,6 +735,17 @@ public class AdminCategories {
             return true;
         }
 
+        // Quick add buttons from empty search
+        if (catQuickAddBtnX > 0 && mx >= catQuickAddBtnX && mx <= catQuickAddBtnX + catQuickAddBtnW && my >= catQuickAddBtnY && my <= catQuickAddBtnY + catQuickAddBtnH) {
+            dashboard.openAddCategoryModal(catSearch.trim());
+            return true;
+        }
+
+        if (skillQuickAddBtnX > 0 && mx >= skillQuickAddBtnX && mx <= skillQuickAddBtnX + skillQuickAddBtnW && my >= skillQuickAddBtnY && my <= skillQuickAddBtnY + skillQuickAddBtnH) {
+            dashboard.openAddSkillModal(skillSearch.trim());
+            return true;
+        }
+
         // 5. Search Bar Focuses
         if (mx >= catSearchX && mx <= catSearchX + catSearchW && my >= catSearchY && my <= catSearchY + catSearchH) {
             catSearchFocused = true;
@@ -757,6 +819,15 @@ public class AdminCategories {
         boolean pRstSkill = skillResetHovered;
         skillResetHovered = (skillResetBtnX > 0 && mx >= skillResetBtnX && mx <= skillResetBtnX + skillResetBtnW && my >= skillResetBtnY && my <= skillResetBtnY + skillResetBtnH);
         if (pRstSkill != skillResetHovered) changed = true;
+
+        // Quick add button hovers
+        boolean pQCat = catQuickAddHovered;
+        catQuickAddHovered = (catQuickAddBtnX > 0 && mx >= catQuickAddBtnX && mx <= catQuickAddBtnX + catQuickAddBtnW && my >= catQuickAddBtnY && my <= catQuickAddBtnY + catQuickAddBtnH);
+        if (pQCat != catQuickAddHovered) changed = true;
+
+        boolean pQSkill = skillQuickAddHovered;
+        skillQuickAddHovered = (skillQuickAddBtnX > 0 && mx >= skillQuickAddBtnX && mx <= skillQuickAddBtnX + skillQuickAddBtnW && my >= skillQuickAddBtnY && my <= skillQuickAddBtnY + skillQuickAddBtnH);
+        if (pQSkill != skillQuickAddHovered) changed = true;
 
         // Category rows hovers
         for (CatHitbox c : catHitboxes) {
