@@ -70,8 +70,8 @@ public final class DashboardSync {
 
     private static void applyMe(StudentDashboard d, Map<String, Object> me, Map<String, Object> stats) {
         if (me != null) {
+            // setProfileName also derives the avatar initials from the name (same rule as the server)
             d.setProfileName(Json.str(me, "name", d.getProfileName()));
-            d.setProfileInitials(Json.str(me, "initials", "TU"));
             d.setProfileRole(Json.str(me, "role", "Student"));
             d.setProfileBio(Json.str(me, "bio", ""));
             d.setProfilePortfolio(Json.str(me, "portfolio", ""));

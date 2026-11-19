@@ -573,8 +573,135 @@ public class DashboardProjects {
         }
     }
 
+    /** Everything the project details modal needs, linked back to the card for join-state updates. */
+    private static StudentDashboard.ProjectItem toProjectItem(ProjectCard p) {
+        StudentDashboard.ProjectItem pi = new StudentDashboard.ProjectItem(
+                p.title, p.creatorName + " · " + p.category, p.description,
+                p.skills.toArray(new String[0]), p.openRoles + " · " + p.currentMembers + "/" + p.maxMembers + " members",
+                p.recruiting, p.iconType);
+        pi.bookmarked = p.bookmarked;
+        pi.remoteId = p.remoteId;
+        pi.requested = p.requested;
+        pi.isMember = p.isMember;
+        pi.category = p.category;
+        pi.experience = p.experience;
+        pi.creatorName = p.creatorName;
+        pi.creatorInitials = p.creatorInitials;
+        pi.creatorColor = p.creatorColor;
+        pi.openRoles = p.openRoles;
+        pi.currentMembers = p.currentMembers;
+        pi.maxMembers = p.maxMembers;
+        pi.iconBg = p.iconBg;
+        pi.iconColor = p.iconColor;
+        pi.sourceCard = p;
+        return pi;
+    }
+
     private void paintSingleProjectCard(Graphics2D g, int cx, int cy, int cw, int ch, ProjectCard p, StudentDashboard dashboard) {
         p.hitX = cx; p.hitY = cy; p.hitW = cw; p.hitH = ch;
+        int pad = 20;
+
+        RoundRectangle2D cShape = new RoundRectangle2D.Float(cx, cy, cw, ch, 16, 16);
+        g.setColor(Color.WHITE);
+        g.fill(cShape);
+        g.setColor(DashboardTheme.BORDER_COLOR);
+        g.setStroke(new BasicStroke(1.2f));
+        g.draw(cShape);
+
+        // Header: icon + title + category · experience + bookmark
+        int iconSize = 40;
+        int iconX = cx + pad;
+        int iconY = cy + 18;
+        g.setColor(p.iconBg);
+        g.fill(new RoundRectangle2D.Float(iconX, iconY, iconSize, iconSize, 12, 12));
+        paintVectorIcon(g, p.iconType, iconX + 11, iconY + 11, 18, p.iconColor);
+
+        p.bmX = cx + cw - 38;
+        p.bmY = cy + 20;
+        paintBookmarkIcon(g, p.bmX, p.bmY, 16, p.bookmarked);
+
+        int textX = iconX + iconSize + 12;
+        int textMax = p.bmX - 12 - textX;
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 15));
+        g.setColor(DashboardTheme.TEXT_DARK);
+        g.drawString(fitText(p.title, g.getFontMetrics(), textMax), textX, cy + 34);
+        g.setFont(DashboardTheme.FONT_REG_11);
+        g.setColor(DashboardTheme.TEXT_LIGHT);
+        g.drawString(fitText(p.category + "  ·  " + p.experience, g.getFontMetrics(), textMax), textX, cy + 51);
+
+        // Description: 2 lines max, ellipsized
+        g.setFont(DashboardTheme.FONT_REG_12);
+        g.setColor(DashboardTheme.TEXT_MUTED);
+        int descY = cy + 80;
+        for (String line : wrapLimited(p.description, g.getFontMetrics(), cw - pad * 2, 2)) {
+            g.drawString(line, cx + pad, descY);
+            descY += 18;
+        }
+
+        // Skills: single row, "+N" overflow
+        paintSkillRow(g, p.skills, cx + pad, cy + 114, cx + cw - pad);
+
+        // Status row: recruiting state + open roles (left), members (right)
+        int statY = cy + 158;
+        String memStr = p.currentMembers + " / " + p.maxMembers + " members";
+        g.setFont(DashboardTheme.FONT_REG_11);
+        FontMetrics mfm = g.getFontMetrics();
+        int memW = mfm.stringWidth(memStr);
+        g.setColor(DashboardTheme.TEXT_MUTED);
+        g.drawString(memStr, cx + cw - pad - memW, statY);
+
+        int sx = cx + pad;
+        g.setColor(p.recruiting ? new Color(0x10, 0xB9, 0x81) : DashboardTheme.TEXT_LIGHT);
+        g.fillOval(sx, statY - 7, 7, 7);
+        g.setFont(DashboardTheme.FONT_BOLD_11);
+        String state = p.recruiting ? "Recruiting" : "Team full";
+        g.setColor(p.recruiting ? new Color(0x04, 0x78, 0x57) : DashboardTheme.TEXT_MUTED);
+        g.drawString(state, sx + 12, statY);
+        int stateW = g.getFontMetrics().stringWidth(state);
+        if (p.openRoles != null && !p.openRoles.trim().isEmpty() && !p.openRoles.trim().equalsIgnoreCase(state)) {
+            g.setFont(DashboardTheme.FONT_REG_11);
+            g.setColor(DashboardTheme.TEXT_MUTED);
+            int rx = sx + 12 + stateW + 8;
+            g.drawString(fitText("·  " + p.openRoles.trim(), g.getFontMetrics(), cx + cw - pad - memW - 16 - rx), rx, statY);
+        }
+
+        g.setColor(new Color(0xF1, 0xEF, 0xEA));
+        g.drawLine(cx + pad, cy + 172, cx + cw - pad, cy + 172);
+
+        // Footer: creator (left), view details + join (right)
+        int botY = cy + ch - 18;
+        p.joinBtnW = 104;
+        p.joinBtnH = 30;
+        p.joinBtnX = cx + cw - pad - p.joinBtnW;
+        p.joinBtnY = botY - 20;
+        paintJoinButton(g, p);
+
+        String vd = "View details →";
+        g.setFont(DashboardTheme.FONT_BOLD_11);
+        int vdW = g.getFontMetrics().stringWidth(vd);
+        p.viewX = p.joinBtnX - vdW - 14;
+        p.viewY = botY - 14;
+        p.viewW = vdW;
+        p.viewH = 18;
+        g.setColor(DashboardTheme.TEXT_MUTED);
+        g.drawString(vd, p.viewX, botY);
+
+        int crSize = 24;
+        g.setColor(p.creatorColor);
+        g.fillOval(cx + pad, botY - 17, crSize, crSize);
+        g.setFont(DashboardTheme.FONT_BOLD_10);
+        g.setColor(Color.WHITE);
+        FontMetrics cfm = g.getFontMetrics();
+        g.drawString(p.creatorInitials, cx + pad + (crSize - cfm.stringWidth(p.creatorInitials)) / 2, botY - 1);
+        g.setFont(DashboardTheme.FONT_REG_12);
+        g.setColor(DashboardTheme.TEXT_MUTED);
+        int nameX = cx + pad + crSize + 8;
+        g.drawString(fitText(p.creatorName, g.getFontMetrics(), p.viewX - 12 - nameX), nameX, botY);
+    }
+
+    private void paintSingleProjectListCard(Graphics2D g, int cx, int cy, int cw, int ch, ProjectCard p, StudentDashboard dashboard) {
+        p.hitX = cx; p.hitY = cy; p.hitW = cw; p.hitH = ch;
+        int pad = 20;
 
         RoundRectangle2D cShape = new RoundRectangle2D.Float(cx, cy, cw, ch, 14, 14);
         g.setColor(Color.WHITE);
@@ -583,222 +710,135 @@ public class DashboardProjects {
         g.setStroke(new BasicStroke(1.2f));
         g.draw(cShape);
 
-        // Top Row: Icon + Title + Category + Bookmark
-        int iconSize = 36;
-        int iconX = cx + 18;
-        int iconY = cy + 18;
-        RoundRectangle2D iconBgShape = new RoundRectangle2D.Float(iconX, iconY, iconSize, iconSize, 8, 8);
-        g.setColor(p.iconBg);
-        g.fill(iconBgShape);
+        // Right cluster, laid out from the right edge: [bookmark] [View details →] [Join]
+        p.joinBtnW = 104;
+        p.joinBtnH = 30;
+        p.joinBtnX = cx + cw - pad - p.joinBtnW;
+        p.joinBtnY = cy + (ch - p.joinBtnH) / 2;
+        paintJoinButton(g, p);
 
-        paintVectorIcon(g, p.iconType, iconX + 9, iconY + 9, 18, p.iconColor);
-
-        // Title
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 15));
-        g.setColor(DashboardTheme.TEXT_DARK);
-        g.drawString(p.title, iconX + iconSize + 12, cy + 30);
-
-        // Category · Experience
-        g.setFont(DashboardTheme.FONT_REG_11);
-        g.setColor(DashboardTheme.TEXT_LIGHT);
-        g.drawString(p.category + " · " + p.experience, iconX + iconSize + 12, cy + 46);
-
-        // Bookmark ribbon icon
-        p.bmX = cx + cw - 38;
-        p.bmY = cy + 20;
-        paintBookmarkIcon(g, p.bmX, p.bmY, 16, p.bookmarked);
-
-        // Description
-        g.setFont(DashboardTheme.FONT_REG_12);
-        g.setColor(DashboardTheme.TEXT_MUTED);
-        FontMetrics dfm = g.getFontMetrics();
-        List<String> lines = Draw.wrapText(p.description, dfm, cw - 36);
-        int descY = cy + 74;
-        for (int i = 0; i < Math.min(2, lines.size()); i++) {
-            g.drawString(lines.get(i), cx + 18, descY);
-            descY += 18;
-        }
-
-        // Skills Pills
-        int skX = cx + 18;
-        int skY = cy + 114;
-        g.setFont(DashboardTheme.FONT_REG_11);
-        FontMetrics sfm = g.getFontMetrics();
-
-        for (String s : p.skills) {
-            int sw = sfm.stringWidth(s) + 14;
-            RoundRectangle2D skShape = new RoundRectangle2D.Float(skX, skY, sw, 22, 6, 6);
-            g.setColor(new Color(0xF4, 0xF2, 0xEE));
-            g.fill(skShape);
-            g.setColor(DashboardTheme.TEXT_MUTED);
-            g.drawString(s, skX + 7, skY + 15);
-            skX += sw + 6;
-        }
-
-        // Status row: Green dot + Recruiting + Member count
-        int statY = cy + 150;
-        if (p.recruiting) {
-            g.setColor(new Color(0x10, 0xB9, 0x81));
-            g.fillOval(cx + 18, statY - 7, 6, 6);
-            g.setFont(DashboardTheme.FONT_BOLD_11);
-            g.drawString("Recruiting", cx + 28, statY);
-        }
-
-        String memStr = p.currentMembers + " / " + p.maxMembers + " members";
-        g.setFont(DashboardTheme.FONT_REG_11);
-        g.setColor(DashboardTheme.TEXT_LIGHT);
-        int memW = g.getFontMetrics().stringWidth(memStr);
-        g.drawString(memStr, cx + cw - 18 - memW, statY);
-
-        // Open roles
-        g.setFont(DashboardTheme.FONT_REG_11);
-        g.setColor(DashboardTheme.TEXT_MUTED);
-        g.drawString(p.openRoles, cx + 18, statY + 16);
-
-        // Bottom Creator + View details link
-        int botY = cy + 192;
-        int crSize = 22;
-        g.setColor(p.creatorColor);
-        g.fillOval(cx + 18, botY - 14, crSize, crSize);
-        g.setFont(DashboardTheme.FONT_BOLD_10);
-        g.setColor(Color.WHITE);
-        g.drawString(p.creatorInitials, cx + 22, botY);
-
-        g.setFont(DashboardTheme.FONT_REG_11);
-        g.setColor(DashboardTheme.TEXT_MUTED);
-        g.drawString(p.creatorName, cx + 18 + crSize + 6, botY);
-
-        // Action Button: [+ Join Team] or [✓ Requested] or [✓ Member]
-        p.joinBtnW = 96;
-        p.joinBtnH = 26;
-        p.joinBtnX = cx + cw - 18 - p.joinBtnW;
-        p.joinBtnY = botY - 18;
-
-        RoundRectangle2D joinShape = new RoundRectangle2D.Float(p.joinBtnX, p.joinBtnY, p.joinBtnW, p.joinBtnH, 6, 6);
-        if (p.isMember) {
-            g.setColor(new Color(0xF1, 0xF5, 0xF9));
-            g.fill(joinShape);
-            g.setFont(DashboardTheme.FONT_BOLD_11);
-            g.setColor(new Color(0x64, 0x74, 0x8B));
-            g.drawString("✓ Member", p.joinBtnX + 18, p.joinBtnY + 17);
-        } else if (p.requested) {
-            g.setColor(new Color(0xDC, 0xFC, 0xE7));
-            g.fill(joinShape);
-            g.setFont(DashboardTheme.FONT_BOLD_11);
-            g.setColor(new Color(0x15, 0x80, 0x3D));
-            g.drawString("✓ Requested", p.joinBtnX + 12, p.joinBtnY + 17);
-        } else {
-            g.setColor(DashboardTheme.BRAND_PURPLE);
-            g.fill(joinShape);
-            g.setFont(DashboardTheme.FONT_BOLD_11);
-            g.setColor(Color.WHITE);
-            g.drawString("+ Join Team", p.joinBtnX + 14, p.joinBtnY + 17);
-        }
-
-        // "View details →" to the left of Join button
         String vd = "View details →";
         g.setFont(DashboardTheme.FONT_BOLD_11);
-        g.setColor(DashboardTheme.TEXT_MUTED);
         int vdW = g.getFontMetrics().stringWidth(vd);
-        p.viewX = p.joinBtnX - vdW - 10;
-        p.viewY = botY - 14;
-        p.viewW = vdW;
-        p.viewH = 16;
-        g.drawString(vd, p.viewX, botY);
-    }
-
-    private void paintSingleProjectListCard(Graphics2D g, int cx, int cy, int cw, int ch, ProjectCard p, StudentDashboard dashboard) {
-        p.hitX = cx; p.hitY = cy; p.hitW = cw; p.hitH = ch;
-
-        RoundRectangle2D cShape = new RoundRectangle2D.Float(cx, cy, cw, ch, 12, 12);
-        g.setColor(Color.WHITE);
-        g.fill(cShape);
-        g.setColor(DashboardTheme.BORDER_COLOR);
-        g.setStroke(new BasicStroke(1.2f));
-        g.draw(cShape);
-
-        // Icon
-        int iconSize = 40;
-        int iconX = cx + 18;
-        int iconY = cy + (ch - iconSize) / 2;
-        RoundRectangle2D iconBg = new RoundRectangle2D.Float(iconX, iconY, iconSize, iconSize, 8, 8);
-        g.setColor(p.iconBg);
-        g.fill(iconBg);
-        paintVectorIcon(g, p.iconType, iconX + 11, iconY + 11, 18, p.iconColor);
-
-        // Info
-        int curX = iconX + iconSize + 16;
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 15));
-        g.setColor(DashboardTheme.TEXT_DARK);
-        g.drawString(p.title, curX, cy + 30);
-
-        g.setFont(DashboardTheme.FONT_REG_11);
-        g.setColor(DashboardTheme.TEXT_LIGHT);
-        g.drawString(p.category + " · " + p.experience + " · Created by " + p.creatorName, curX, cy + 48);
-
-        g.setFont(DashboardTheme.FONT_REG_12);
-        g.setColor(DashboardTheme.TEXT_MUTED);
-        String shortDesc = p.description;
-        if (shortDesc.length() > 60) shortDesc = shortDesc.substring(0, 57) + "...";
-        g.drawString(shortDesc, curX, cy + 72);
-
-        // Skills tags
-        int skX = cx + cw - 320;
-        int skY = cy + 28;
-        g.setFont(DashboardTheme.FONT_REG_11);
-        FontMetrics sfm = g.getFontMetrics();
-        for (String s : p.skills) {
-            int sw = sfm.stringWidth(s) + 12;
-            RoundRectangle2D skShape = new RoundRectangle2D.Float(skX, skY, sw, 22, 6, 6);
-            g.setColor(new Color(0xF4, 0xF2, 0xEE));
-            g.fill(skShape);
-            g.setColor(DashboardTheme.TEXT_MUTED);
-            g.drawString(s, skX + 6, skY + 15);
-            skX += sw + 6;
-        }
-
-        // Bookmark
-        p.bmX = cx + cw - 120;
-        p.bmY = cy + 18;
-        paintBookmarkIcon(g, p.bmX, p.bmY, 16, p.bookmarked);
-
-        // Action Button: [+ Join Team] or [✓ Requested] or [✓ Member]
-        p.joinBtnW = 96;
-        p.joinBtnH = 26;
-        p.joinBtnX = cx + cw - 18 - p.joinBtnW;
-        p.joinBtnY = cy + (ch / 2) - 13;
-
-        RoundRectangle2D joinShape = new RoundRectangle2D.Float(p.joinBtnX, p.joinBtnY, p.joinBtnW, p.joinBtnH, 6, 6);
-        if (p.isMember) {
-            g.setColor(new Color(0xF1, 0xF5, 0xF9));
-            g.fill(joinShape);
-            g.setFont(DashboardTheme.FONT_BOLD_11);
-            g.setColor(new Color(0x64, 0x74, 0x8B));
-            g.drawString("✓ Member", p.joinBtnX + 18, p.joinBtnY + 17);
-        } else if (p.requested) {
-            g.setColor(new Color(0xDC, 0xFC, 0xE7));
-            g.fill(joinShape);
-            g.setFont(DashboardTheme.FONT_BOLD_11);
-            g.setColor(new Color(0x15, 0x80, 0x3D));
-            g.drawString("✓ Requested", p.joinBtnX + 12, p.joinBtnY + 17);
-        } else {
-            g.setColor(DashboardTheme.BRAND_PURPLE);
-            g.fill(joinShape);
-            g.setFont(DashboardTheme.FONT_BOLD_11);
-            g.setColor(Color.WHITE);
-            g.drawString("+ Join Team", p.joinBtnX + 14, p.joinBtnY + 17);
-        }
-
-        // View details to the left of Join button
-        String vd = "View details →";
-        g.setFont(DashboardTheme.FONT_BOLD_11);
-        g.setColor(DashboardTheme.TEXT_MUTED);
-        int vdW = g.getFontMetrics().stringWidth(vd);
-        p.viewX = p.joinBtnX - vdW - 12;
-        p.viewY = cy + (ch / 2) - 8;
+        p.viewX = p.joinBtnX - vdW - 16;
+        p.viewY = cy + ch / 2 - 10;
         p.viewW = vdW;
         p.viewH = 20;
-        g.drawString(vd, p.viewX, cy + (ch / 2) + 5);
+        g.setColor(DashboardTheme.TEXT_MUTED);
+        g.drawString(vd, p.viewX, cy + ch / 2 + 4);
+
+        p.bmX = p.viewX - 16 - 24;
+        p.bmY = cy + ch / 2 - 10;
+        paintBookmarkIcon(g, p.bmX, p.bmY, 16, p.bookmarked);
+
+        // Icon
+        int iconSize = 44;
+        int iconX = cx + pad;
+        int iconY = cy + (ch - iconSize) / 2;
+        g.setColor(p.iconBg);
+        g.fill(new RoundRectangle2D.Float(iconX, iconY, iconSize, iconSize, 12, 12));
+        paintVectorIcon(g, p.iconType, iconX + 13, iconY + 13, 18, p.iconColor);
+
+        // Skills block between the text column and the right cluster (hidden when too narrow)
+        int textX = iconX + iconSize + 16;
+        int skillsRight = p.bmX - 20;
+        int skillsMaxW = Math.min(300, (skillsRight - textX) * 2 / 5);
+        int textRight = skillsRight;
+        if (skillsMaxW >= 120 && !p.skills.isEmpty()) {
+            int skillsLeft = skillsRight - skillsMaxW;
+            paintSkillRow(g, p.skills, skillsLeft, cy + (ch - 24) / 2, skillsRight);
+            textRight = skillsLeft - 20;
+        }
+        int textMax = textRight - textX;
+
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 15));
+        g.setColor(DashboardTheme.TEXT_DARK);
+        g.drawString(fitText(p.title, g.getFontMetrics(), textMax), textX, cy + 32);
+        g.setFont(DashboardTheme.FONT_REG_11);
+        g.setColor(DashboardTheme.TEXT_LIGHT);
+        g.drawString(fitText(p.category + "  ·  " + p.experience + "  ·  by " + p.creatorName, g.getFontMetrics(), textMax), textX, cy + 50);
+        g.setFont(DashboardTheme.FONT_REG_12);
+        g.setColor(DashboardTheme.TEXT_MUTED);
+        g.drawString(fitText(p.description, g.getFontMetrics(), textMax), textX, cy + 74);
+    }
+
+    /** [+ Join team] / [✓ Requested] / [✓ Member] at p.joinBtnX/Y. */
+    private void paintJoinButton(Graphics2D g, ProjectCard p) {
+        RoundRectangle2D joinShape = new RoundRectangle2D.Float(p.joinBtnX, p.joinBtnY, p.joinBtnW, p.joinBtnH, 10, 10);
+        String label;
+        if (p.isMember) {
+            g.setColor(new Color(0xF1, 0xF5, 0xF9));
+            g.fill(joinShape);
+            g.setColor(new Color(0x64, 0x74, 0x8B));
+            label = "✓ Member";
+        } else if (p.requested) {
+            g.setColor(new Color(0xDC, 0xFC, 0xE7));
+            g.fill(joinShape);
+            g.setColor(new Color(0x15, 0x80, 0x3D));
+            label = "✓ Requested";
+        } else {
+            g.setColor(DashboardTheme.BRAND_PURPLE);
+            g.fill(joinShape);
+            g.setColor(Color.WHITE);
+            label = "+ Join team";
+        }
+        g.setFont(DashboardTheme.FONT_BOLD_11);
+        FontMetrics fm = g.getFontMetrics();
+        g.drawString(label, p.joinBtnX + (p.joinBtnW - fm.stringWidth(label)) / 2, p.joinBtnY + (p.joinBtnH + fm.getAscent() - fm.getDescent()) / 2);
+    }
+
+    /** Skill chips on one row from x to maxX; the rest collapse into a "+N" chip. */
+    private void paintSkillRow(Graphics2D g, List<String> skills, int x, int y, int maxX) {
+        g.setFont(DashboardTheme.FONT_REG_11);
+        FontMetrics sfm = g.getFontMetrics();
+        int skX = x;
+        for (int i = 0; i < skills.size(); i++) {
+            String s = skills.get(i);
+            int sw = sfm.stringWidth(s) + 16;
+            int remaining = skills.size() - i - 1;
+            int moreW = remaining > 0 ? sfm.stringWidth("+" + remaining) + 16 + 6 : 0;
+            if (skX + sw + moreW > maxX) {
+                String more = "+" + (skills.size() - i);
+                int mw = sfm.stringWidth(more) + 16;
+                if (skX + mw <= maxX) {
+                    g.setColor(Color.WHITE);
+                    g.fill(new RoundRectangle2D.Float(skX, y, mw, 24, 8, 8));
+                    g.setColor(DashboardTheme.BORDER_COLOR);
+                    g.draw(new RoundRectangle2D.Float(skX, y, mw, 24, 8, 8));
+                    g.setColor(DashboardTheme.TEXT_MUTED);
+                    g.drawString(more, skX + 8, y + 16);
+                }
+                return;
+            }
+            g.setColor(new Color(0xF8, 0xF7, 0xF4));
+            g.fill(new RoundRectangle2D.Float(skX, y, sw, 24, 8, 8));
+            g.setColor(DashboardTheme.BORDER_COLOR);
+            g.draw(new RoundRectangle2D.Float(skX, y, sw, 24, 8, 8));
+            g.setColor(DashboardTheme.TEXT_MUTED);
+            g.drawString(s, skX + 8, y + 16);
+            skX += sw + 6;
+        }
+    }
+
+    private static String fitText(String s, FontMetrics fm, int maxW) {
+        if (s == null) return "";
+        if (maxW <= 0) return "";
+        if (fm.stringWidth(s) <= maxW) return s;
+        String t = s;
+        while (t.length() > 1 && fm.stringWidth(t + "…") > maxW) t = t.substring(0, t.length() - 1);
+        return t.trim() + "…";
+    }
+
+    private static List<String> wrapLimited(String text, FontMetrics fm, int maxW, int maxLines) {
+        List<String> lines = new ArrayList<>();
+        if (text == null || text.trim().isEmpty()) return lines;
+        List<String> all = Draw.wrapText(text.trim(), fm, maxW);
+        for (int i = 0; i < all.size() && i < maxLines; i++) {
+            String line = all.get(i);
+            if (i == maxLines - 1 && all.size() > maxLines) line = line + " " + all.get(i + 1);
+            lines.add(fitText(line, fm, maxW));
+        }
+        return lines;
     }
 
     private void paintEmptyState(Graphics2D g, int x, int y, int w, int h) {
@@ -1124,29 +1164,13 @@ public class DashboardProjects {
 
             // View Details or Card Body
             if (mx >= p.viewX - 4 && mx <= p.viewX + p.viewW + 4 && my >= p.viewY - 4 && my <= p.viewY + p.viewH + 4) {
-                StudentDashboard.ProjectItem pi = new StudentDashboard.ProjectItem(
-                        p.title, p.creatorName + " · " + p.category, p.description,
-                        p.skills.toArray(new String[0]), p.openRoles + " · " + p.currentMembers + "/" + p.maxMembers + " members",
-                        p.recruiting, p.iconType
-                );
-                pi.bookmarked = p.bookmarked;
-                pi.remoteId = p.remoteId;
-                pi.requested = p.requested;
-                dashboard.setSelectedProject(pi);
+                dashboard.setSelectedProject(toProjectItem(p));
                 dashboard.openModal(StudentDashboard.ActiveModal.PROJECT_DETAILS);
                 return true;
             }
 
             if (mx >= p.hitX && mx <= p.hitX + p.hitW && my >= p.hitY && my <= p.hitY + p.hitH) {
-                StudentDashboard.ProjectItem pi = new StudentDashboard.ProjectItem(
-                        p.title, p.creatorName + " · " + p.category, p.description,
-                        p.skills.toArray(new String[0]), p.openRoles + " · " + p.currentMembers + "/" + p.maxMembers + " members",
-                        p.recruiting, p.iconType
-                );
-                pi.bookmarked = p.bookmarked;
-                pi.remoteId = p.remoteId;
-                pi.requested = p.requested;
-                dashboard.setSelectedProject(pi);
+                dashboard.setSelectedProject(toProjectItem(p));
                 dashboard.openModal(StudentDashboard.ActiveModal.PROJECT_DETAILS);
                 return true;
             }

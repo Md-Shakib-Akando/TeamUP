@@ -51,11 +51,25 @@ const dueLabel = (d, now = new Date()) => {
   return { label: `${DAYS[d.getDay()]}, ${shortDate(d)}`, statusType: 2 };
 };
 
+/**
+ * Two-letter avatar initials. Mirrors StudentDashboard.initialsFor() in the Java client:
+ * "Md Shakib Akando" → "MA", "Test Admin User 123" → "TU" (number-only words skipped),
+ * "testPro" → "TP" (camelCase), "john_doe" / "john.doe" → "JD", "Prena" → "PR".
+ */
 const initials = (name = '') => {
-  const parts = String(name).trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return 'TU';
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  const words = String(name).trim().split(/[\s._-]+/).filter(Boolean);
+  if (words.length === 0) return 'TU';
+  if (words.length >= 2) {
+    let last = words[words.length - 1];
+    for (let i = words.length - 1; i > 0; i--) {
+      if (/^\p{L}/u.test(words[i])) { last = words[i]; break; }
+    }
+    return (words[0][0] + last[0]).toUpperCase();
+  }
+  const w = words[0];
+  const camel = /\p{Ll}(\p{Lu})/u.exec(w);
+  if (camel) return (w[0] + camel[1]).toUpperCase();
+  return w.slice(0, 2).toUpperCase();
 };
 
 const firstName = (name = '') => String(name).trim().split(/\s+/)[0] || 'there';
