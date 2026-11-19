@@ -35,37 +35,52 @@ public class TestAdminOverviewDynamicBackend {
         // TEST 1: Default Offline Fallback Values
         // -------------------------------------------------------------
         System.out.println("[Test 1] Testing Default Fallback State (Offline Resilience)...");
-        check(store.getTotalUsersCount() >= 12000, "Fallback Total Users: " + store.getTotalUsersCount());
-        check(store.getTotalProjectsCount() >= 400, "Fallback Total Projects: " + store.getTotalProjectsCount());
-        check(store.getProjectSuccessRate() > 90.0, "Fallback Success Rate: " + store.getProjectSuccessRate() + "%");
-        check(store.getActiveTeamsCount() > 100, "Fallback Active Teams: " + store.getActiveTeamsCount());
-        check(store.getAverageTeamSize() > 4.0, "Fallback Avg Team Size: " + store.getAverageTeamSize());
-        check(store.getPendingReportsCount() >= 0, "Fallback Pending Reports: " + store.getPendingReportsCount());
+        check(!store.hasLiveStats(), "Offline: no live stats loaded yet");
+        check(store.getTotalUsersCount() == store.getAllUsers().size(), "Offline Total Users = demo user list: " + store.getTotalUsersCount());
+        check(store.getTotalProjectsCount() == store.getAllProjects().size(), "Offline Total Projects = demo project list: " + store.getTotalProjectsCount());
+        int started = store.getActiveProjectsCount() + store.getUnderReviewProjectsCount() + store.getCompletedProjectsCount();
+        double expected = started == 0 ? 0 : Math.round(store.getCompletedProjectsCount() * 1000.0 / started) / 10.0;
+        check(Math.abs(store.getProjectSuccessRate() - expected) < 0.001, "Offline Success Rate = completed / started: " + store.getProjectSuccessRate() + "%");
+        check(store.getActiveTeamsCount() <= store.getTotalProjectsCount(), "Offline Active Teams: " + store.getActiveTeamsCount());
+        check(store.getEngagementRate() < 0, "Offline engagement rate is unavailable (-1)");
+        check(store.getPendingReportsCount() >= 0, "Offline Pending Reports: " + store.getPendingReportsCount());
 
         // -------------------------------------------------------------
-        // TEST 2: applyBackendStats Updates All Overview Metrics
+        // TEST 2: applyBackendStats stores backend-only metrics
         // -------------------------------------------------------------
         System.out.println("\n[Test 2] Testing applyBackendStats with Mock Backend Stats...");
+        int usersBefore = store.getTotalUsersCount();
         Map<String, Object> mockStats = new LinkedHashMap<>();
-        mockStats.put("totalUsers", 15420);
-        mockStats.put("totalProjects", 535);
-        mockStats.put("pendingReportsCount", 7);
-        mockStats.put("activeTeamsCount", 218);
-        mockStats.put("projectSuccessRate", 96.8);
-        mockStats.put("averageTeamSize", 5.2);
+        mockStats.put("totalUsers", 15420); // list-derived on the client; must not override the loaded list
         mockStats.put("collaborationRequests", 1920);
+        mockStats.put("pendingCollaborationRequests", 12);
+        mockStats.put("requestAcceptanceRate", 75.0);
         mockStats.put("sprintVelocity", 95);
+        mockStats.put("tasksDone", 19);
+        mockStats.put("tasksTotal", 20);
+        mockStats.put("engagementRate", 72.7);
+        List<Map<String, Object>> topSkills = new ArrayList<>();
+        Map<String, Object> ts1 = new LinkedHashMap<>();
+        ts1.put("name", "Python");
+        ts1.put("count", 10);
+        Map<String, Object> ts2 = new LinkedHashMap<>();
+        ts2.put("name", "React");
+        ts2.put("count", 7);
+        topSkills.add(ts2);
+        topSkills.add(ts1);
+        mockStats.put("topSkills", topSkills);
 
         store.applyBackendStats(mockStats);
 
-        check(store.getTotalUsersCount() == 15420, "Dynamic Total Users updated from backend: 15,420");
-        check(store.getTotalProjectsCount() == 535, "Dynamic Total Projects updated from backend: 535");
-        check(store.getPendingReportsCount() == 7, "Dynamic Pending Reports count updated from backend: 7");
-        check(store.getActiveTeamsCount() == 218, "Dynamic Active Teams count updated from backend: 218");
-        check(Math.abs(store.getProjectSuccessRate() - 96.8) < 0.001, "Dynamic Project Success Rate: 96.8%");
-        check(Math.abs(store.getAverageTeamSize() - 5.2) < 0.001, "Dynamic Average Team Size: 5.2");
+        check(store.hasLiveStats(), "Live stats flag set after applyBackendStats");
+        check(store.getLastStatsSyncLabel() != null, "Last sync time recorded: " + store.getLastStatsSyncLabel());
+        check(store.getTotalUsersCount() == usersBefore, "Total Users still follows the loaded user list");
         check(store.collaborationRequests == 1920, "Dynamic Collaboration Requests: 1,920");
-        check(store.getSprintVelocity() == 95, "Dynamic Sprint Velocity: 95%");
+        check(store.getPendingCollaborationRequests() == 12, "Pending collaboration requests: 12");
+        check(store.getSprintVelocity() == 95, "Dynamic task completion: 95%");
+        check(store.getTasksDone() == 19 && store.getTasksTotal() == 20, "Tasks done 19 of 20");
+        check(Math.abs(store.getEngagementRate() - 72.7) < 0.001, "Engagement rate: 72.7%");
+        check(store.getTopSkills(5).get(0).name.equals("Python"), "Top skills come from backend and are sorted (Python first)");
 
         // -------------------------------------------------------------
         // TEST 3: AdminSync.apply Full Bootstrap Payload
@@ -146,12 +161,11 @@ public class TestAdminOverviewDynamicBackend {
 
         AdminSync.apply(bootstrapData);
 
-        check(store.getTotalUsersCount() == 16800, "AdminSync applied Total Users: 16,800");
-        check(store.getTotalProjectsCount() == 610, "AdminSync applied Total Projects: 610");
-        check(store.getActiveTeamsCount() == 240, "AdminSync applied Active Teams: 240");
-        check(Math.abs(store.getProjectSuccessRate() - 98.4) < 0.001, "AdminSync applied Success Rate: 98.4%");
+        check(store.getTotalUsersCount() == 1, "AdminSync replaced users; Total Users counts the database list: 1");
+        check(store.collaborationRequests == 2150, "AdminSync applied Collaboration Requests: 2,150");
         check(store.getAllSkills().size() == 2, "AdminSync applied Skills count: 2");
-        check(store.getAllSkills().get(0).name.equals("Artificial Intelligence"), "Top skill is Artificial Intelligence (2,450 students)");
+        check(store.getTopSkills(5).get(0).name.equals("Artificial Intelligence"),
+                "Without backend topSkills, top skill falls back to registry: Artificial Intelligence (2,450)");
         check(store.getAllReports().size() == 1, "AdminSync applied Reports: count=1");
         check(store.getAllAuditLogs().size() == 1, "AdminSync applied Audit Logs: count=1");
 
@@ -230,6 +244,20 @@ public class TestAdminOverviewDynamicBackend {
         int preProj = store.getTotalProjectsCount();
         store.addProject("Solar Microgrid", "Sustainability", "Mark Cuban", "4 / 6", "Active", "Smart energy platform");
         check(store.getTotalProjectsCount() == preProj + 1, "Creating project dynamically increments Total Projects (" + (preProj + 1) + ")");
+        check(store.getNewProjectsThisMonth() >= 1, "New project is dated today and counted this month");
+
+        // 6d. Completing a project moves the success rate immediately
+        int preCompleted = store.getCompletedProjectsCount();
+        double preRate = store.getProjectSuccessRate();
+        store.updateProjectStatus("Solar Microgrid", "Completed");
+        check(store.getCompletedProjectsCount() == preCompleted + 1, "Completed projects incremented");
+        check(store.getProjectSuccessRate() > preRate, "Success rate rose after completion (" + preRate + "% → " + store.getProjectSuccessRate() + "%)");
+
+        // 6e. Team metrics follow the project team sizes
+        int preTeams = store.getActiveTeamsCount();
+        store.addProject("Campus Robotics", "Research", "Mark Cuban", "3 / 3", "Active", "Full team");
+        check(store.getActiveTeamsCount() == preTeams + 1, "A new 3-member project counts as an active team");
+        check(store.getTeamCapacityDistribution()[0] >= 1, "Full team appears in the capacity distribution");
 
         System.out.println("\n===============================================================");
         if (totalFailed == 0) {
