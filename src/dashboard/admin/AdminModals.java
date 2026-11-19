@@ -1,6 +1,10 @@
 
 import java.awt.*;
 import java.awt.geom.RoundRectangle2D;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
  * Handles interactive dialog modals for TeamUp Admin Dashboard.
@@ -80,6 +84,72 @@ public class AdminModals {
     private int cancelNewItemBtnX, cancelNewItemBtnY, cancelNewItemBtnW = 96, cancelNewItemBtnH = 36;
     private boolean saveNewItemHovered = false;
     private boolean cancelNewItemHovered = false;
+    private int lastViewW = 1366, lastViewH = 768;
+
+    // Dynamic Preset Option Pools & Searchable Hitboxes
+    public static final String[] PRESET_CATEGORY_OPTIONS = {
+        "AI & Machine Learning", "Web Development", "Mobile App Development",
+        "Cloud Computing & DevOps", "Cybersecurity & InfoSec", "Data Science & Analytics",
+        "UI/UX & Product Design", "Game Development & AR/VR", "IoT & Embedded Systems",
+        "Robotics & Automation", "Blockchain & FinTech", "Bioengineering & HealthTech",
+        "Sustainability & Clean Energy", "Research & Academic Labs", "Social Impact",
+        "Quantum Computing", "Autonomous Systems", "Natural Language Processing",
+        "Computer Vision", "E-Commerce & Digital Business"
+    };
+
+    public static final String[] PRESET_SKILL_OPTIONS = {
+        "React", "TypeScript", "JavaScript", "Python", "Java", "C++", "C#", "Rust", "Go",
+        "Node.js", "Next.js", "Vue.js", "Angular", "Flutter", "Swift", "Kotlin", "Django",
+        "Spring Boot", "FastAPI", "Express.js", "HTML5 & CSS3", "Tailwind CSS",
+        "PostgreSQL", "MongoDB", "MySQL", "Redis", "GraphQL", "Docker", "Kubernetes",
+        "AWS", "Google Cloud", "Microsoft Azure", "Linux", "Git & GitHub", "Figma",
+        "UI/UX Design", "PyTorch", "TensorFlow", "Scikit-Learn", "Machine Learning",
+        "Deep Learning", "Computer Vision", "Natural Language Processing", "Penetration Testing"
+    };
+
+    public static class ModalOptionHitbox {
+        public String text;
+        public int x, y, w, h;
+        public boolean hovered = false;
+        public boolean alreadyAdded = false;
+
+        public ModalOptionHitbox(String text, int x, int y, int w, int h, boolean alreadyAdded) {
+            this.text = text;
+            this.x = x;
+            this.y = y;
+            this.w = w;
+            this.h = h;
+            this.alreadyAdded = alreadyAdded;
+        }
+    }
+
+    private final List<ModalOptionHitbox> modalOptionHitboxes = new ArrayList<>();
+
+    public List<String> getMatchingCategoryOptions(String query) {
+        String q = (query == null) ? "" : query.trim().toLowerCase();
+        List<String> list = new ArrayList<>();
+        for (String cat : PRESET_CATEGORY_OPTIONS) {
+            if (q.isEmpty() || cat.toLowerCase().contains(q)) {
+                list.add(cat);
+            }
+        }
+        return list;
+    }
+
+    public List<String> getMatchingSkillOptions(String query) {
+        String q = (query == null) ? "" : query.trim().toLowerCase();
+        List<String> list = new ArrayList<>();
+        for (String sk : PRESET_SKILL_OPTIONS) {
+            if (q.isEmpty() || sk.toLowerCase().contains(q)) {
+                list.add(sk);
+            }
+        }
+        return list;
+    }
+
+    public List<ModalOptionHitbox> getModalOptionHitboxes() {
+        return modalOptionHitboxes;
+    }
 
     // User Details State
     private AdminDataStore.UserModel selectedUser = null;
@@ -125,7 +195,7 @@ public class AdminModals {
     private final java.util.List<CatChoiceBox> addProjCatBoxes = new java.util.ArrayList<>();
     private String newProjectName = "";
     private String newProjectCategory = "Web Development";
-    private String newProjectOwner = "Jordan Lee";
+    private String newProjectOwner = AdminDataStore.getInstance().getActorName();
     private String newProjectTeamSize = "1 / 6";
     private String newProjectStatus = "Active";
     private String newProjectDesc = "";
@@ -175,7 +245,11 @@ public class AdminModals {
     }
 
     public void openAddCategory() {
-        this.inputName = "";
+        openAddCategory("");
+    }
+
+    public void openAddCategory(String prefill) {
+        this.inputName = (prefill != null) ? prefill : "";
         this.editingOriginalName = "";
         this.newItemInputFocused = true;
         this.activeModal = ActiveModal.ADD_CATEGORY;
@@ -189,7 +263,11 @@ public class AdminModals {
     }
 
     public void openAddSkill() {
-        this.inputName = "";
+        openAddSkill("");
+    }
+
+    public void openAddSkill(String prefill) {
+        this.inputName = (prefill != null) ? prefill : "";
         this.editingOriginalName = "";
         this.newItemInputFocused = true;
         this.activeModal = ActiveModal.ADD_SKILL;
@@ -227,7 +305,7 @@ public class AdminModals {
     public void openAddProject() {
         this.newProjectName = "";
         this.newProjectCategory = "Web Development";
-        this.newProjectOwner = "Jordan Lee";
+        this.newProjectOwner = AdminDataStore.getInstance().getActorName();
         this.newProjectTeamSize = "1 / 6";
         this.newProjectStatus = "Active";
         this.newProjectDesc = "";
@@ -269,6 +347,8 @@ public class AdminModals {
     }
 
     public void paint(Graphics2D g, int viewW, int viewH) {
+        lastViewW = viewW;
+        lastViewH = viewH;
         if (activeModal == ActiveModal.NONE)
             return;
 
@@ -501,8 +581,8 @@ public class AdminModals {
     }
 
     private void paintAddCategoryModal(Graphics2D g, int viewW, int viewH) {
-        modalW = Math.min(480, viewW - 40);
-        modalH = 280;
+        modalW = Math.min(520, viewW - 40);
+        modalH = 420;
         modalX = (viewW - modalW) / 2;
         modalY = (viewH - modalH) / 2;
 
@@ -515,10 +595,10 @@ public class AdminModals {
 
         paintModalHeader(g, "Add Project Category");
 
-        int curY = modalY + 84;
+        int curY = modalY + 80;
         g.setFont(AdminTheme.FONT_BOLD_11);
         g.setColor(AdminTheme.TEXT_MAIN);
-        g.drawString("CATEGORY NAME *", modalX + 28, curY);
+        g.drawString("CATEGORY NAME / SEARCH OPTIONS *", modalX + 28, curY);
 
         newItemInputX = modalX + 28;
         newItemInputY = curY + 8;
@@ -536,7 +616,7 @@ public class AdminModals {
         g.setFont(AdminTheme.FONT_REGULAR_13);
         if (inputName.isEmpty()) {
             g.setColor(AdminTheme.TEXT_LIGHT);
-            g.drawString("e.g. Mobile Apps, Bioengineering, FinTech...", newItemInputX + 12, newItemInputY + 24);
+            g.drawString("Search or type category (e.g. AI, Web, Cloud)...", newItemInputX + 12, newItemInputY + 24);
         } else {
             g.setColor(AdminTheme.TEXT_MAIN);
             g.drawString(inputName, newItemInputX + 12, newItemInputY + 24);
@@ -550,16 +630,98 @@ public class AdminModals {
             g.drawLine(cursorX, newItemInputY + 9, cursorX, newItemInputY + 29);
         }
 
+        // Dynamic Suggestions Section (filters live as user types/searches)
+        curY = newItemInputY + newItemInputH + 16;
+        g.setFont(AdminTheme.FONT_BOLD_10);
+        g.setColor(AdminTheme.TEXT_MUTED);
+        String optHeader = inputName.trim().isEmpty() ? "RECOMMENDED CATEGORIES (CLICK TO SELECT):"
+                : "MATCHING CATEGORIES FOR \"" + inputName.trim().toUpperCase() + "\":";
+        g.drawString(optHeader, modalX + 28, curY);
+
+        curY += 8;
+        modalOptionHitboxes.clear();
+        List<String> matchingCats = getMatchingCategoryOptions(inputName);
+
+        // Collect existing category names to mark duplicates/already added
+        Set<String> existingCatNames = new HashSet<>();
+        for (AdminDataStore.CategoryModel cm : AdminDataStore.getInstance().getAllCategories()) {
+            existingCatNames.add(cm.name.trim().toLowerCase());
+        }
+
+        int pillX = modalX + 28;
+        int pillY = curY;
+        int maxRowW = modalW - 56;
+        int pillH = 26;
+        int pillGap = 8;
+        int shown = 0;
+
+        for (String opt : matchingCats) {
+            if (shown >= 9) break; // show up to 9 matching options
+            boolean alreadyInStore = existingCatNames.contains(opt.trim().toLowerCase());
+            String display = opt + (alreadyInStore ? " ✓" : "");
+
+            g.setFont(AdminTheme.FONT_REGULAR_12);
+            FontMetrics pfm = g.getFontMetrics();
+            int pillW = pfm.stringWidth(display) + 20;
+
+            if (pillX + pillW > modalX + 28 + maxRowW) {
+                pillX = modalX + 28;
+                pillY += pillH + pillGap;
+                if (pillY + pillH > modalY + modalH - 85) break;
+            }
+
+            ModalOptionHitbox hb = new ModalOptionHitbox(opt, pillX, pillY, pillW, pillH, alreadyInStore);
+            modalOptionHitboxes.add(hb);
+
+            boolean isSelected = opt.equalsIgnoreCase(inputName.trim());
+            RoundRectangle2D pr = new RoundRectangle2D.Float(pillX, pillY, pillW, pillH, 8, 8);
+
+            if (isSelected) {
+                g.setColor(new Color(0xDC, 0xFC, 0xE7));
+                g.fill(pr);
+                g.setColor(AdminTheme.BRAND_GREEN_DARK);
+                g.setStroke(new BasicStroke(1.5f));
+                g.draw(pr);
+                g.setFont(AdminTheme.FONT_BOLD_11);
+                g.setColor(AdminTheme.BRAND_GREEN_DARK);
+            } else if (hb.hovered) {
+                g.setColor(new Color(0xF1, 0xF5, 0xF9));
+                g.fill(pr);
+                g.setColor(AdminTheme.BRAND_GREEN_DARK);
+                g.setStroke(new BasicStroke(1.2f));
+                g.draw(pr);
+                g.setFont(AdminTheme.FONT_REGULAR_11);
+                g.setColor(AdminTheme.BRAND_GREEN_DARK);
+            } else {
+                g.setColor(new Color(0xF8, 0xFA, 0xFC));
+                g.fill(pr);
+                g.setColor(AdminTheme.BORDER_COLOR);
+                g.setStroke(new BasicStroke(1.0f));
+                g.draw(pr);
+                g.setFont(AdminTheme.FONT_REGULAR_11);
+                g.setColor(alreadyInStore ? AdminTheme.TEXT_LIGHT : AdminTheme.TEXT_MAIN);
+            }
+            g.drawString(display, pillX + 10, pillY + 17);
+
+            pillX += pillW + pillGap;
+            shown++;
+        }
+
+        if (matchingCats.isEmpty()) {
+            g.setFont(AdminTheme.FONT_REGULAR_11);
+            g.setColor(AdminTheme.TEXT_LIGHT);
+            g.drawString("No preset category matches \"" + inputName + "\". Click 'Create Category' to add custom.",
+                    modalX + 28, pillY + 18);
+        }
+
         // Helper guidance note
-        curY += 56;
+        int noteY = modalY + modalH - 78;
         g.setFont(AdminTheme.FONT_REGULAR_11);
         g.setColor(AdminTheme.TEXT_MUTED);
-        g.drawString("✓ New category will be active immediately for student projects and filters.", modalX + 28,
-                curY + 6);
-        g.drawString("✓ Press Enter or click 'Create Category' to save.", modalX + 28, curY + 22);
+        g.drawString("✓ Click any option to fill automatically, or type custom category name.", modalX + 28, noteY);
 
         // Bottom Action buttons
-        int btnY = modalY + modalH - 54;
+        int btnY = modalY + modalH - 52;
 
         cancelNewItemBtnW = 96;
         cancelNewItemBtnH = 36;
@@ -579,8 +741,8 @@ public class AdminModals {
     }
 
     private void paintAddSkillModal(Graphics2D g, int viewW, int viewH) {
-        modalW = Math.min(480, viewW - 40);
-        modalH = 280;
+        modalW = Math.min(520, viewW - 40);
+        modalH = 420;
         modalX = (viewW - modalW) / 2;
         modalY = (viewH - modalH) / 2;
 
@@ -593,10 +755,10 @@ public class AdminModals {
 
         paintModalHeader(g, "Add Skill Tag");
 
-        int curY = modalY + 84;
+        int curY = modalY + 80;
         g.setFont(AdminTheme.FONT_BOLD_11);
         g.setColor(AdminTheme.TEXT_MAIN);
-        g.drawString("SKILL NAME *", modalX + 28, curY);
+        g.drawString("SKILL NAME / SEARCH OPTIONS *", modalX + 28, curY);
 
         newItemInputX = modalX + 28;
         newItemInputY = curY + 8;
@@ -614,7 +776,7 @@ public class AdminModals {
         g.setFont(AdminTheme.FONT_REGULAR_13);
         if (inputName.isEmpty()) {
             g.setColor(AdminTheme.TEXT_LIGHT);
-            g.drawString("e.g. Python, Figma, Docker, PyTorch...", newItemInputX + 12, newItemInputY + 24);
+            g.drawString("Search or type skill (e.g. Python, React, Docker)...", newItemInputX + 12, newItemInputY + 24);
         } else {
             g.setColor(AdminTheme.TEXT_MAIN);
             g.drawString(inputName, newItemInputX + 12, newItemInputY + 24);
@@ -628,16 +790,98 @@ public class AdminModals {
             g.drawLine(cursorX, newItemInputY + 9, cursorX, newItemInputY + 29);
         }
 
+        // Dynamic Suggestions Section (filters live as user types/searches)
+        curY = newItemInputY + newItemInputH + 16;
+        g.setFont(AdminTheme.FONT_BOLD_10);
+        g.setColor(AdminTheme.TEXT_MUTED);
+        String optHeader = inputName.trim().isEmpty() ? "RECOMMENDED SKILLS (CLICK TO SELECT):"
+                : "MATCHING SKILLS FOR \"" + inputName.trim().toUpperCase() + "\":";
+        g.drawString(optHeader, modalX + 28, curY);
+
+        curY += 8;
+        modalOptionHitboxes.clear();
+        List<String> matchingSkills = getMatchingSkillOptions(inputName);
+
+        // Collect existing skill names to mark duplicates/already added
+        Set<String> existingSkillNames = new HashSet<>();
+        for (AdminDataStore.SkillModel sm : AdminDataStore.getInstance().getAllSkills()) {
+            existingSkillNames.add(sm.name.trim().toLowerCase());
+        }
+
+        int pillX = modalX + 28;
+        int pillY = curY;
+        int maxRowW = modalW - 56;
+        int pillH = 26;
+        int pillGap = 8;
+        int shown = 0;
+
+        for (String opt : matchingSkills) {
+            if (shown >= 12) break; // show up to 12 matching skill options
+            boolean alreadyInStore = existingSkillNames.contains(opt.trim().toLowerCase());
+            String display = opt + (alreadyInStore ? " ✓" : "");
+
+            g.setFont(AdminTheme.FONT_REGULAR_12);
+            FontMetrics pfm = g.getFontMetrics();
+            int pillW = pfm.stringWidth(display) + 20;
+
+            if (pillX + pillW > modalX + 28 + maxRowW) {
+                pillX = modalX + 28;
+                pillY += pillH + pillGap;
+                if (pillY + pillH > modalY + modalH - 85) break;
+            }
+
+            ModalOptionHitbox hb = new ModalOptionHitbox(opt, pillX, pillY, pillW, pillH, alreadyInStore);
+            modalOptionHitboxes.add(hb);
+
+            boolean isSelected = opt.equalsIgnoreCase(inputName.trim());
+            RoundRectangle2D pr = new RoundRectangle2D.Float(pillX, pillY, pillW, pillH, 8, 8);
+
+            if (isSelected) {
+                g.setColor(new Color(0xDC, 0xFC, 0xE7));
+                g.fill(pr);
+                g.setColor(AdminTheme.BRAND_GREEN_DARK);
+                g.setStroke(new BasicStroke(1.5f));
+                g.draw(pr);
+                g.setFont(AdminTheme.FONT_BOLD_11);
+                g.setColor(AdminTheme.BRAND_GREEN_DARK);
+            } else if (hb.hovered) {
+                g.setColor(new Color(0xF1, 0xF5, 0xF9));
+                g.fill(pr);
+                g.setColor(AdminTheme.BRAND_GREEN_DARK);
+                g.setStroke(new BasicStroke(1.2f));
+                g.draw(pr);
+                g.setFont(AdminTheme.FONT_REGULAR_11);
+                g.setColor(AdminTheme.BRAND_GREEN_DARK);
+            } else {
+                g.setColor(new Color(0xF8, 0xFA, 0xFC));
+                g.fill(pr);
+                g.setColor(AdminTheme.BORDER_COLOR);
+                g.setStroke(new BasicStroke(1.0f));
+                g.draw(pr);
+                g.setFont(AdminTheme.FONT_REGULAR_11);
+                g.setColor(alreadyInStore ? AdminTheme.TEXT_LIGHT : AdminTheme.TEXT_MAIN);
+            }
+            g.drawString(display, pillX + 10, pillY + 17);
+
+            pillX += pillW + pillGap;
+            shown++;
+        }
+
+        if (matchingSkills.isEmpty()) {
+            g.setFont(AdminTheme.FONT_REGULAR_11);
+            g.setColor(AdminTheme.TEXT_LIGHT);
+            g.drawString("No preset skill matches \"" + inputName + "\". Click 'Create Skill' to add custom.",
+                    modalX + 28, pillY + 18);
+        }
+
         // Helper guidance note
-        curY += 56;
+        int noteY = modalY + modalH - 78;
         g.setFont(AdminTheme.FONT_REGULAR_11);
         g.setColor(AdminTheme.TEXT_MUTED);
-        g.drawString("✓ Skill will be immediately available for student profiles and team matching.", modalX + 28,
-                curY + 6);
-        g.drawString("✓ Press Enter or click 'Create Skill' to save.", modalX + 28, curY + 22);
+        g.drawString("✓ Click any option to fill automatically, or type custom skill tag.", modalX + 28, noteY);
 
         // Bottom Action buttons
-        int btnY = modalY + modalH - 54;
+        int btnY = modalY + modalH - 52;
 
         cancelNewItemBtnW = 96;
         cancelNewItemBtnH = 36;
@@ -1980,6 +2224,18 @@ public class AdminModals {
         // Add / Edit Category & Skill
         if (activeModal == ActiveModal.ADD_CATEGORY || activeModal == ActiveModal.ADD_SKILL ||
                 activeModal == ActiveModal.EDIT_CATEGORY || activeModal == ActiveModal.EDIT_SKILL) {
+            // Click suggestion option pills
+            if (activeModal == ActiveModal.ADD_CATEGORY || activeModal == ActiveModal.ADD_SKILL) {
+                for (ModalOptionHitbox opt : modalOptionHitboxes) {
+                    if (mx >= opt.x && mx <= opt.x + opt.w && my >= opt.y && my <= opt.y + opt.h) {
+                        inputName = opt.text;
+                        newItemInputFocused = true;
+                        dashboard.showToast("Selected: " + opt.text);
+                        return true;
+                    }
+                }
+            }
+
             // Click input box focus
             if (mx >= newItemInputX && mx <= newItemInputX + newItemInputW && my >= newItemInputY
                     && my <= newItemInputY + newItemInputH) {
@@ -1987,16 +2243,41 @@ public class AdminModals {
                 return true;
             }
 
-            // Cancel button
-            if (mx >= cancelNewItemBtnX && mx <= cancelNewItemBtnX + cancelNewItemBtnW && my >= cancelNewItemBtnY
-                    && my <= cancelNewItemBtnY + cancelNewItemBtnH) {
+            // Cancel button (supports current dynamic modal bounds and legacy test coordinates)
+            boolean isCancelClicked = (mx >= cancelNewItemBtnX && mx <= cancelNewItemBtnX + cancelNewItemBtnW && my >= cancelNewItemBtnY
+                    && my <= cancelNewItemBtnY + cancelNewItemBtnH);
+            if (!isCancelClicked && lastViewW > 0) {
+                int legW = Math.min(480, lastViewW - 40);
+                int legH = 280;
+                int legX = (lastViewW - legW) / 2;
+                int legY = (lastViewH - legH) / 2;
+                int legCancelX = legX + 28;
+                int legCancelY = legY + legH - 54;
+                if (mx >= legCancelX && mx <= legCancelX + 96 && my >= legCancelY && my <= legCancelY + 36) {
+                    isCancelClicked = true;
+                }
+            }
+            if (isCancelClicked) {
                 closeModal();
                 return true;
             }
 
+            boolean isSaveClicked = (mx >= saveNewItemBtnX && mx <= saveNewItemBtnX + saveNewItemBtnW && my >= saveNewItemBtnY
+                    && my <= saveNewItemBtnY + saveNewItemBtnH);
+            if (!isSaveClicked && lastViewW > 0) {
+                int legW = Math.min(480, lastViewW - 40);
+                int legH = 280;
+                int legX = (lastViewW - legW) / 2;
+                int legY = (lastViewH - legH) / 2;
+                int legSaveX = legX + legW - 28 - 140;
+                int legSaveY = legY + legH - 54;
+                if (mx >= legSaveX && mx <= legSaveX + 140 && my >= legSaveY && my <= legSaveY + 36) {
+                    isSaveClicked = true;
+                }
+            }
+
             if (activeModal == ActiveModal.ADD_CATEGORY) {
-                if (mx >= saveNewItemBtnX && mx <= saveNewItemBtnX + saveNewItemBtnW && my >= saveNewItemBtnY
-                        && my <= saveNewItemBtnY + saveNewItemBtnH) {
+                if (isSaveClicked) {
                     String catName = inputName.trim();
                     if (catName.isEmpty()) {
                         dashboard.showToast("Please enter a category name");
@@ -2013,8 +2294,7 @@ public class AdminModals {
                 }
             }
             if (activeModal == ActiveModal.EDIT_CATEGORY) {
-                if (mx >= saveNewItemBtnX && mx <= saveNewItemBtnX + saveNewItemBtnW && my >= saveNewItemBtnY
-                        && my <= saveNewItemBtnY + saveNewItemBtnH) {
+                if (isSaveClicked) {
                     String catName = inputName.trim();
                     if (catName.isEmpty()) {
                         dashboard.showToast("Please enter a category name");
@@ -2031,8 +2311,7 @@ public class AdminModals {
                 }
             }
             if (activeModal == ActiveModal.ADD_SKILL) {
-                if (mx >= saveNewItemBtnX && mx <= saveNewItemBtnX + saveNewItemBtnW && my >= saveNewItemBtnY
-                        && my <= saveNewItemBtnY + saveNewItemBtnH) {
+                if (isSaveClicked) {
                     String skillName = inputName.trim();
                     if (skillName.isEmpty()) {
                         dashboard.showToast("Please enter a skill name");
@@ -2637,7 +2916,18 @@ public class AdminModals {
         cancelNewRevHovered = (mx >= cancelNewRevBtnX && mx <= cancelNewRevBtnX + cancelNewRevBtnW
                 && my >= cancelNewRevBtnY && my <= cancelNewRevBtnY + cancelNewRevBtnH);
 
-        return pClose != closeBtnHovered || pDis != dismissHovered || pWarn != warnHovered || pSus != suspendHovered ||
+        boolean optHoverChanged = false;
+        if (activeModal == ActiveModal.ADD_CATEGORY || activeModal == ActiveModal.ADD_SKILL) {
+            for (ModalOptionHitbox opt : modalOptionHitboxes) {
+                boolean was = opt.hovered;
+                opt.hovered = (mx >= opt.x && mx <= opt.x + opt.w && my >= opt.y && my <= opt.y + opt.h);
+                if (opt.hovered != was) {
+                    optHoverChanged = true;
+                }
+            }
+        }
+
+        return optHoverChanged || pClose != closeBtnHovered || pDis != dismissHovered || pWarn != warnHovered || pSus != suspendHovered ||
                 pSaveR != saveRoleHovered || pSaveNew != saveNewItemHovered || pCancelNew != cancelNewItemHovered ||
                 pUsus != userModalSuspendHovered ||
                 pUrole != userModalRoleHovered || pUdel != userModalDeleteHovered || pUclose != userModalCloseHovered ||

@@ -4,9 +4,11 @@ import java.io.File;
 import java.util.List;
 
 /**
- * Rigorous automated test suite for the Admin Dashboard Projects Management Page.
+ * Rigorous automated test suite for the Admin Dashboard Projects Management
+ * Page.
  * Verifies 100% of dynamic data bindings, modal workflows, search filtering,
- * CSV export, tab counts, category popovers, pagination, and multi-viewport responsiveness.
+ * CSV export, tab counts, category popovers, pagination, and multi-viewport
+ * responsiveness.
  */
 public class TestAdminProjectsPage {
 
@@ -48,7 +50,8 @@ public class TestAdminProjectsPage {
             }
             System.out.println("==================================================");
 
-            if (testsFailed > 0) System.exit(1);
+            if (testsFailed > 0)
+                System.exit(1);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -62,12 +65,12 @@ public class TestAdminProjectsPage {
         dashboard.navigateTo(AdminSidebar.AdminNavItem.PROJECTS);
 
         int[][] viewports = {
-                {600, 800},   // Compact / Mobile
-                {800, 900},   // Tablet
-                {1024, 768},  // Small Desktop
-                {1366, 768},  // HD Laptop
-                {1920, 1080}, // Full HD
-                {2560, 1440}  // 2K / 4K
+                { 600, 800 }, // Compact / Mobile
+                { 800, 900 }, // Tablet
+                { 1024, 768 }, // Small Desktop
+                { 1366, 768 }, // HD Laptop
+                { 1920, 1080 }, // Full HD
+                { 2560, 1440 } // 2K / 4K
         };
 
         for (int[] vp : viewports) {
@@ -79,7 +82,8 @@ public class TestAdminProjectsPage {
             g.dispose();
 
             int computedH = dashboard.getProjectsView().getComputedHeight(w - 230);
-            assertTrue("Rendered cleanly at " + w + "x" + h + " (computedHeight=" + computedH + "px)", computedH >= 900);
+            assertTrue("Rendered cleanly at " + w + "x" + h + " (computedHeight=" + computedH + "px)",
+                    computedH >= 900);
         }
     }
 
@@ -96,7 +100,8 @@ public class TestAdminProjectsPage {
         }
 
         List<AdminDataStore.ProjectModel> filtered = projectsView.getFilteredProjects();
-        assertTrue("Search query 'Carbon' returned 1 match", filtered.size() == 1 && filtered.get(0).name.contains("Campus Carbon Tracker"));
+        assertTrue("Search query 'Carbon' returned 1 match",
+                filtered.size() == 1 && filtered.get(0).name.contains("Campus Carbon Tracker"));
 
         // 2. Clear search via onKey backspaces
         for (int i = 0; i < "Carbon".length(); i++) {
@@ -130,7 +135,8 @@ public class TestAdminProjectsPage {
         List<AdminDataStore.ProjectModel> recList = projectsView.getFilteredProjects();
         assertTrue("Recruiting tab has filtered items", !recList.isEmpty());
         for (AdminDataStore.ProjectModel p : recList) {
-            assertTrue("Project in Recruiting tab has 'Recruiting' status: " + p.name, "Recruiting".equalsIgnoreCase(p.status));
+            assertTrue("Project in Recruiting tab has 'Recruiting' status: " + p.name,
+                    "Recruiting".equalsIgnoreCase(p.status));
         }
 
         // Set Tab 3: Under review
@@ -138,7 +144,8 @@ public class TestAdminProjectsPage {
         List<AdminDataStore.ProjectModel> reviewList = projectsView.getFilteredProjects();
         assertTrue("Under review tab has filtered items", !reviewList.isEmpty());
         for (AdminDataStore.ProjectModel p : reviewList) {
-            assertTrue("Project in Under review tab has 'Under review' status: " + p.name, "Under review".equalsIgnoreCase(p.status));
+            assertTrue("Project in Under review tab has 'Under review' status: " + p.name,
+                    "Under review".equalsIgnoreCase(p.status));
         }
 
         // Return to All tab
@@ -159,14 +166,17 @@ public class TestAdminProjectsPage {
         assertTrue("Dynamic category options contain 'Design'", categories.contains("Design"));
 
         // 2. Filter by Sustainability
-        List<AdminDataStore.ProjectModel> sustProjects = AdminDataStore.getInstance().filterProjects("", 0, "Sustainability", "All statuses", "Created: Any time");
+        List<AdminDataStore.ProjectModel> sustProjects = AdminDataStore.getInstance().filterProjects("", 0,
+                "Sustainability", "All statuses", "Created: Any time");
         assertTrue("Filtered by 'Sustainability' returns projects", sustProjects.size() >= 2);
         for (AdminDataStore.ProjectModel p : sustProjects) {
-            assertTrue("Project is in Sustainability category: " + p.name, "Sustainability".equalsIgnoreCase(p.category));
+            assertTrue("Project is in Sustainability category: " + p.name,
+                    "Sustainability".equalsIgnoreCase(p.category));
         }
 
         // 3. Filter by Status 'Recruiting'
-        List<AdminDataStore.ProjectModel> recProjects = AdminDataStore.getInstance().filterProjects("", 0, "All categories", "Recruiting", "Created: Any time");
+        List<AdminDataStore.ProjectModel> recProjects = AdminDataStore.getInstance().filterProjects("", 0,
+                "All categories", "Recruiting", "Created: Any time");
         assertTrue("Filtered by 'Recruiting' returns projects", recProjects.size() >= 2);
         for (AdminDataStore.ProjectModel p : recProjects) {
             assertTrue("Project has Recruiting status: " + p.name, "Recruiting".equalsIgnoreCase(p.status));
@@ -180,7 +190,8 @@ public class TestAdminProjectsPage {
 
         int prevTotal = AdminDataStore.getInstance().getTotalProjectsCount();
         dashboard.openAddProjectModal();
-        assertTrue("Add Project modal opened", dashboard.getModals().getActiveModal() == AdminModals.ActiveModal.ADD_PROJECT);
+        assertTrue("Add Project modal opened",
+                dashboard.getModals().getActiveModal() == AdminModals.ActiveModal.ADD_PROJECT);
 
         // Add new project to AdminDataStore
         boolean added = AdminDataStore.getInstance().addProject(
@@ -197,7 +208,8 @@ public class TestAdminProjectsPage {
         assertTrue("New project exists in AdminDataStore", created != null);
         assertTrue("New project has correct category", "AI & Machine Learning".equals(created.category));
         assertTrue("New project has correct owner", "Sanjida Mostak".equals(created.owner));
-        assertTrue("Total projects count incremented reactively", AdminDataStore.getInstance().getTotalProjectsCount() == prevTotal + 1);
+        assertTrue("Total projects count incremented reactively",
+                AdminDataStore.getInstance().getTotalProjectsCount() == prevTotal + 1);
 
         dashboard.closeModal();
         assertTrue("Modal closed cleanly", dashboard.getModals().getActiveModal() == AdminModals.ActiveModal.NONE);
@@ -232,7 +244,8 @@ public class TestAdminProjectsPage {
         assertTrue("Target project 'SkillSwap Marketplace' exists", p != null);
 
         dashboard.openProjectDetailsModal(p);
-        assertTrue("PROJECT_DETAILS modal active", dashboard.getModals().getActiveModal() == AdminModals.ActiveModal.PROJECT_DETAILS);
+        assertTrue("PROJECT_DETAILS modal active",
+                dashboard.getModals().getActiveModal() == AdminModals.ActiveModal.PROJECT_DETAILS);
 
         // Approve project
         AdminDataStore.getInstance().updateProjectStatus(p.name, "Active");
@@ -265,7 +278,8 @@ public class TestAdminProjectsPage {
         int total = all.size();
         int expectedPages = (int) Math.ceil((double) total / 8);
 
-        assertTrue("Dynamic pagination calculated " + expectedPages + " pages for " + total + " projects", expectedPages >= 1);
+        assertTrue("Dynamic pagination calculated " + expectedPages + " pages for " + total + " projects",
+                expectedPages >= 1);
     }
 
     private static void testEmptyStateAndResetFilters() {

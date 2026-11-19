@@ -182,7 +182,7 @@ public class AdminSettings {
 
     public int getComputedHeight(int width) {
         boolean mobile = (width < 650);
-        int total = (width < 640) ? 150 : 100; // Header
+        int total = 75; // Clean responsive header
         total += mobile ? 350 : 255; // Card 1: General & Contact Information
         total += mobile ? 360 : 275; // Card 2: Platform Controls & Governance
         total += mobile ? 320 : 245; // Card 3: Change Password
@@ -220,47 +220,17 @@ public class AdminSettings {
         g.setColor(AdminTheme.TEXT_DARK);
         g.drawString("Platform Settings", x, y + 24);
 
-        int titleW = g.getFontMetrics().stringWidth("Platform Settings");
-
-        // Status badge: Live Policies
-        if (w >= 750) {
-            int bX = x + titleW + 14;
-            int bY = y + 7;
-            RoundRectangle2D pill = new RoundRectangle2D.Float(bX, bY, 115, 22, 11, 11);
-            g.setColor(new Color(0xDC, 0xFC, 0xE7));
-            g.fill(pill);
-            g.setColor(new Color(0x10, 0xB9, 0x81));
-            g.fillOval(bX + 8, bY + 7, 7, 7);
-            g.setFont(AdminTheme.FONT_BOLD_10);
-            g.drawString("LIVE POLICIES", bX + 20, bY + 15);
-        }
-
         // Subtitle
         g.setFont(AdminTheme.FONT_REG_13);
         g.setColor(AdminTheme.TEXT_MUTED);
         String sub = "Configure platform name, institutional domains, user access, and security.";
         g.drawString(sub, x, y + 48);
 
-        // Header actions: Save & Reset
-        int btnH = 34;
-        int saveW = 140;
-        int resetW = 125;
+        // Top action buttons and Live Policies badge deleted as requested
+        actionBtns.add(new ActionBtn("RESET_TOP", -9999, -9999, 0, 0));
+        actionBtns.add(new ActionBtn("SAVE_TOP", -9999, -9999, 0, 0));
 
-        if (w >= 640) {
-            int saveX = x + w - saveW;
-            int resetX = saveX - resetW - 10;
-            int btnY = y + 10;
-
-            paintButton(g, "RESET_TOP", resetX, btnY, resetW, btnH, "↺ Reset Defaults", false);
-            boolean unsaved = hasUnsavedChanges();
-            paintButton(g, "SAVE_TOP", saveX, btnY, saveW, btnH, unsaved ? "💾 Save Changes *" : "💾 Save Changes", true);
-            return y + 54;
-        } else {
-            paintButton(g, "RESET_TOP", x, y + 58, resetW, btnH, "↺ Reset Defaults", false);
-            boolean unsaved = hasUnsavedChanges();
-            paintButton(g, "SAVE_TOP", x + resetW + 10, y + 58, saveW, btnH, unsaved ? "💾 Save Changes *" : "💾 Save Changes", true);
-            return y + 102;
-        }
+        return y + 54;
     }
 
     // --- CARD 1: General & Contact Information ---
@@ -552,38 +522,69 @@ public class AdminSettings {
 
     // --- Interactive Mouse & Keyboard Handlers ---
 
+    private void commitInput(int id, AdminDashboard dashboard) {
+        AdminDataStore store = AdminDataStore.getInstance();
+        if (id == 1 && !platformNameDraft.trim().isEmpty() && !platformNameDraft.equals(store.platformName)) {
+            store.platformName = platformNameDraft.trim();
+            AdminSync.syncUpdateSetting("platformName", store.platformName);
+        } else if (id == 2 && !contactEmailDraft.trim().isEmpty() && !contactEmailDraft.equals(store.contactEmail)) {
+            store.contactEmail = contactEmailDraft.trim();
+            AdminSync.syncUpdateSetting("contactEmail", store.contactEmail);
+        } else if (id == 3 && !supportEmailDraft.trim().isEmpty() && !supportEmailDraft.equals(store.supportEmail)) {
+            store.supportEmail = supportEmailDraft.trim();
+            AdminSync.syncUpdateSetting("supportEmail", store.supportEmail);
+        } else if (id == 7 && allowedDomainsDraft != null && !allowedDomainsDraft.equals(store.allowedDomains)) {
+            store.allowedDomains = allowedDomainsDraft.trim();
+            AdminSync.syncUpdateSetting("allowedDomains", store.allowedDomains);
+        }
+    }
+
     public boolean onClick(int mx, int my, AdminDashboard dashboard) {
         // 1. Focus input boxes
         boolean foundInput = false;
+        int prevFocused = focusedInput;
         for (InputBox in : inputBoxes) {
             if (mx >= in.x && mx <= in.x + in.w && my >= in.y && my <= in.y + in.h) {
                 focusedInput = in.id;
                 foundInput = true;
+                if (prevFocused != 0 && prevFocused != focusedInput) {
+                    commitInput(prevFocused, dashboard);
+                }
                 return true;
             }
         }
         if (!foundInput && focusedInput != 0) {
+            commitInput(focusedInput, dashboard);
             focusedInput = 0;
         }
 
-        // 2. Toggle buttons
+        // 2. Toggle buttons (100% dynamic live sync)
         for (ToggleBtn tb : toggleBtns) {
             if (mx >= tb.x && mx <= tb.x + tb.w && my >= tb.y && my <= tb.y + tb.h) {
+                AdminDataStore store = AdminDataStore.getInstance();
                 switch (tb.id) {
                     case "USER_REG":
                         userRegistrationDraft = !userRegistrationDraft;
+                        store.userRegistrationEnabled = userRegistrationDraft;
+                        AdminSync.syncUpdateSetting("userRegistrationEnabled", userRegistrationDraft);
                         dashboard.showToast("User Registration: " + (userRegistrationDraft ? "ENABLED" : "DISABLED"));
                         break;
                     case "PROJ_APPROV":
                         projectApprovalDraft = !projectApprovalDraft;
+                        store.requireProjectApproval = projectApprovalDraft;
+                        AdminSync.syncUpdateSetting("requireProjectApproval", projectApprovalDraft);
                         dashboard.showToast("Project Approval: " + (projectApprovalDraft ? "ENABLED" : "DISABLED"));
                         break;
                     case "NOTIF":
                         notificationsDraft = !notificationsDraft;
+                        store.notificationsEnabled = notificationsDraft;
+                        AdminSync.syncUpdateSetting("notificationsEnabled", notificationsDraft);
                         dashboard.showToast("Notifications: " + (notificationsDraft ? "ENABLED" : "DISABLED"));
                         break;
                     case "MAINTENANCE":
                         maintenanceModeDraft = !maintenanceModeDraft;
+                        store.maintenanceModeActive = maintenanceModeDraft;
+                        AdminSync.syncUpdateSetting("maintenanceModeActive", maintenanceModeDraft);
                         dashboard.showToast("Maintenance Mode: " + (maintenanceModeDraft ? "ACTIVE (Public access paused)" : "INACTIVE (Live)"));
                         break;
                 }
@@ -591,11 +592,13 @@ public class AdminSettings {
             }
         }
 
-        // 3. Stepper buttons
+        // 3. Stepper buttons (100% dynamic live sync)
         for (StepperBtn sb : stepperBtns) {
             if (mx >= sb.mx && mx <= sb.mx + sb.mw && my >= sb.my && my <= sb.my + sb.mh) {
                 if ("MAX_TEAM".equals(sb.id)) {
                     maxTeamSizeDraft = Math.max(2, maxTeamSizeDraft - 1);
+                    AdminDataStore.getInstance().maxTeamSize = maxTeamSizeDraft;
+                    AdminSync.syncUpdateSetting("maxTeamSize", maxTeamSizeDraft);
                     dashboard.showToast("Max Team Size: " + maxTeamSizeDraft + " members");
                 }
                 return true;
@@ -603,6 +606,8 @@ public class AdminSettings {
             if (mx >= sb.px && mx <= sb.px + sb.pw && my >= sb.py && my <= sb.py + sb.ph) {
                 if ("MAX_TEAM".equals(sb.id)) {
                     maxTeamSizeDraft = Math.min(16, maxTeamSizeDraft + 1);
+                    AdminDataStore.getInstance().maxTeamSize = maxTeamSizeDraft;
+                    AdminSync.syncUpdateSetting("maxTeamSize", maxTeamSizeDraft);
                     dashboard.showToast("Max Team Size: " + maxTeamSizeDraft + " members");
                 }
                 return true;
@@ -696,14 +701,28 @@ public class AdminSettings {
         store.maintenanceModeActive = maintenanceModeDraft;
         store.maxTeamSize = maxTeamSizeDraft;
 
+        // Sync all to backend
+        java.util.Map<String, Object> patch = new java.util.HashMap<>();
+        patch.put("platformName", store.platformName);
+        patch.put("contactEmail", store.contactEmail);
+        patch.put("supportEmail", store.supportEmail);
+        patch.put("allowedDomains", store.allowedDomains);
+        patch.put("userRegistrationEnabled", store.userRegistrationEnabled);
+        patch.put("requireProjectApproval", store.requireProjectApproval);
+        patch.put("notificationsEnabled", store.notificationsEnabled);
+        patch.put("maintenanceModeActive", store.maintenanceModeActive);
+        patch.put("maxTeamSize", store.maxTeamSize);
+        AdminSync.syncUpdateSettings(patch);
+
         // Log audit event
-        store.logActivity("Jordan Lee", "JL", "Updated platform settings", store.platformName, true);
+        store.logActivity(store.getActorName(), store.getActorInitials(), "Updated platform settings", store.platformName, true);
         dashboard.showToast("Platform settings successfully saved & synchronized!");
     }
 
     public void resetAllSettings(AdminDashboard dashboard) {
         AdminDataStore.getInstance().resetSettingsToDefaults();
         loadFromStore();
+        AdminSync.syncResetSettings();
         dashboard.showToast("Platform settings reset to defaults!");
     }
 
@@ -735,13 +754,20 @@ public class AdminSettings {
 
         // Escape to unfocus
         if (keyCode == java.awt.event.KeyEvent.VK_ESCAPE) {
+            commitInput(focusedInput, dashboard);
             focusedInput = 0;
             return true;
         }
 
-        // Enter on confirm password triggers password update
-        if (focusedInput == 6 && keyCode == java.awt.event.KeyEvent.VK_ENTER) {
-            updatePassword(dashboard);
+        // Enter key
+        if (keyCode == java.awt.event.KeyEvent.VK_ENTER) {
+            if (focusedInput == 6) {
+                updatePassword(dashboard);
+                return true;
+            }
+            commitInput(focusedInput, dashboard);
+            dashboard.showToast("Setting updated!");
+            focusedInput = 0;
             return true;
         }
 
@@ -751,18 +777,21 @@ public class AdminSettings {
                 case 1:
                     if (platformNameDraft.length() > 0) {
                         platformNameDraft = platformNameDraft.substring(0, platformNameDraft.length() - 1);
+                        AdminDataStore.getInstance().platformName = platformNameDraft;
                         return true;
                     }
                     break;
                 case 2:
                     if (contactEmailDraft.length() > 0) {
                         contactEmailDraft = contactEmailDraft.substring(0, contactEmailDraft.length() - 1);
+                        AdminDataStore.getInstance().contactEmail = contactEmailDraft;
                         return true;
                     }
                     break;
                 case 3:
                     if (supportEmailDraft.length() > 0) {
                         supportEmailDraft = supportEmailDraft.substring(0, supportEmailDraft.length() - 1);
+                        AdminDataStore.getInstance().supportEmail = supportEmailDraft;
                         return true;
                     }
                     break;
@@ -787,6 +816,7 @@ public class AdminSettings {
                 case 7:
                     if (allowedDomainsDraft != null && allowedDomainsDraft.length() > 0) {
                         allowedDomainsDraft = allowedDomainsDraft.substring(0, allowedDomainsDraft.length() - 1);
+                        AdminDataStore.getInstance().allowedDomains = allowedDomainsDraft;
                         return true;
                     }
                     break;
@@ -800,18 +830,21 @@ public class AdminSettings {
                 case 1:
                     if (platformNameDraft.length() < 40) {
                         platformNameDraft += ch;
+                        AdminDataStore.getInstance().platformName = platformNameDraft;
                         return true;
                     }
                     break;
                 case 2:
                     if (contactEmailDraft.length() < 50) {
                         contactEmailDraft += ch;
+                        AdminDataStore.getInstance().contactEmail = contactEmailDraft;
                         return true;
                     }
                     break;
                 case 3:
                     if (supportEmailDraft.length() < 50) {
                         supportEmailDraft += ch;
+                        AdminDataStore.getInstance().supportEmail = supportEmailDraft;
                         return true;
                     }
                     break;
@@ -836,6 +869,7 @@ public class AdminSettings {
                 case 7:
                     if (allowedDomainsDraft != null && allowedDomainsDraft.length() < 120) {
                         allowedDomainsDraft += ch;
+                        AdminDataStore.getInstance().allowedDomains = allowedDomainsDraft;
                         return true;
                     }
                     break;

@@ -52,6 +52,14 @@ public final class AdminSync {
         });
     }
 
+    public static void refresh(final AdminDashboard d) {
+        load(d);
+    }
+
+    public static void refresh() {
+        load(null);
+    }
+
     public static void apply(Map<String, Object> data) {
         if (data == null) return;
         AdminDataStore store = AdminDataStore.getInstance();
@@ -252,12 +260,10 @@ public final class AdminSync {
                 }
             }
 
-            // Stats
+            // Stats (Platform overview analytics)
             Map<String, Object> stats = Json.map(data, "stats");
             if (stats != null) {
-                store.baseTotalUsers = Json.integer(stats, "totalUsers", store.baseTotalUsers);
-                store.baseTotalProjects = Json.integer(stats, "totalProjects", store.baseTotalProjects);
-                store.collaborationRequests = Json.integer(stats, "collaborationRequests", store.collaborationRequests);
+                store.applyBackendStats(stats);
             }
         }
     }
@@ -517,6 +523,22 @@ public final class AdminSync {
                 System.err.println("[AdminSync] Failed to sync changePassword to MongoDB: " + e.getMessage());
             }
         });
+    }
+
+    public static void syncUpdateSettings(Map<String, Object> patch) {
+        if (!isOnline() || patch == null || patch.isEmpty()) return;
+        IO.submit(() -> {
+            try {
+                ApiClient.put("/admin/settings", patch);
+            } catch (Exception e) {
+                System.err.println("[AdminSync] Failed to sync updateSettings to MongoDB: " + e.getMessage());
+            }
+        });
+    }
+
+    public static void syncUpdateSetting(String key, Object val) {
+        if (!isOnline() || key == null) return;
+        syncUpdateSettings(Json.obj(key, val));
     }
 
     public static void syncResetSettings() {

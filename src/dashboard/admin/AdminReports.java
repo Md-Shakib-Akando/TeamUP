@@ -88,6 +88,10 @@ public class AdminReports {
     private int resetBtnX = -9999, resetBtnY = -9999, resetBtnW = 104, resetBtnH = 30;
     private boolean resetBtnHovered = false;
 
+    // Refresh Reports Button
+    private int refreshBtnX = -9999, refreshBtnY = -9999, refreshBtnW = 140, refreshBtnH = 32;
+    private boolean refreshBtnHovered = false;
+
     // Action buttons bounds in Right Panel
     private int dismissBtnX, dismissBtnY, dismissBtnW = 90, dismissBtnH = 34;
     private int warnBtnX, warnBtnY, warnBtnW = 96, warnBtnH = 34;
@@ -146,16 +150,11 @@ public class AdminReports {
         g.setColor(AdminTheme.TEXT_DARK);
         g.drawString("Reports", x, y + 24);
 
-        int titleW = hfm.stringWidth("Reports");
-
-        int pillX = x + titleW + 12;
-        int pillY = y + 8;
-        RoundRectangle2D pill = new RoundRectangle2D.Float(pillX, pillY, 76, 20, 10, 10);
-        g.setColor(AdminTheme.BRAND_TINT);
-        g.fill(pill);
-        g.setFont(AdminTheme.FONT_REG_11);
-        g.setColor(AdminTheme.BRAND_PRIMARY);
-        g.drawString("Live Queue", pillX + 9, pillY + 14);
+        // Live Queue badge and Refresh Reports button removed per user request
+        refreshBtnX = -9999;
+        refreshBtnY = -9999;
+        refreshBtnW = 0;
+        refreshBtnH = 0;
 
         g.setFont(AdminTheme.FONT_REG_13);
         g.setColor(AdminTheme.TEXT_MUTED);
@@ -586,10 +585,22 @@ public class AdminReports {
         g.setStroke(new BasicStroke(1.2f));
         g.draw(card);
 
-        AdminDataStore.ReportModel cur = AdminDataStore.getInstance().getAllReports().stream()
+        List<AdminDataStore.ReportModel> all = AdminDataStore.getInstance().getAllReports();
+        if (all.isEmpty()) {
+            g.setFont(AdminTheme.FONT_BOLD_13);
+            g.setColor(AdminTheme.TEXT_MUTED);
+            g.drawString("No reports in database", x + 24, y + 50);
+            return;
+        }
+
+        AdminDataStore.ReportModel cur = all.stream()
                 .filter(r -> r.id.equalsIgnoreCase(selectedReportId))
                 .findFirst()
-                .orElse(AdminDataStore.getInstance().getAllReports().get(0));
+                .orElse(null);
+        if (cur == null) {
+            cur = all.get(0);
+            selectedReportId = cur.id;
+        }
 
         int padX = 24;
         int curY = y + 28;
@@ -769,6 +780,13 @@ public class AdminReports {
     }
 
     public boolean onClick(int mx, int my, AdminDashboard dashboard) {
+        // 0. Live Refresh Reports button
+        if (mx >= refreshBtnX && mx <= refreshBtnX + refreshBtnW && my >= refreshBtnY && my <= refreshBtnY + refreshBtnH) {
+            AdminSync.refresh(dashboard);
+            dashboard.showToast("Moderation reports reloaded live!");
+            return true;
+        }
+
         // 1. Dropdown popover item clicks (if any dropdown is open)
         if (activePopover != 0) {
             for (DropdownItemHitbox dh : popoverHitboxes) {
@@ -956,6 +974,10 @@ public class AdminReports {
         boolean pRst = resetBtnHovered;
         resetBtnHovered = (resetBtnX > 0 && mx >= resetBtnX && mx <= resetBtnX + resetBtnW && my >= resetBtnY && my <= resetBtnY + resetBtnH);
         if (pRst != resetBtnHovered) changed = true;
+
+        boolean pRef = refreshBtnHovered;
+        refreshBtnHovered = (refreshBtnX > 0 && mx >= refreshBtnX && mx <= refreshBtnX + refreshBtnW && my >= refreshBtnY && my <= refreshBtnY + refreshBtnH);
+        if (pRef != refreshBtnHovered) changed = true;
 
         // Table rows hover
         String prevHoveredId = hoveredReportId;
