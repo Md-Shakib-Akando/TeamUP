@@ -21,15 +21,8 @@ function formatDate(d) {
   return `${month} ${day}, ${year}`;
 }
 
-// Compute initials
-function computeInitials(name) {
-  if (!name) return 'TU';
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[1][0]).toUpperCase();
-  }
-  return name.trim().slice(0, 2).toUpperCase();
-}
+// Avatar initials — same rule everywhere (see utils/format.js initials())
+const computeInitials = (name) => require('../utils/format').initials(name || '');
 
 // Helper to log audit activity into MongoDB
 async function logAudit(actorName, actorInitials, action, target, success = true) {

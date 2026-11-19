@@ -649,157 +649,226 @@ public class DashboardMyProjects {
     }
 
     private int paintProjectCard(Graphics2D g, int cx, int cy, int cw, MyProjectCard p) {
-        int cardH = 200;
+        int pad = 22;
+        int innerW = cw - pad * 2;
+
+        // --- measure: description lines decide the card height
+        FontMetrics dfm = g.getFontMetrics(DashboardTheme.FONT_REG_13);
+        List<String> descLines = wrapLimited(p.description, dfm, innerW, 2);
+        int cardH = 22 + 44 + 14 + Math.max(1, descLines.size()) * 20 + 16 + 30 + 14 + 24 + 20 + 1 + 16 + 34 + 18;
         p.hitX = cx; p.hitY = cy; p.hitW = cw; p.hitH = cardH;
 
-        RoundRectangle2D cShape = new RoundRectangle2D.Float(cx, cy, cw, cardH, 14, 14);
+        RoundRectangle2D cShape = new RoundRectangle2D.Float(cx, cy, cw, cardH, 16, 16);
         g.setColor(Color.WHITE);
         g.fill(cShape);
         g.setColor(DashboardTheme.BORDER_COLOR);
         g.setStroke(new BasicStroke(1.2f));
         g.draw(cShape);
 
-        // Header: Title + Role pill + Category + Status Badge
-        int curX = cx + 20;
-        int curY = cy + 28;
+        int x = cx + pad;
+        int y = cy + 22;
 
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 17));
-        g.setColor(DashboardTheme.TEXT_DARK);
-        g.drawString(p.title, curX, curY);
-        int tw = g.getFontMetrics().stringWidth(p.title);
-        curX += tw + 12;
+        // --- header: monogram, title, role/category meta, status badge
+        Color accent = p.statusText != null ? p.statusText : DashboardTheme.BRAND_PURPLE;
+        g.setColor(DashboardTheme.PURPLE_TINT_BG);
+        g.fill(new RoundRectangle2D.Float(x, y, 44, 44, 12, 12));
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 18));
+        g.setColor(DashboardTheme.BRAND_PURPLE);
+        String mono = (p.title == null || p.title.trim().isEmpty()) ? "P" : p.title.trim().substring(0, 1).toUpperCase();
+        FontMetrics mfm = g.getFontMetrics();
+        g.drawString(mono, x + (44 - mfm.stringWidth(mono)) / 2, y + 29);
 
-        // Role Tag
-        RoundRectangle2D roleTag = new RoundRectangle2D.Float(curX, curY - 14, p.isLead ? 92 : 70, 20, 6, 6);
-        g.setColor(p.isLead ? DashboardTheme.PURPLE_TINT_BG : new Color(0xF4, 0xF2, 0xEE));
-        g.fill(roleTag);
-        g.setFont(DashboardTheme.FONT_BOLD_10);
-        g.setColor(p.isLead ? DashboardTheme.BRAND_PURPLE : DashboardTheme.TEXT_MUTED);
-        g.drawString(p.isLead ? "PROJECT LEAD" : "JOINED", curX + 8, curY);
-        curX += (p.isLead ? 92 : 70) + 8;
-
-        // Category Tag
-        g.setFont(DashboardTheme.FONT_REG_11);
-        g.setColor(DashboardTheme.TEXT_LIGHT);
-        g.drawString("·  " + p.category, curX, curY);
-
-        // Status Badge (Right aligned)
-        int badgeW = 90;
-        int badgeH = 24;
-        int badgeX = cx + cw - badgeW - 20;
-        int badgeY = cy + 14;
-        RoundRectangle2D stBadge = new RoundRectangle2D.Float(badgeX, badgeY, badgeW, badgeH, 6, 6);
+        String status = p.status == null ? "" : p.status;
+        g.setFont(DashboardTheme.FONT_BOLD_11);
+        FontMetrics bfm = g.getFontMetrics();
+        int badgeW = bfm.stringWidth(status) + 26;
+        int badgeX = cx + cw - pad - badgeW;
+        RoundRectangle2D stBadge = new RoundRectangle2D.Float(badgeX, y + 2, badgeW, 24, 24, 24);
         g.setColor(p.statusBg != null ? p.statusBg : new Color(0xDC, 0xFC, 0xE7));
         g.fill(stBadge);
-        g.setFont(DashboardTheme.FONT_BOLD_11);
-        g.setColor(p.statusText != null ? p.statusText : new Color(0x15, 0x80, 0x3D));
-        int sbw = g.getFontMetrics().stringWidth(p.status);
-        g.drawString(p.status, badgeX + (badgeW - sbw) / 2, badgeY + 16);
+        g.setColor(accent);
+        g.fillOval(badgeX + 10, y + 11, 6, 6);
+        g.drawString(status, badgeX + 20, y + 18);
 
-        // Description
-        curY += 22;
-        g.setFont(DashboardTheme.FONT_REG_13);
-        g.setColor(DashboardTheme.TEXT_MUTED);
-        String desc = p.description;
-        if (desc.length() > 95) desc = desc.substring(0, 92) + "...";
-        g.drawString(desc, cx + 20, curY);
-
-        // Progress Bar & Percentage
-        curY += 26;
-        int progBarW = 280;
-        int progBarH = 8;
-        RoundRectangle2D pTrack = new RoundRectangle2D.Float(cx + 20, curY, progBarW, progBarH, 4, 4);
-        g.setColor(new Color(0xEE, 0xF2, 0xF6));
-        g.fill(pTrack);
-
-        int fillW = Math.round((progBarW * p.progressPct) / 100f);
-        RoundRectangle2D pFill = new RoundRectangle2D.Float(cx + 20, curY, fillW, progBarH, 4, 4);
-        g.setColor(p.progressPct >= 100 ? new Color(0x10, 0xB9, 0x81) : DashboardTheme.BRAND_PURPLE);
-        g.fill(pFill);
-
-        g.setFont(DashboardTheme.FONT_BOLD_11);
+        int textX = x + 58;
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 17));
         g.setColor(DashboardTheme.TEXT_DARK);
-        g.drawString(p.progressPct + "% complete", cx + 20 + progBarW + 12, curY + 8);
+        g.drawString(fitText(p.title, g.getFontMetrics(), badgeX - 14 - textX), textX, y + 19);
 
-        // Next Milestone info
-        g.setFont(DashboardTheme.FONT_REG_11);
+        // role pill + category + my role
+        int metaY = y + 26;
+        String rolePill = p.isLead ? "PROJECT LEAD" : "MEMBER";
+        g.setFont(DashboardTheme.FONT_BOLD_10);
+        int rpW = g.getFontMetrics().stringWidth(rolePill) + 14;
+        g.setColor(p.isLead ? DashboardTheme.PURPLE_TINT_BG : new Color(0xF4, 0xF2, 0xEE));
+        g.fill(new RoundRectangle2D.Float(textX, metaY, rpW, 18, 6, 6));
+        g.setColor(p.isLead ? DashboardTheme.BRAND_PURPLE : DashboardTheme.TEXT_MUTED);
+        g.drawString(rolePill, textX + 7, metaY + 13);
+        List<String> meta = new ArrayList<>();
+        if (p.category != null && !p.category.trim().isEmpty()) meta.add(p.category.trim());
+        if (p.myRole != null && !p.myRole.trim().isEmpty()) meta.add("You: " + p.myRole.trim());
+        g.setFont(DashboardTheme.FONT_REG_12);
+        g.setColor(DashboardTheme.TEXT_LIGHT);
+        g.drawString(fitText(String.join("  ·  ", meta), g.getFontMetrics(), cx + cw - pad - (textX + rpW + 10)), textX + rpW + 10, metaY + 13);
+
+        // --- description (max 2 lines, ellipsized)
+        y += 44 + 14;
+        g.setFont(DashboardTheme.FONT_REG_13);
+        if (descLines.isEmpty()) {
+            g.setColor(DashboardTheme.TEXT_LIGHT);
+            g.drawString("No description yet.", x, y + 14);
+            y += 20;
+        } else {
+            g.setColor(DashboardTheme.TEXT_MUTED);
+            for (String line : descLines) {
+                g.drawString(line, x, y + 14);
+                y += 20;
+            }
+        }
+
+        // --- progress (left) + next milestone (right)
+        y += 16;
+        int progW = Math.min(300, Math.max(140, innerW / 2 - 40));
+        g.setFont(DashboardTheme.FONT_BOLD_11);
         g.setColor(DashboardTheme.TEXT_MUTED);
-        g.drawString("Next: " + p.nextMilestone, cx + 20 + progBarW + 110, curY + 8);
+        g.drawString("PROGRESS", x, y + 10);
+        String pct = p.progressPct + "%";
+        g.setColor(DashboardTheme.TEXT_DARK);
+        g.drawString(pct, x + progW - g.getFontMetrics().stringWidth(pct), y + 10);
+        g.setColor(new Color(0xEE, 0xEC, 0xE7));
+        g.fill(new RoundRectangle2D.Float(x, y + 18, progW, 8, 8, 8));
+        int fillW = Math.round(progW * Math.max(0, Math.min(100, p.progressPct)) / 100f);
+        if (fillW > 0) {
+            g.setColor(p.progressPct >= 100 ? new Color(0x10, 0xB9, 0x81) : DashboardTheme.BRAND_PURPLE);
+            g.fill(new RoundRectangle2D.Float(x, y + 18, Math.max(8, fillW), 8, 8, 8));
+        }
 
-        // Skills Pills
-        curY += 24;
-        int skX = cx + 20;
+        int msX = x + progW + 32;
+        int msW = cx + cw - pad - msX;
+        if (msW > 120 && p.nextMilestone != null && !p.nextMilestone.trim().isEmpty()) {
+            g.setFont(DashboardTheme.FONT_BOLD_11);
+            g.setColor(DashboardTheme.TEXT_MUTED);
+            g.drawString("NEXT MILESTONE", msX, y + 10);
+            g.setFont(DashboardTheme.FONT_REG_12);
+            g.setColor(DashboardTheme.TEXT_DARK);
+            g.drawString(fitText(p.nextMilestone.trim(), g.getFontMetrics(), msW), msX, y + 27);
+        }
+        y += 30 + 14;
+
+        // --- skills: one row, "+N" when they don't fit
         g.setFont(DashboardTheme.FONT_REG_11);
         FontMetrics sfm = g.getFontMetrics();
-        for (String s : p.skills) {
-            int sw = sfm.stringWidth(s) + 14;
-            RoundRectangle2D sk = new RoundRectangle2D.Float(skX, curY, sw, 22, 6, 6);
-            g.setColor(new Color(0xF4, 0xF2, 0xEE));
+        int skX = x;
+        int limit = cx + cw - pad;
+        for (int i = 0; i < p.skills.size(); i++) {
+            String s = p.skills.get(i);
+            int sw = sfm.stringWidth(s) + 16;
+            int remaining = p.skills.size() - i - 1;
+            int moreW = remaining > 0 ? sfm.stringWidth("+" + remaining) + 16 + 6 : 0;
+            if (skX + sw + moreW > limit) {
+                String more = "+" + (p.skills.size() - i);
+                int mw = sfm.stringWidth(more) + 16;
+                g.setColor(Color.WHITE);
+                g.fill(new RoundRectangle2D.Float(skX, y, mw, 24, 8, 8));
+                g.setColor(DashboardTheme.BORDER_COLOR);
+                g.draw(new RoundRectangle2D.Float(skX, y, mw, 24, 8, 8));
+                g.setColor(DashboardTheme.TEXT_MUTED);
+                g.drawString(more, skX + 8, y + 16);
+                break;
+            }
+            RoundRectangle2D sk = new RoundRectangle2D.Float(skX, y, sw, 24, 8, 8);
+            g.setColor(new Color(0xF8, 0xF7, 0xF4));
             g.fill(sk);
             g.setColor(DashboardTheme.BORDER_COLOR);
             g.draw(sk);
             g.setColor(DashboardTheme.TEXT_MUTED);
-            g.drawString(s, skX + 7, curY + 15);
+            g.drawString(s, skX + 8, y + 16);
             skX += sw + 6;
         }
+        y += 24 + 20;
 
-        // Divider line
-        curY += 34;
+        // --- divider + footer (members on the left, actions on the right)
         g.setColor(new Color(0xEE, 0xEB, 0xE5));
-        g.drawLine(cx + 20, curY, cx + cw - 20, curY);
+        g.drawLine(cx + pad, y, cx + cw - pad, y);
+        y += 1 + 16;
 
-        // Bottom Footer: Team Members Avatars + Action Buttons (No "+ open roles" text!)
-        curY += 14;
-        int avX = cx + 20;
-        int avSize = 28;
-        for (MemberAvatar m : p.members) {
-            g.setColor(m.bg != null ? m.bg : DashboardTheme.PURPLE_TINT_BG);
-            g.fillOval(avX, curY, avSize, avSize);
-            g.setFont(DashboardTheme.FONT_BOLD_10);
-            g.setColor(m.text != null ? m.text : DashboardTheme.BRAND_PURPLE);
-            g.drawString(m.initials, avX + 6, curY + 18);
-            avX += avSize - 6; // overlapping effect
-        }
-
-        // Action Buttons on Right
-        int btnRowX = cx + cw - 20;
-        int btnH = 32;
-
+        int btnH = 34;
+        int btnRowX = cx + cw - pad;
+        g.setFont(DashboardTheme.FONT_BOLD_12);
+        FontMetrics btnFm = g.getFontMetrics();
         if (p.isLead && !p.isArchived) {
-            // "Manage Team" button (shows candidate count badge)
-            p.manageBtnW = 120;
+            String mLabel = "Manage team" + (p.candidates.size() > 0 ? "  " + p.candidates.size() : "");
+            p.manageBtnW = btnFm.stringWidth(mLabel) + 32;
             p.manageBtnH = btnH;
             btnRowX -= p.manageBtnW;
             p.manageBtnX = btnRowX;
-            p.manageBtnY = curY - 2;
-
-            RoundRectangle2D mBtn = new RoundRectangle2D.Float(p.manageBtnX, p.manageBtnY, p.manageBtnW, p.manageBtnH, 8, 8);
-            g.setColor(DashboardTheme.PURPLE_TINT_BG);
-            g.fill(mBtn);
+            p.manageBtnY = y;
             g.setColor(DashboardTheme.BRAND_PURPLE);
-            g.setFont(DashboardTheme.FONT_BOLD_12);
-            String mLabel = "Manage Team" + (p.candidates.size() > 0 ? " (" + p.candidates.size() + ")" : "");
-            int mlw = g.getFontMetrics().stringWidth(mLabel);
-            g.drawString(mLabel, p.manageBtnX + (p.manageBtnW - mlw) / 2, p.manageBtnY + 21);
+            g.fill(new RoundRectangle2D.Float(p.manageBtnX, p.manageBtnY, p.manageBtnW, btnH, 10, 10));
+            g.setColor(Color.WHITE);
+            g.drawString(mLabel, p.manageBtnX + 16, p.manageBtnY + 22);
             btnRowX -= 10;
+        } else {
+            p.manageBtnW = 0;
+            p.manageBtnH = 0;
         }
 
-        // "Project Board" button
-        p.boardBtnW = 105;
+        String tLabel = "Tasks  " + p.tasks.size();
+        p.boardBtnW = btnFm.stringWidth(tLabel) + 46;
         p.boardBtnH = btnH;
         btnRowX -= p.boardBtnW;
         p.boardBtnX = btnRowX;
-        p.boardBtnY = curY - 2;
-
-        RoundRectangle2D bBtn = new RoundRectangle2D.Float(p.boardBtnX, p.boardBtnY, p.boardBtnW, p.boardBtnH, 8, 8);
+        p.boardBtnY = y;
+        RoundRectangle2D bBtn = new RoundRectangle2D.Float(p.boardBtnX, p.boardBtnY, p.boardBtnW, btnH, 10, 10);
         g.setColor(Color.WHITE);
         g.fill(bBtn);
         g.setColor(DashboardTheme.BORDER_COLOR);
         g.draw(bBtn);
-        g.setFont(DashboardTheme.FONT_BOLD_12);
+        // checklist glyph
+        int gx = p.boardBtnX + 14;
+        int gy = p.boardBtnY + 11;
+        g.setColor(DashboardTheme.TEXT_MUTED);
+        g.setStroke(new BasicStroke(1.4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.drawRoundRect(gx, gy, 12, 12, 3, 3);
+        g.drawLine(gx + 3, gy + 6, gx + 5, gy + 8);
+        g.drawLine(gx + 5, gy + 8, gx + 9, gy + 4);
+        g.setStroke(new BasicStroke(1.2f));
         g.setColor(DashboardTheme.TEXT_DARK);
-        g.drawString("Tasks (" + p.tasks.size() + ")", p.boardBtnX + 16, p.boardBtnY + 21);
+        g.drawString(tLabel, p.boardBtnX + 34, p.boardBtnY + 22);
 
+        // member avatars (max 5) + "n / cap members"
+        int avSize = 30;
+        int avX = x;
+        int shown = Math.min(5, p.members.size());
+        for (int i = 0; i < shown; i++) {
+            MemberAvatar m = p.members.get(i);
+            g.setColor(Color.WHITE);
+            g.fillOval(avX - 2, y + 0, avSize + 4, avSize + 4);
+            g.setColor(m.bg != null ? m.bg : DashboardTheme.PURPLE_TINT_BG);
+            g.fillOval(avX, y + 2, avSize, avSize);
+            g.setFont(DashboardTheme.FONT_BOLD_10);
+            g.setColor(m.text != null ? m.text : DashboardTheme.BRAND_PURPLE);
+            String ini = m.initials == null ? "" : m.initials;
+            FontMetrics afm = g.getFontMetrics();
+            g.drawString(ini, avX + (avSize - afm.stringWidth(ini)) / 2, y + 21);
+            avX += avSize - 4;
+        }
+        if (p.members.size() > shown) {
+            g.setColor(new Color(0xF4, 0xF2, 0xEE));
+            g.fillOval(avX, y + 2, avSize, avSize);
+            g.setFont(DashboardTheme.FONT_BOLD_10);
+            g.setColor(DashboardTheme.TEXT_MUTED);
+            String more = "+" + (p.members.size() - shown);
+            g.drawString(more, avX + (avSize - g.getFontMetrics().stringWidth(more)) / 2, y + 21);
+            avX += avSize - 4;
+        }
+        String cap = p.members.size() + (p.totalCapacity > 0 ? " / " + p.totalCapacity : "") + " members";
+        g.setFont(DashboardTheme.FONT_REG_12);
+        g.setColor(DashboardTheme.TEXT_MUTED);
+        int capX = avX + (shown > 0 ? 18 : 0);
+        if (capX + g.getFontMetrics().stringWidth(cap) < btnRowX - 12) {
+            g.drawString(cap, capX, y + 22);
+        }
         return cardH;
     }
 
@@ -1238,109 +1307,289 @@ public class DashboardMyProjects {
         g.drawString("✓ Accept Member", mx + mw - 28 - 128, curY + 22);
     }
 
+    // Task board scroll state: the task list scrolls inside its own viewport so the
+    // "add task" row is always pinned to the bottom of the modal.
+    private int boardScroll = 0;
+    private int boardMaxScroll = 0;
+    private boolean boardScrollToEnd = false;
+    private int boardListX, boardListY, boardListW, boardListH;
+    private boolean addTaskBtnHovered = false;
+
+    /** Scrolls the task list when the board is open; returns true when the wheel was consumed. */
+    public boolean onMouseWheel(int rotation) {
+        if (activeSubModal != SubModal.PROJECT_BOARD || modalProject == null) return false;
+        boardScroll = Math.max(0, Math.min(boardMaxScroll, boardScroll + rotation * 48));
+        return true;
+    }
+
     private void paintProjectBoardModal(Graphics2D g, int sw, int sh) {
-        g.setColor(new Color(0, 0, 0, 140));
+        g.setColor(new Color(15, 23, 42, 150));
         g.fillRect(0, 0, sw, sh);
 
-        int mw = 560;
-        int mh = 480;
-        int mx = (sw - mw) / 2;
-        int my = (sh - mh) / 2;
+        int rowH = 44;
+        int rowGap = 8;
+        int headerH = 112;
+        int footerH = 84;
+        int n = modalProject.tasks.size();
+        int contentH = n == 0 ? 120 : n * (rowH + rowGap) - rowGap;
+        int maxListH = Math.max(rowH, sh - 64 - headerH - footerH);
+        int listH = Math.min(contentH, maxListH);
 
-        RoundRectangle2D mShape = new RoundRectangle2D.Float(mx, my, mw, mh, 16, 16);
+        int mw = Math.min(600, sw - 48);
+        int mh = headerH + listH + footerH;
+        int mx = (sw - mw) / 2;
+        int my = Math.max(24, (sh - mh) / 2);
+
+        // shadow + surface
+        for (int i = 0; i < 4; i++) {
+            int off = (i + 1) * 3;
+            g.setColor(new Color(15, 23, 42, Math.max(4, 18 - i * 4)));
+            g.fill(new RoundRectangle2D.Float(mx - off / 2f, my + off, mw + off, mh + off / 2f, 22, 22));
+        }
+        RoundRectangle2D mShape = new RoundRectangle2D.Float(mx, my, mw, mh, 18, 18);
         g.setColor(Color.WHITE);
         g.fill(mShape);
         g.setColor(DashboardTheme.BORDER_COLOR);
         g.setStroke(new BasicStroke(1.2f));
         g.draw(mShape);
 
-        // Close (X)
-        subModalCloseX = mx + mw - 36;
+        int padX = 26;
+        int innerW = mw - padX * 2;
+
+        // Close button (vector ✕ in a soft square)
+        subModalCloseSize = 32;
+        subModalCloseX = mx + mw - subModalCloseSize - 18;
         subModalCloseY = my + 18;
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 18));
+        g.setColor(new Color(0xF8, 0xFA, 0xFC));
+        g.fill(new RoundRectangle2D.Float(subModalCloseX, subModalCloseY, subModalCloseSize, subModalCloseSize, 10, 10));
+        g.setColor(new Color(0xE2, 0xE8, 0xF0));
+        g.setStroke(new BasicStroke(1f));
+        g.draw(new RoundRectangle2D.Float(subModalCloseX, subModalCloseY, subModalCloseSize, subModalCloseSize, 10, 10));
         g.setColor(DashboardTheme.TEXT_MUTED);
-        g.drawString("✕", subModalCloseX, subModalCloseY + 16);
+        g.setStroke(new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.drawLine(subModalCloseX + 11, subModalCloseY + 11, subModalCloseX + 21, subModalCloseY + 21);
+        g.drawLine(subModalCloseX + 21, subModalCloseY + 11, subModalCloseX + 11, subModalCloseY + 21);
 
-        // Title
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 19));
+        // Header: title, project name, progress summary
+        int textMaxW = innerW - subModalCloseSize - 12;
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 18));
         g.setColor(DashboardTheme.TEXT_DARK);
-        g.drawString("Tasks & Sprints: " + modalProject.title, mx + 26, my + 38);
-
+        g.drawString("Tasks & sprints", mx + padX, my + 40);
         g.setFont(DashboardTheme.FONT_REG_12);
         g.setColor(DashboardTheme.TEXT_MUTED);
-        g.drawString("Click any task to toggle complete or add new milestones for your team.", mx + 26, my + 58);
+        g.drawString(fitText(modalProject.title, g.getFontMetrics(), textMaxW), mx + padX, my + 59);
 
-        // Tasks list
-        int curY = my + 84;
-        for (ProjectTask task : modalProject.tasks) {
-            task.hitX = mx + 26;
-            task.hitY = curY;
-            task.hitW = mw - 52;
-            task.hitH = 40;
+        int done = 0;
+        for (ProjectTask t : modalProject.tasks) if (t.done) done++;
+        String summary = n == 0 ? "No tasks yet" : done + " of " + n + " done";
+        int barY = my + 80;
+        g.setFont(DashboardTheme.FONT_BOLD_11);
+        int sumW = g.getFontMetrics().stringWidth(summary);
+        int barW = innerW - sumW - 14;
+        g.setColor(new Color(0xF1, 0xEF, 0xEA));
+        g.fill(new RoundRectangle2D.Float(mx + padX, barY, barW, 6, 6, 6));
+        if (n > 0 && done > 0) {
+            g.setColor(done == n ? new Color(0x10, 0xB9, 0x81) : DashboardTheme.BRAND_PURPLE);
+            g.fill(new RoundRectangle2D.Float(mx + padX, barY, Math.max(6, barW * done / n), 6, 6, 6));
+        }
+        g.setColor(DashboardTheme.TEXT_MUTED);
+        g.drawString(summary, mx + padX + barW + 14, barY + 7);
 
-            RoundRectangle2D tRow = new RoundRectangle2D.Float(task.hitX, task.hitY, task.hitW, task.hitH, 8, 8);
-            g.setColor(task.done ? new Color(0xF0, 0xFD, 0xF4) : Color.WHITE);
-            g.fill(tRow);
-            g.setColor(task.done ? new Color(0xBB, 0xF7, 0xD0) : DashboardTheme.BORDER_COLOR);
-            g.draw(tRow);
+        g.setColor(new Color(0xF1, 0xF5, 0xF9));
+        g.setStroke(new BasicStroke(1f));
+        g.drawLine(mx, my + headerH - 12, mx + mw, my + headerH - 12);
 
-            // Checkbox
-            int cbX = task.hitX + 12;
-            int cbY = task.hitY + 11;
-            int cbS = 18;
-            RoundRectangle2D cb = new RoundRectangle2D.Float(cbX, cbY, cbS, cbS, 4, 4);
-            g.setColor(task.done ? new Color(0x10, 0xB9, 0x81) : Color.WHITE);
-            g.fill(cb);
-            g.setColor(task.done ? new Color(0x10, 0xB9, 0x81) : new Color(0xD1, 0xD5, 0xDB));
-            g.draw(cb);
-            if (task.done) {
-                g.setColor(Color.WHITE);
-                g.setFont(DashboardTheme.FONT_BOLD_11);
-                g.drawString("✓", cbX + 4, cbY + 14);
-            }
+        // Scrollable task list
+        boardListX = mx + padX;
+        boardListY = my + headerH;
+        boardListW = innerW;
+        boardListH = listH;
+        boardMaxScroll = Math.max(0, contentH - listH);
+        if (boardScrollToEnd) {
+            boardScroll = boardMaxScroll;
+            boardScrollToEnd = false;
+        }
+        boardScroll = Math.max(0, Math.min(boardMaxScroll, boardScroll));
 
-            // Title
-            g.setFont(task.done ? DashboardTheme.FONT_REG_13 : DashboardTheme.FONT_BOLD_13);
-            g.setColor(task.done ? DashboardTheme.TEXT_LIGHT : DashboardTheme.TEXT_DARK);
-            g.drawString(task.title, task.hitX + 40, task.hitY + 25);
+        boolean scrollable = boardMaxScroll > 0;
+        int rowW = innerW - (scrollable ? 12 : 0);
+        Shape oldClip = g.getClip();
+        g.clipRect(boardListX - 2, boardListY - 2, boardListW + 4, boardListH + 4);
 
-            // Due Date
-            g.setFont(DashboardTheme.FONT_REG_11);
-            g.setColor(DashboardTheme.TEXT_LIGHT);
-            int dw = g.getFontMetrics().stringWidth(task.dueDate);
-            g.drawString(task.dueDate, task.hitX + task.hitW - dw - 14, task.hitY + 25);
-
-            curY += 46;
+        if (n == 0) {
+            int ey = boardListY + 10;
+            float[] dash = { 5f, 4f };
+            g.setColor(DashboardTheme.BORDER_COLOR);
+            g.setStroke(new BasicStroke(1.2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 1f, dash, 0f));
+            g.draw(new RoundRectangle2D.Float(boardListX, ey, innerW, 100, 12, 12));
+            g.setStroke(new BasicStroke(1f));
+            g.setFont(DashboardTheme.FONT_BOLD_13);
+            g.setColor(DashboardTheme.TEXT_DARK);
+            String t1 = "No tasks yet";
+            g.drawString(t1, boardListX + (innerW - g.getFontMetrics().stringWidth(t1)) / 2, ey + 44);
+            g.setFont(DashboardTheme.FONT_REG_12);
+            g.setColor(DashboardTheme.TEXT_MUTED);
+            String t2 = "Add the first milestone for your team below.";
+            g.drawString(t2, boardListX + (innerW - g.getFontMetrics().stringWidth(t2)) / 2, ey + 66);
         }
 
-        // New Task Input Form
-        curY += 10;
-        newTaskInputX = mx + 26;
-        newTaskInputY = curY;
-        RoundRectangle2D inputShape = new RoundRectangle2D.Float(newTaskInputX, newTaskInputY, newTaskInputW, newTaskInputH, 8, 8);
-        g.setColor(Color.WHITE);
+        int curY = boardListY - boardScroll;
+        for (ProjectTask task : modalProject.tasks) {
+            boolean visible = curY + rowH > boardListY && curY < boardListY + boardListH;
+            task.hitX = boardListX;
+            task.hitY = curY;
+            task.hitW = visible ? rowW : 0;
+            task.hitH = visible ? rowH : 0;
+            if (visible) paintBoardTaskRow(g, task, boardListX, curY, rowW, rowH);
+            curY += rowH + rowGap;
+        }
+        g.setClip(oldClip);
+
+        // soft fade hints when more tasks are hidden above / below
+        if (scrollable) {
+            if (boardScroll > 0) {
+                g.setPaint(new GradientPaint(0, boardListY, new Color(255, 255, 255, 230), 0, boardListY + 18, new Color(255, 255, 255, 0)));
+                g.fillRect(boardListX, boardListY, rowW, 18);
+            }
+            if (boardScroll < boardMaxScroll) {
+                int by = boardListY + boardListH;
+                g.setPaint(new GradientPaint(0, by - 18, new Color(255, 255, 255, 0), 0, by, new Color(255, 255, 255, 230)));
+                g.fillRect(boardListX, by - 18, rowW, 18);
+            }
+            // scrollbar
+            int trackX = boardListX + innerW - 5;
+            g.setColor(new Color(0xF1, 0xEF, 0xEA));
+            g.fill(new RoundRectangle2D.Float(trackX, boardListY, 5, boardListH, 5, 5));
+            int thumbH = Math.max(28, boardListH * boardListH / contentH);
+            int thumbY = boardListY + Math.round((boardListH - thumbH) * (boardScroll / (float) boardMaxScroll));
+            g.setColor(new Color(0xCB, 0xD5, 0xE1));
+            g.fill(new RoundRectangle2D.Float(trackX, thumbY, 5, thumbH, 5, 5));
+        }
+
+        // Pinned footer: new task input + add button
+        int footY = my + mh - footerH;
+        g.setColor(new Color(0xF1, 0xF5, 0xF9));
+        g.drawLine(mx, footY + 8, mx + mw, footY + 8);
+
+        addTaskBtnW = 112;
+        addTaskBtnH = 40;
+        newTaskInputH = 40;
+        newTaskInputX = mx + padX;
+        newTaskInputY = footY + 26;
+        newTaskInputW = innerW - addTaskBtnW - 10;
+        RoundRectangle2D inputShape = new RoundRectangle2D.Float(newTaskInputX, newTaskInputY, newTaskInputW, newTaskInputH, 10, 10);
+        g.setColor(newTaskFocused ? Color.WHITE : new Color(0xF8, 0xFA, 0xFC));
         g.fill(inputShape);
-        g.setColor(newTaskFocused ? DashboardTheme.BRAND_PURPLE : DashboardTheme.BORDER_COLOR);
-        g.setStroke(new BasicStroke(newTaskFocused ? 1.4f : 1.0f));
+        g.setColor(newTaskFocused ? DashboardTheme.BRAND_PURPLE : new Color(0xE2, 0xE8, 0xF0));
+        g.setStroke(new BasicStroke(newTaskFocused ? 1.6f : 1.1f));
         g.draw(inputShape);
 
-        g.setFont(DashboardTheme.FONT_REG_12);
-        if (newTaskTitle.isEmpty() && !newTaskFocused) {
+        g.setFont(DashboardTheme.FONT_REG_13);
+        FontMetrics ifm = g.getFontMetrics();
+        int textX = newTaskInputX + 14;
+        int textMax = newTaskInputW - 28;
+        if (newTaskTitle.isEmpty()) {
             g.setColor(DashboardTheme.TEXT_LIGHT);
-            g.drawString("Enter a new task title and press Enter...", newTaskInputX + 12, newTaskInputY + 23);
+            g.drawString(fitText("Add a task and press Enter…", ifm, textMax), textX, newTaskInputY + 25);
+            if (newTaskFocused) {
+                g.setColor(DashboardTheme.BRAND_PURPLE);
+                g.drawLine(textX, newTaskInputY + 11, textX, newTaskInputY + 29);
+            }
         } else {
+            // keep the end of the text (where the caret is) visible
+            String shown = newTaskTitle;
+            while (shown.length() > 1 && ifm.stringWidth(shown) > textMax - 4) shown = shown.substring(1);
             g.setColor(DashboardTheme.TEXT_DARK);
-            g.drawString(newTaskTitle + (newTaskFocused ? "|" : ""), newTaskInputX + 12, newTaskInputY + 23);
+            g.drawString(shown, textX, newTaskInputY + 25);
+            if (newTaskFocused) {
+                int cx = textX + ifm.stringWidth(shown) + 2;
+                g.setColor(DashboardTheme.BRAND_PURPLE);
+                g.drawLine(cx, newTaskInputY + 11, cx, newTaskInputY + 29);
+            }
         }
 
         addTaskBtnX = newTaskInputX + newTaskInputW + 10;
-        addTaskBtnY = curY;
-        RoundRectangle2D addBtn = new RoundRectangle2D.Float(addTaskBtnX, addTaskBtnY, addTaskBtnW, addTaskBtnH, 8, 8);
-        g.setColor(DashboardTheme.PURPLE_TINT_BG);
+        addTaskBtnY = newTaskInputY;
+        boolean canAdd = !newTaskTitle.trim().isEmpty();
+        RoundRectangle2D addBtn = new RoundRectangle2D.Float(addTaskBtnX, addTaskBtnY, addTaskBtnW, addTaskBtnH, 10, 10);
+        g.setColor(canAdd ? (addTaskBtnHovered ? DashboardTheme.BRAND_PURPLE_HOVER : DashboardTheme.BRAND_PURPLE)
+                : DashboardTheme.PURPLE_TINT_BG);
         g.fill(addBtn);
         g.setFont(DashboardTheme.FONT_BOLD_12);
-        g.setColor(DashboardTheme.BRAND_PURPLE);
-        g.drawString("+ Add Task", addTaskBtnX + 16, addTaskBtnY + 23);
+        g.setColor(canAdd ? Color.WHITE : DashboardTheme.BRAND_PURPLE);
+        String addLabel = "+  Add task";
+        g.drawString(addLabel, addTaskBtnX + (addTaskBtnW - g.getFontMetrics().stringWidth(addLabel)) / 2, addTaskBtnY + 25);
+    }
+
+    private void paintBoardTaskRow(Graphics2D g, ProjectTask task, int x, int y, int w, int h) {
+        RoundRectangle2D tRow = new RoundRectangle2D.Float(x, y, w, h, 10, 10);
+        g.setColor(task.done ? new Color(0xF0, 0xFD, 0xF4) : Color.WHITE);
+        g.fill(tRow);
+        g.setColor(task.done ? new Color(0xBB, 0xF7, 0xD0) : DashboardTheme.BORDER_COLOR);
+        g.setStroke(new BasicStroke(1f));
+        g.draw(tRow);
+
+        int cbS = 18;
+        int cbX = x + 14;
+        int cbY = y + (h - cbS) / 2;
+        RoundRectangle2D cb = new RoundRectangle2D.Float(cbX, cbY, cbS, cbS, 5, 5);
+        g.setColor(task.done ? new Color(0x10, 0xB9, 0x81) : Color.WHITE);
+        g.fill(cb);
+        g.setColor(task.done ? new Color(0x10, 0xB9, 0x81) : new Color(0xCB, 0xD5, 0xE1));
+        g.setStroke(new BasicStroke(1.3f));
+        g.draw(cb);
+        if (task.done) {
+            g.setColor(Color.WHITE);
+            g.setStroke(new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g.drawLine(cbX + 4, cbY + 9, cbX + 8, cbY + 13);
+            g.drawLine(cbX + 8, cbY + 13, cbX + 14, cbY + 5);
+        }
+
+        String due = task.dueDate == null ? "" : task.dueDate;
+        g.setFont(DashboardTheme.FONT_REG_11);
+        FontMetrics dfm = g.getFontMetrics();
+        int dueW = due.isEmpty() ? 0 : dfm.stringWidth(due) + 16;
+        if (!due.isEmpty()) {
+            int px = x + w - 12 - dueW;
+            g.setColor(task.done ? new Color(0xDC, 0xFC, 0xE7) : new Color(0xF4, 0xF2, 0xEE));
+            g.fill(new RoundRectangle2D.Float(px, y + (h - 22) / 2, dueW, 22, 22, 22));
+            g.setColor(task.done ? new Color(0x15, 0x80, 0x3D) : DashboardTheme.TEXT_MUTED);
+            g.drawString(due, px + 8, y + h / 2 + 4);
+        }
+
+        g.setFont(task.done ? DashboardTheme.FONT_REG_13 : DashboardTheme.FONT_BOLD_13);
+        FontMetrics tfm = g.getFontMetrics();
+        int titleX = cbX + cbS + 12;
+        String title = fitText(task.title, tfm, x + w - 12 - dueW - 12 - titleX);
+        g.setColor(task.done ? DashboardTheme.TEXT_LIGHT : DashboardTheme.TEXT_DARK);
+        int ty = y + h / 2 + 5;
+        g.drawString(title, titleX, ty);
+        if (task.done) {
+            g.setColor(new Color(0x9E, 0x9E, 0xAE, 160));
+            g.drawLine(titleX, ty - 4, titleX + tfm.stringWidth(title), ty - 4);
+        }
+    }
+
+    /** Ellipsizes text to fit maxW pixels. */
+    private static String fitText(String s, FontMetrics fm, int maxW) {
+        if (s == null) return "";
+        if (fm.stringWidth(s) <= maxW) return s;
+        String t = s;
+        while (t.length() > 1 && fm.stringWidth(t + "…") > maxW) t = t.substring(0, t.length() - 1);
+        return t.trim() + "…";
+    }
+
+    /** Word-wraps text into at most maxLines lines; the last line is ellipsized when text remains. */
+    private static List<String> wrapLimited(String text, FontMetrics fm, int maxW, int maxLines) {
+        List<String> lines = new ArrayList<>();
+        if (text == null || text.trim().isEmpty()) return lines;
+        List<String> all = Draw.wrapText(text.trim(), fm, maxW);
+        for (int i = 0; i < all.size() && i < maxLines; i++) {
+            String line = all.get(i);
+            if (i == maxLines - 1 && all.size() > maxLines) line = line + " " + all.get(i + 1);
+            lines.add(fitText(line, fm, maxW));
+        }
+        return lines;
     }
 
     // =========================================================================
@@ -1457,8 +1706,9 @@ public class DashboardMyProjects {
             // Project Board Actions: Toggle task, Add task
             if (activeSubModal == SubModal.PROJECT_BOARD && modalProject != null) {
                 // Task toggle
+                boolean inList = my >= boardListY && my <= boardListY + boardListH;
                 for (ProjectTask task : modalProject.tasks) {
-                    if (mx >= task.hitX && mx <= task.hitX + task.hitW && my >= task.hitY && my <= task.hitY + task.hitH) {
+                    if (inList && task.hitW > 0 && mx >= task.hitX && mx <= task.hitX + task.hitW && my >= task.hitY && my <= task.hitY + task.hitH) {
                         task.done = !task.done;
                         DashboardSync.setTaskDone(dashboard, task, task.done);
                         long doneCount = modalProject.tasks.stream().filter(t -> t.done).count();
@@ -1486,6 +1736,7 @@ public class DashboardMyProjects {
                         modalProject.progressPct = (int) Math.round(((double) doneCount / modalProject.tasks.size()) * 100);
                         dashboard.showToast("Task added to " + modalProject.title + "!");
                         newTaskTitle = "";
+                        boardScrollToEnd = true;
                     }
                     return true;
                 }
@@ -1594,6 +1845,7 @@ public class DashboardMyProjects {
                 modalProject = p;
                 activeSubModal = SubModal.PROJECT_BOARD;
                 newTaskTitle = "";
+                boardScroll = 0;
                 return true;
             }
         }
@@ -1648,7 +1900,13 @@ public class DashboardMyProjects {
     public boolean onMouseMove(int mx, int my) {
         boolean prevHov = createBtnHovered;
         createBtnHovered = (mx >= createBtnX && mx <= createBtnX + createBtnW && my >= createBtnY && my <= createBtnY + createBtnH);
-        return createBtnHovered != prevHov;
+        boolean changed = createBtnHovered != prevHov;
+        if (activeSubModal == SubModal.PROJECT_BOARD && modalProject != null) {
+            boolean prevAdd = addTaskBtnHovered;
+            addTaskBtnHovered = mx >= addTaskBtnX && mx <= addTaskBtnX + addTaskBtnW && my >= addTaskBtnY && my <= addTaskBtnY + addTaskBtnH;
+            changed |= addTaskBtnHovered != prevAdd;
+        }
+        return changed;
     }
 
     public boolean onKey(KeyEvent e) {
@@ -1688,6 +1946,7 @@ public class DashboardMyProjects {
                     long doneCount = modalProject.tasks.stream().filter(t -> t.done).count();
                     modalProject.progressPct = (int) Math.round(((double) doneCount / modalProject.tasks.size()) * 100);
                     newTaskTitle = "";
+                    boardScrollToEnd = true;
                 }
                 return true;
             }
