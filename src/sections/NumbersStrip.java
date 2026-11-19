@@ -1,6 +1,7 @@
 import java.awt.*;
+import java.util.Map;
 
-/** Stat band — numbers count up when scrolled into view. */
+/** Stat band — numbers count up when scrolled into view. Real data fetched from MongoDB backend. */
 public class NumbersStrip extends LpSection {
 
     private final String[] prefix = {"", "", "", "< "};
@@ -10,6 +11,50 @@ public class NumbersStrip extends LpSection {
     private final String[] sub = {"Across 150+ universities", "Shipping projects this week", "Verified skill-fit pairing", "Accountability-backed cohorts"};
     private final String[] icons = {"users", "layers", "spark", "bolt"};
     private final Color[] accents = {Fx.PINK, Fx.VIOLET, Fx.CYAN, Fx.MINT};
+
+    public NumbersStrip() {
+        fetchRealStats();
+    }
+
+    public void setStats(float members, float teams, float match, float ghost) {
+        if (members > 0) value[0] = members;
+        if (teams > 0) value[1] = teams;
+        if (match > 0) value[2] = match;
+        if (ghost > 0) value[3] = ghost;
+    }
+
+    private void fetchRealStats() {
+        Thread t = new Thread(() -> {
+            for (int attempt = 0; attempt < 3; attempt++) {
+                try {
+                    AuthStore.ensureServerRunning();
+                    ApiClient.Response res = ApiClient.get("/platform-stats");
+                    if (res != null && res.ok()) {
+                        Map<String, Object> data = Json.map(res.json, "data");
+                        if (data != null) {
+                            float u = (float) Json.num(data, "verifiedMembers", value[0]);
+                            float tm = (float) Json.num(data, "activeTeams", value[1]);
+                            float ma = (float) Json.num(data, "matchAccuracy", value[2]);
+                            float gh = (float) Json.num(data, "ghostingRate", value[3]);
+                            setStats(u, tm, ma, gh);
+                            String uSub = Json.str(data, "subUniversities", null);
+                            if (uSub != null && !uSub.trim().isEmpty()) {
+                                sub[0] = uSub;
+                            }
+                            break;
+                        }
+                    }
+                } catch (Exception ignored) {}
+                try {
+                    Thread.sleep(1500);
+                } catch (InterruptedException e) {
+                    break;
+                }
+            }
+        }, "TeamUp-NumbersStrip-Sync");
+        t.setDaemon(true);
+        t.start();
+    }
 
     @Override public String getId() { return "numbers"; }
 

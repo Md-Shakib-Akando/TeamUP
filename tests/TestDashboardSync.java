@@ -37,12 +37,6 @@ public class TestDashboardSync {
                 d.paint(g, 1280, 800);
                 d.paint(g, 900, 700);
             }
-            for (int i = 0; i < d.getTeamData().tabs.size(); i++) {
-                d.getTeamData().activeTabIndex = i;
-                d.setActiveNav(StudentDashboard.NavItem.MY_TEAMS);
-                d.paint(g, 1280, 800);
-            }
-            d.getTeamData().activeTabIndex = 0;
             for (int i = 0; i < d.getProfileData().tabs.size(); i++) {
                 d.getProfileData().activeTabIndex = i;
                 d.setActiveNav(StudentDashboard.NavItem.MY_PROFILE);

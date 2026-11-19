@@ -57,7 +57,6 @@ public class StudentDashboard {
         DISCOVER_PROJECTS("Discover Projects", 0),
         FIND_TEAMMATES("Find Teammates", 0),
         MY_PROJECTS("My Projects", 0),
-        MY_TEAMS("My Teams", 0),
         MY_PROFILE("My Profile", 0),
         SETTINGS("Settings", 0);
 
@@ -490,9 +489,6 @@ public class StudentDashboard {
             case DISCOVER_PROJECTS:
                 projectsView.paint(cg, sideW, contentY, width - sideW, height, this);
                 break;
-            case MY_TEAMS:
-                paintMyTeamsContent(cg, sideW, contentY, width - sideW, height);
-                break;
             case MY_PROFILE:
                 paintProfileContent(cg, sideW, contentY, width - sideW, height);
                 break;
@@ -549,7 +545,6 @@ public class StudentDashboard {
                 return projectsView.getTotalContentHeight();
             case OVERVIEW:
                 return overview.getTotalContentHeight();
-            case MY_TEAMS:
             case MY_PROFILE:
             case SETTINGS:
             default:
@@ -2398,10 +2393,6 @@ public class StudentDashboard {
                 if (handleSettingsClick(mx, my))
                     return true;
                 break;
-            case MY_TEAMS:
-                if (handleMyTeamsClick(mx, my))
-                    return true;
-                break;
         }
 
         return false;
@@ -2734,9 +2725,6 @@ public class StudentDashboard {
                 break;
             case SETTINGS:
                 vHov = handleSettingsMouseMove(mx, my);
-                break;
-            case MY_TEAMS:
-                vHov = handleMyTeamsMouseMove(mx, my);
                 break;
         }
 

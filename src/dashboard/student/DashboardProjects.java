@@ -41,6 +41,7 @@ public class DashboardProjects {
         public int hitX, hitY, hitW, hitH;
         public int bmX, bmY, bmSize = 24;
         public int viewX, viewY, viewW, viewH;
+        public int joinBtnX, joinBtnY, joinBtnW = 96, joinBtnH = 26;
 
         public ProjectCard(int id, String title, String category, String experience, String description,
                            String[] skillArr, boolean recruiting, int curM, int maxM,
@@ -667,13 +668,40 @@ public class DashboardProjects {
         g.setColor(DashboardTheme.TEXT_MUTED);
         g.drawString(p.creatorName, cx + 18 + crSize + 6, botY);
 
-        // "View details →"
+        // Action Button: [+ Join Team] or [✓ Requested] or [✓ Member]
+        p.joinBtnW = 96;
+        p.joinBtnH = 26;
+        p.joinBtnX = cx + cw - 18 - p.joinBtnW;
+        p.joinBtnY = botY - 18;
+
+        RoundRectangle2D joinShape = new RoundRectangle2D.Float(p.joinBtnX, p.joinBtnY, p.joinBtnW, p.joinBtnH, 6, 6);
+        if (p.isMember) {
+            g.setColor(new Color(0xF1, 0xF5, 0xF9));
+            g.fill(joinShape);
+            g.setFont(DashboardTheme.FONT_BOLD_11);
+            g.setColor(new Color(0x64, 0x74, 0x8B));
+            g.drawString("✓ Member", p.joinBtnX + 18, p.joinBtnY + 17);
+        } else if (p.requested) {
+            g.setColor(new Color(0xDC, 0xFC, 0xE7));
+            g.fill(joinShape);
+            g.setFont(DashboardTheme.FONT_BOLD_11);
+            g.setColor(new Color(0x15, 0x80, 0x3D));
+            g.drawString("✓ Requested", p.joinBtnX + 12, p.joinBtnY + 17);
+        } else {
+            g.setColor(DashboardTheme.BRAND_PURPLE);
+            g.fill(joinShape);
+            g.setFont(DashboardTheme.FONT_BOLD_11);
+            g.setColor(Color.WHITE);
+            g.drawString("+ Join Team", p.joinBtnX + 14, p.joinBtnY + 17);
+        }
+
+        // "View details →" to the left of Join button
         String vd = "View details →";
-        g.setFont(DashboardTheme.FONT_BOLD_12);
-        g.setColor(DashboardTheme.BRAND_PURPLE);
+        g.setFont(DashboardTheme.FONT_BOLD_11);
+        g.setColor(DashboardTheme.TEXT_MUTED);
         int vdW = g.getFontMetrics().stringWidth(vd);
-        p.viewX = cx + cw - 18 - vdW;
-        p.viewY = botY - 12;
+        p.viewX = p.joinBtnX - vdW - 10;
+        p.viewY = botY - 14;
         p.viewW = vdW;
         p.viewH = 16;
         g.drawString(vd, p.viewX, botY);
@@ -731,15 +759,42 @@ public class DashboardProjects {
 
         // Bookmark
         p.bmX = cx + cw - 120;
-        p.bmY = cy + 30;
+        p.bmY = cy + 18;
         paintBookmarkIcon(g, p.bmX, p.bmY, 16, p.bookmarked);
 
-        // View details
+        // Action Button: [+ Join Team] or [✓ Requested] or [✓ Member]
+        p.joinBtnW = 96;
+        p.joinBtnH = 26;
+        p.joinBtnX = cx + cw - 18 - p.joinBtnW;
+        p.joinBtnY = cy + (ch / 2) - 13;
+
+        RoundRectangle2D joinShape = new RoundRectangle2D.Float(p.joinBtnX, p.joinBtnY, p.joinBtnW, p.joinBtnH, 6, 6);
+        if (p.isMember) {
+            g.setColor(new Color(0xF1, 0xF5, 0xF9));
+            g.fill(joinShape);
+            g.setFont(DashboardTheme.FONT_BOLD_11);
+            g.setColor(new Color(0x64, 0x74, 0x8B));
+            g.drawString("✓ Member", p.joinBtnX + 18, p.joinBtnY + 17);
+        } else if (p.requested) {
+            g.setColor(new Color(0xDC, 0xFC, 0xE7));
+            g.fill(joinShape);
+            g.setFont(DashboardTheme.FONT_BOLD_11);
+            g.setColor(new Color(0x15, 0x80, 0x3D));
+            g.drawString("✓ Requested", p.joinBtnX + 12, p.joinBtnY + 17);
+        } else {
+            g.setColor(DashboardTheme.BRAND_PURPLE);
+            g.fill(joinShape);
+            g.setFont(DashboardTheme.FONT_BOLD_11);
+            g.setColor(Color.WHITE);
+            g.drawString("+ Join Team", p.joinBtnX + 14, p.joinBtnY + 17);
+        }
+
+        // View details to the left of Join button
         String vd = "View details →";
-        g.setFont(DashboardTheme.FONT_BOLD_12);
-        g.setColor(DashboardTheme.BRAND_PURPLE);
+        g.setFont(DashboardTheme.FONT_BOLD_11);
+        g.setColor(DashboardTheme.TEXT_MUTED);
         int vdW = g.getFontMetrics().stringWidth(vd);
-        p.viewX = cx + cw - 18 - vdW;
+        p.viewX = p.joinBtnX - vdW - 12;
         p.viewY = cy + (ch / 2) - 8;
         p.viewW = vdW;
         p.viewH = 20;
@@ -1048,6 +1103,22 @@ public class DashboardProjects {
                 p.bookmarked = !p.bookmarked;
                 DashboardSync.setBookmark(dashboard, p.remoteId, p.bookmarked);
                 dashboard.showToast(p.bookmarked ? p.title + " added to Bookmarks ★" : p.title + " removed from Bookmarks");
+                return true;
+            }
+
+            // Join Team / Request button
+            if (mx >= p.joinBtnX && mx <= p.joinBtnX + p.joinBtnW && my >= p.joinBtnY && my <= p.joinBtnY + p.joinBtnH) {
+                if (p.isMember) {
+                    dashboard.showToast("You are already a member of " + p.title + "!");
+                    return true;
+                }
+                if (p.requested) {
+                    dashboard.showToast("Your join request for '" + p.title + "' is already pending review.");
+                    return true;
+                }
+                p.requested = true;
+                DashboardSync.requestJoin(dashboard, p.remoteId);
+                dashboard.showToast("Join request sent to '" + p.title + "' lead! 🚀");
                 return true;
             }
 

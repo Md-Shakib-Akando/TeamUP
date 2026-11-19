@@ -141,6 +141,8 @@ public class DashboardTeammates {
     }
 
     private void initDemoTeammates() {
+        boolean loadDemo = false;
+        if (!loadDemo) return;
         // Page 1 (The exact 6 cards from screenshot 3)
         allTeammates.add(new TeammateCard(
                 1, "Priya Shah", "UX/UI designer", "University of Washington", "PS",
@@ -687,7 +689,7 @@ public class DashboardTeammates {
         int btnH = 30;
 
         // View Profile Button
-        tm.viewProfW = 86;
+        tm.viewProfW = 105;
         tm.viewProfH = btnH;
         tm.viewProfX = cx + 18;
         tm.viewProfY = btnY;
@@ -699,28 +701,28 @@ public class DashboardTeammates {
         g.draw(vpShape);
         g.setFont(DashboardTheme.FONT_BOLD_11);
         g.setColor(DashboardTheme.TEXT_DARK);
-        g.drawString("View Profile", tm.viewProfX + 11, tm.viewProfY + 19);
+        int vpw = g.getFontMetrics().stringWidth("View Profile");
+        g.drawString("View Profile", tm.viewProfX + (tm.viewProfW - vpw) / 2, tm.viewProfY + 19);
 
         // + Invite Button (Primary purple)
-        tm.inviteBtnW = tm.invited ? 70 : 66;
+        tm.inviteBtnW = 95;
         tm.inviteBtnH = btnH;
-        tm.inviteBtnX = tm.viewProfX + tm.viewProfW + 6;
+        tm.inviteBtnX = tm.viewProfX + tm.viewProfW + 10;
         tm.inviteBtnY = btnY;
         RoundRectangle2D invShape = new RoundRectangle2D.Float(tm.inviteBtnX, tm.inviteBtnY, tm.inviteBtnW, tm.inviteBtnH, 6, 6);
         g.setColor(tm.invited ? new Color(0xDC, 0xFC, 0xE7) : DashboardTheme.BRAND_PURPLE);
         g.fill(invShape);
         g.setFont(DashboardTheme.FONT_BOLD_11);
         g.setColor(tm.invited ? new Color(0x15, 0x80, 0x3D) : Color.WHITE);
-        g.drawString(tm.invited ? "✓ Invited" : "+ Invite", tm.inviteBtnX + (tm.invited ? 10 : 12), tm.inviteBtnY + 19);
+        String invTxt = tm.invited ? "✓ Invited" : "+ Invite";
+        int itw = g.getFontMetrics().stringWidth(invTxt);
+        g.drawString(invTxt, tm.inviteBtnX + (tm.inviteBtnW - itw) / 2, tm.inviteBtnY + 19);
 
-        // Request Button
-        tm.requestBtnW = 68;
-        tm.requestBtnH = btnH;
-        tm.requestBtnX = tm.inviteBtnX + tm.inviteBtnW + 6;
-        tm.requestBtnY = btnY;
-        g.setFont(DashboardTheme.FONT_BOLD_11);
-        g.setColor(DashboardTheme.BRAND_PURPLE);
-        g.drawString(tm.requested ? "Sent ✓" : "Request", tm.requestBtnX + 8, tm.requestBtnY + 19);
+        // Request button removed
+        tm.requestBtnW = 0;
+        tm.requestBtnH = 0;
+        tm.requestBtnX = -9999;
+        tm.requestBtnY = -9999;
     }
 
     private void drawLinkIcon(Graphics2D g, int x, int y, int size, Color c) {
@@ -1003,9 +1005,7 @@ public class DashboardTeammates {
             }
             // Invite button
             if (mx >= modalInviteBtnX && mx <= modalInviteBtnX + modalInviteBtnW && my >= modalInviteBtnY && my <= modalInviteBtnY + modalInviteBtnH) {
-                activeProfileTeammate.invited = !activeProfileTeammate.invited;
-                DashboardSync.setInvite(dashboard, activeProfileTeammate.remoteId, activeProfileTeammate.invited);
-                dashboard.showToast(activeProfileTeammate.invited ? "Invite sent to " + activeProfileTeammate.name + "!" : "Invite cancelled.");
+                handleInviteTeammate(dashboard, activeProfileTeammate);
                 return true;
             }
             // Outside click closes modal
@@ -1108,17 +1108,7 @@ public class DashboardTeammates {
 
             // + Invite button
             if (mx >= tm.inviteBtnX && mx <= tm.inviteBtnX + tm.inviteBtnW && my >= tm.inviteBtnY && my <= tm.inviteBtnY + tm.inviteBtnH) {
-                tm.invited = !tm.invited;
-                DashboardSync.setInvite(dashboard, tm.remoteId, tm.invited);
-                dashboard.showToast(tm.invited ? "Invite sent to " + tm.name + "!" : "Invite cancelled.");
-                return true;
-            }
-
-            // Request button
-            if (mx >= tm.requestBtnX && mx <= tm.requestBtnX + tm.requestBtnW && my >= tm.requestBtnY && my <= tm.requestBtnY + tm.requestBtnH) {
-                tm.requested = !tm.requested;
-                DashboardSync.setCollab(dashboard, tm.remoteId, tm.requested);
-                dashboard.showToast(tm.requested ? "Collaboration request sent to " + tm.name : "Request cancelled.");
+                handleInviteTeammate(dashboard, tm);
                 return true;
             }
 
@@ -1217,5 +1207,43 @@ public class DashboardTeammates {
     public void setSearchKeyword(String kw) {
         this.searchKeyword = kw;
         applyFilters();
+    }
+
+    private void handleInviteTeammate(StudentDashboard dashboard, TeammateCard tm) {
+        if (tm == null) return;
+        if (tm.invited) {
+            tm.invited = false;
+            DashboardSync.setInvite(dashboard, tm.remoteId, false);
+            dashboard.showToast("Invite cancelled for " + tm.name);
+            return;
+        }
+        List<DashboardMyProjects.MyProjectCard> leadProjects = dashboard.getMyProjectsView().getLeadProjects();
+        if (leadProjects.isEmpty()) {
+            dashboard.showToast("You need to create a project before inviting teammates! Click '+ New Project' in My Projects.");
+            return;
+        }
+        String[] options = new String[leadProjects.size()];
+        for (int i = 0; i < leadProjects.size(); i++) {
+            options[i] = leadProjects.get(i).title;
+        }
+        String selected = (String) javax.swing.JOptionPane.showInputDialog(
+                null,
+                "Select which of your projects to invite " + tm.name + " to:",
+                "Invite to Project",
+                javax.swing.JOptionPane.QUESTION_MESSAGE,
+                null,
+                options,
+                options[0]);
+        if (selected != null) {
+            DashboardMyProjects.MyProjectCard chosen = null;
+            for (DashboardMyProjects.MyProjectCard lp : leadProjects) {
+                if (lp.title.equals(selected)) { chosen = lp; break; }
+            }
+            if (chosen != null) {
+                tm.invited = true;
+                DashboardSync.sendProjectInvite(dashboard, tm.remoteId, chosen.remoteId);
+                dashboard.showToast("Invited " + tm.name + " to " + chosen.title + "! 🚀");
+            }
+        }
     }
 }
