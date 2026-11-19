@@ -108,7 +108,7 @@ const getDashboard = async (req, res) => {
         .sort({ createdAt: -1 }),
       User.find({ _id: { $ne: me._id }, role: { $ne: 'Admin' }, 'settings.visibility': { $ne: 'PRIVATE' } })
         .select(USER_CARD_FIELDS)
-        .sort({ createdAt: 1 }),
+        .sort({ createdAt: -1 }),
       Review.aggregate([{ $group: { _id: '$reviewee', sum: { $sum: '$rating' }, count: { $sum: 1 } } }]),
     ]);
     const ratingAgg = new Map(reviewAgg.map((r) => [String(r._id), r]));
@@ -124,11 +124,14 @@ const getDashboard = async (req, res) => {
       await Promise.all([
         Task.find({ project: { $in: myProjectIds } }).populate('project', 'title').sort({ dueDate: 1, createdAt: 1 }),
         JoinRequest.find({ project: { $in: leadProjectIds }, status: 'pending' })
-          .populate('user', 'name avatarBg avatarFg skills headline')
+          .populate('user', 'name avatarBg avatarFg skills headline university department bio portfolio github')
           .sort({ createdAt: -1 }),
         JoinRequest.find({ user: me._id, status: 'pending' }).select('project'),
         Invitation.find({ from: me._id, status: 'pending' }).select('to kind'),
-        Invitation.countDocuments({ to: me._id, status: 'pending' }),
+        Invitation.find({ to: me._id, status: 'pending' })
+          .populate('from', 'name avatarBg avatarFg headline university skills')
+          .populate('project', 'title category description skills status maxMembers')
+          .sort({ createdAt: -1 }),
         Activity.find({ project: { $in: myProjectIds }, actor: { $ne: me._id } })
           .populate('actor', 'name avatarBg avatarFg')
           .populate('project', 'title')
@@ -242,13 +245,25 @@ const getDashboard = async (req, res) => {
         capacity: p.maxMembers,
         members: p.members
           .filter((m) => m.user)
-          .map((m) => ({
-            initials: f.initials(m.user.name),
-            name: m.user.name,
-            role: m.role,
-            bg: m.user.avatarBg,
-            fg: m.user.avatarFg,
-          })),
+          .map((m) => {
+            const memberId = idStr(m.user._id || m.user);
+            const memberTasks = tasks.filter((t) => idStr(t.assignee) === memberId);
+            const memberDone = memberTasks.filter((t) => t.status === 'done').length;
+            const progress = memberTasks.length > 0
+              ? Math.round((memberDone / memberTasks.length) * 100)
+              : projectProgress(p, tasks);
+            return {
+              id: memberId,
+              initials: f.initials(m.user.name),
+              name: m.user.name,
+              role: m.role,
+              bg: m.user.avatarBg,
+              fg: m.user.avatarFg,
+              progress,
+              tasksCount: memberTasks.length,
+              doneCount: memberDone,
+            };
+          }),
         tasks: tasks.map((t) => ({
           id: idStr(t),
           title: t.title,
@@ -258,12 +273,21 @@ const getDashboard = async (req, res) => {
         candidates: isLead
           ? (candidatesByProject.get(idStr(p)) || []).filter((c) => c.user).map((c) => ({
             id: idStr(c),
+            userId: idStr(c.user._id || c.user),
             name: c.user.name,
             role: c.role,
             initials: f.initials(c.user.name),
             bg: c.user.avatarBg,
             fg: c.user.avatarFg,
             matchPct: `${c.matchPct || matchFor(me, c.user).pct}%`,
+            headline: c.user.headline || '',
+            university: c.user.university || '',
+            department: c.user.department || '',
+            bio: c.user.bio || '',
+            portfolio: c.user.portfolio || '',
+            github: c.user.github || '',
+            skills: (c.user.skills || []).map((s) => s.name || s),
+            message: c.message || '',
           }))
           : [],
       };
@@ -340,7 +364,7 @@ const getDashboard = async (req, res) => {
     const activeMine = myProjects.filter((p) => !p.archived && p.status !== 'Completed');
     const completedMine = myProjects.filter((p) => p.archived || p.status === 'Completed');
     const leadingActive = activeMine.filter((p) => idStr(p.owner) === meId).length;
-    const received = candidates.length + receivedInvites;
+    const received = candidates.length + (Array.isArray(receivedInvites) ? receivedInvites.length : 0);
     const sent = sentJoin.length + sentInvites.length;
 
     const coMembers = new Set();
@@ -443,6 +467,23 @@ const getDashboard = async (req, res) => {
       supportEmail: 'support@teamup.com',
     };
 
+    const myInvitations = (Array.isArray(receivedInvites) ? receivedInvites : [])
+      .filter((inv) => inv.from && inv.project)
+      .map((inv) => ({
+        id: idStr(inv),
+        projectId: idStr(inv.project._id || inv.project),
+        projectTitle: inv.project.title,
+        category: inv.project.category || 'General',
+        projectDesc: inv.project.description || '',
+        fromId: idStr(inv.from._id || inv.from),
+        fromName: inv.from.name,
+        fromHeadline: inv.from.headline || '',
+        fromUniversity: inv.from.university || '',
+        fromBg: inv.from.avatarBg,
+        fromFg: inv.from.avatarFg,
+        date: f.agoCompact(inv.createdAt, now),
+      }));
+
     return res.status(200).json({
       success: true,
       generatedAt: now.toISOString(),
@@ -469,6 +510,7 @@ const getDashboard = async (req, res) => {
       discover,
       teammates,
       myProjects: myProjectCards,
+      invitations: myInvitations,
       team,
       profile,
       settings,

@@ -166,9 +166,9 @@ public class AdminReviews {
         curY = paintHeader(g, x + padX, curY, contentW, dashboard);
         curY += 20;
 
-        // 2. Metrics Summary Cards (4 KPI Cards)
-        curY = paintMetricsSummary(g, x + padX, curY, contentW);
-        curY += 22;
+        // 2. Metrics Summary Cards (4 KPI Cards) - Deleted as requested
+        // curY = paintMetricsSummary(g, x + padX, curY, contentW);
+        // curY += 22;
 
         // 3. Filter Tabs & Controls Bar
         curY = paintTabsAndControls(g, x + padX, curY, contentW);
@@ -188,24 +188,8 @@ public class AdminReviews {
 
     private int paintHeader(Graphics2D g, int x, int y, int w, AdminDashboard dashboard) {
         g.setFont(AdminTheme.FONT_HEADING);
-        FontMetrics hfm = g.getFontMetrics();
         g.setColor(AdminTheme.TEXT_DARK);
         g.drawString("Reviews & Feedback", x, y + 24);
-
-        int titleW = hfm.stringWidth("Reviews & Feedback");
-
-        // Total count pill
-        int pillX = x + titleW + 12;
-        int pillY = y + 7;
-        int totalRev = AdminDataStore.getInstance().getTotalReviewsCount();
-        String totalLabel = String.format("%,d evaluations", totalRev);
-        g.setFont(AdminTheme.FONT_BOLD_10);
-        int pillW = g.getFontMetrics().stringWidth(totalLabel) + 18;
-        RoundRectangle2D pill = new RoundRectangle2D.Float(pillX, pillY, pillW, 22, 11, 11);
-        g.setColor(AdminTheme.BRAND_TINT);
-        g.fill(pill);
-        g.setColor(AdminTheme.BRAND_PRIMARY);
-        g.drawString(totalLabel, pillX + 9, pillY + 15);
 
         // Subtitle
         g.setFont(AdminTheme.FONT_REG_13);
@@ -1257,7 +1241,7 @@ public class AdminReviews {
             boolean isReported = "Reported".equalsIgnoreCase(r.status) || "Under review".equalsIgnoreCase(r.status);
             estimatedListH += (isReported ? 172 : 136) + 14;
         }
-        return 280 + estimatedListH + 100;
+        return 170 + estimatedListH + 100;
     }
 
     // Getters for automated tests

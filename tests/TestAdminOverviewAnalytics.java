@@ -75,10 +75,10 @@ public class TestAdminOverviewAnalytics {
         // Test 2: Requirement 1 - Total Users & Projects
         System.out.println("\n[Test 2] Testing Requirement 1 - Total Users & Projects...");
         int totalUsers = store.getTotalUsersCount();
-        check(totalUsers >= 12000, "Total Users metric is valid: " + totalUsers);
+        check(totalUsers == store.getAllUsers().size(), "Total Users equals the loaded user list: " + totalUsers);
 
         int totalProjects = store.getTotalProjectsCount();
-        check(totalProjects >= 400, "Total Projects metric is valid: " + totalProjects);
+        check(totalProjects == store.getAllProjects().size(), "Total Projects equals the loaded project list: " + totalProjects);
 
         int activeProjects = store.getActiveProjectsCount();
         check(activeProjects > 0, "Active Projects count is valid: " + activeProjects);
@@ -93,12 +93,19 @@ public class TestAdminOverviewAnalytics {
         Graphics2D gg = growthImg.createGraphics();
         dashboard.paint(gg, 1366, 768);
         gg.dispose();
-        check(true, "Monthly user growth area chart rendered with 7 monthly checkpoints (May-Nov)");
+        List<AdminDataStore.MonthPoint> growth = store.getMonthlyUserGrowth();
+        check(growth.size() == AdminDataStore.GROWTH_MONTHS, "Monthly user growth has " + growth.size() + " monthly checkpoints");
+        check(growth.get(growth.size() - 1).total == totalUsers, "Last growth point equals total users (" + totalUsers + ")");
+        boolean monotonic = true;
+        for (int i = 1; i < growth.size(); i++) if (growth.get(i).total < growth.get(i - 1).total) monotonic = false;
+        check(monotonic, "Cumulative user curve never decreases");
 
         // Test 4: Requirement 3 - Project Success Rate
         System.out.println("\n[Test 4] Testing Requirement 3 - Project Success Rate...");
         double successRate = store.getProjectSuccessRate();
-        check(successRate >= 90.0 && successRate <= 100.0, "Project success rate benchmark is valid: " + successRate + "%");
+        int started = activeProjects + store.getUnderReviewProjectsCount() + completedProjects;
+        double expectedRate = started == 0 ? 0.0 : Math.round(completedProjects * 1000.0 / started) / 10.0;
+        check(Math.abs(successRate - expectedRate) < 0.001, "Project success rate = completed / started: " + successRate + "%");
 
         // Verify lifecycle segments
         int recruitingProjects = store.getRecruitingProjectsCount();
@@ -110,33 +117,25 @@ public class TestAdminOverviewAnalytics {
 
         // Test 5: Requirement 4 - Most Popular Skills
         System.out.println("\n[Test 5] Testing Requirement 4 - Most Popular Skills...");
-        List<AdminDataStore.SkillModel> skills = store.getAllSkills();
-        check(skills.size() >= 5, "Skills registry has popular competencies: count=" + skills.size());
-
-        // Check top skills
-        AdminDataStore.SkillModel top1 = skills.get(0);
-        check(top1.name.equals("React"), "Rank #1 skill is React: " + top1.memberCount + " students");
-        check(top1.memberCount > 1000, "React student count is above 1,000");
-
-        AdminDataStore.SkillModel top2 = skills.get(1);
-        check(top2.name.equals("TypeScript"), "Rank #2 skill is TypeScript: " + top2.memberCount + " students");
-
-        AdminDataStore.SkillModel top3 = skills.get(2);
-        check(top3.name.equals("Node.js"), "Rank #3 skill is Node.js: " + top3.memberCount + " students");
+        List<AdminDataStore.SkillStat> skills = store.getTopSkills(5);
+        check(!skills.isEmpty() && skills.size() <= 5, "Top skills list has up to 5 entries: count=" + skills.size());
+        boolean sorted = true;
+        for (int i = 1; i < skills.size(); i++) if (skills.get(i).count > skills.get(i - 1).count) sorted = false;
+        check(sorted, "Top skills are ranked by student count (#1 " + skills.get(0).name + ": " + skills.get(0).count + ")");
 
         // Test 6: Requirement 5 - Active Teams Statistics
         System.out.println("\n[Test 6] Testing Requirement 5 - Active Teams Statistics...");
         int activeTeams = store.getActiveTeamsCount();
-        check(activeTeams >= 100, "Active Teams collaborating count is valid: " + activeTeams + " teams");
+        check(activeTeams >= 0 && activeTeams <= totalProjects, "Active Teams count is within project count: " + activeTeams + " teams");
 
         double avgSize = store.getAverageTeamSize();
-        check(avgSize >= 3.0 && avgSize <= 6.0, "Average Team composition size: " + avgSize + " members / team");
+        check(activeTeams == 0 ? avgSize == 0.0 : avgSize >= 2.0, "Average Team size (active teams have 2+ members): " + avgSize);
 
         int collabRequests = store.collaborationRequests;
-        check(collabRequests >= 1000, "Collaboration Requests count is valid: " + collabRequests);
+        check(collabRequests >= 0, "Collaboration Requests count is non-negative: " + collabRequests);
 
         int sprintVelocity = store.getSprintVelocity();
-        check(sprintVelocity >= 80 && sprintVelocity <= 100, "Sprint velocity metric: " + sprintVelocity + "%");
+        check(sprintVelocity >= 0 && sprintVelocity <= 100, "Task completion is a percentage: " + sprintVelocity + "%");
 
         // Test 7: Time-Range Selection & State
         System.out.println("\n[Test 7] Testing Time-Range Filter Toggle...");

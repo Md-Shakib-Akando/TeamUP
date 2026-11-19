@@ -15,21 +15,12 @@ public class TestFourDedicatedViews {
         BufferedImage img = new BufferedImage(1280, 800, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = img.createGraphics();
 
-        // 1. Test MY_TEAMS Page
-        System.out.println("\n[Test 1] Testing My Teams Page...");
-        dashboard.setActiveNav(StudentDashboard.NavItem.MY_TEAMS);
+        // 1. Test MY_PROJECTS Page
+        System.out.println("\n[Test 1] Testing My Projects Page...");
+        dashboard.setActiveNav(StudentDashboard.NavItem.MY_PROJECTS);
         dashboard.paint(g, 1280, 800);
         dashboard.update(0.016f);
-        System.out.println("  Painted My Teams successfully, activeNav=" + dashboard.getActiveNav());
-
-        // Test tab switching in My Teams
-        dashboard.getTeamData().activeTabIndex = 1; // Members
-        dashboard.paint(g, 1280, 800);
-        dashboard.getTeamData().activeTabIndex = 2; // Tasks
-        dashboard.paint(g, 1280, 800);
-        dashboard.getTeamData().activeTabIndex = 0; // Back to Overview
-        dashboard.paint(g, 1280, 800);
-        System.out.println("  My Teams tabs verified.");
+        System.out.println("  Painted My Projects successfully, activeNav=" + dashboard.getActiveNav());
 
         // 2. Test MY_PROFILE Page
         System.out.println("\n[Test 2] Testing My Profile Page...");

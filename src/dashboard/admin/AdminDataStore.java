@@ -2,6 +2,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -66,6 +67,7 @@ public class AdminDataStore {
         public String status; // "Active", "Completed", "Recruiting", "Under review"
         public String created;
         public String description;
+        public boolean archived = false;
 
         public ProjectModel(String id, String name, String category, String owner, String teamSize, String status,
                 String created, String description) {
@@ -319,10 +321,12 @@ public class AdminDataStore {
     public String lastBackupSize = "42.8 MB";
     public int dataRetentionDays = 365;
 
-    // Metrics counters
-    public int baseTotalUsers = 12480;
-    public int baseTotalProjects = 482;
-    public int collaborationRequests = 1642;
+    // Backend-only metrics (collaboration requests, tasks, profile skills...) from
+    // GET /api/admin/bootstrap → stats. Counts that can be derived from the loaded
+    // users / projects / reports lists are computed locally so they react instantly.
+    public int collaborationRequests = 0;
+    private Map<String, Object> liveStats = null;
+    private long liveStatsSyncedAt = 0L;
 
     private AdminDataStore() {
         seedInitialDemoData();
@@ -502,10 +506,58 @@ public class AdminDataStore {
     }
 
     // ==========================================
+    // LOGGED IN ADMIN IDENTITY & HELPERS
+    // ==========================================
+
+    public String getActorName() {
+        AuthStore.UserRecord u = AuthStore.getCurrentUser();
+        if (u != null && u.name != null && !u.name.trim().isEmpty()) {
+            return u.name.trim();
+        }
+        return "Admin";
+    }
+
+    public String getActorInitials() {
+        String name = getActorName();
+        String[] parts = name.split("\\s+");
+        if (parts.length >= 2 && parts[0].length() > 0 && parts[1].length() > 0) {
+            return ("" + parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+        } else if (name.length() >= 2) {
+            return name.substring(0, 2).toUpperCase();
+        } else if (name.length() == 1) {
+            return name.toUpperCase();
+        }
+        return "AD";
+    }
+
+    public synchronized void syncLoggedInAdmin() {
+        AuthStore.UserRecord cur = AuthStore.getCurrentUser();
+        if (cur == null || cur.name == null || cur.name.trim().isEmpty()) return;
+
+        String name = cur.name.trim();
+        String email = (cur.email != null && !cur.email.trim().isEmpty()) ? cur.email.trim() : "admin@teamup.edu";
+        String initials = getActorInitials();
+
+        boolean found = false;
+        for (int i = 0; i < users.size(); i++) {
+            UserModel u = users.get(i);
+            if (u.email.equalsIgnoreCase(email) || u.name.equalsIgnoreCase(name) || "Jordan Lee".equalsIgnoreCase(u.name)) {
+                users.set(i, new UserModel(u.id, name, initials, email, "Admin", u.joined, "Active"));
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            users.add(0, new UserModel("U-100", name, initials, email, "Admin", "Nov 14, 2026", "Active"));
+        }
+    }
+
+    // ==========================================
     // REPOSITORY METHODS - USERS
     // ==========================================
 
     public synchronized List<UserModel> getAllUsers() {
+        syncLoggedInAdmin();
         return new ArrayList<>(users);
     }
 
@@ -569,12 +621,11 @@ public class AdminDataStore {
         }
 
         String newId = "U-" + (100 + users.size() + 1);
-        String joinedDate = "Nov 06, 2026";
+        String joinedDate = formatToday();
 
         UserModel newUser = new UserModel(newId, cleanName, initials, cleanEmail, cleanRole, joinedDate, "Active");
         users.add(0, newUser);
-        baseTotalUsers++;
-        logActivity("Jordan Lee", "JL", "Added new user", cleanName + " (" + cleanRole + ")", true);
+        logActivity(getActorName(), getActorInitials(), "Added new user", cleanName + " (" + cleanRole + ")", true);
         AdminSync.syncAddUser(cleanName, cleanEmail, cleanRole);
         return true;
     }
@@ -585,8 +636,7 @@ public class AdminDataStore {
         for (int i = 0; i < users.size(); i++) {
             if (users.get(i).name.equalsIgnoreCase(name.trim())) {
                 UserModel removed = users.remove(i);
-                baseTotalUsers = Math.max(0, baseTotalUsers - 1);
-                logActivity("Jordan Lee", "JL", "Deleted user", removed.name, true);
+                logActivity(getActorName(), getActorInitials(), "Deleted user", removed.name, true);
                 AdminSync.syncDeleteUser(removed.mongoId != null && !removed.mongoId.isEmpty() ? removed.mongoId : removed.id, removed.name);
                 return true;
             }
@@ -606,10 +656,10 @@ public class AdminDataStore {
             java.io.FileWriter writer = new java.io.FileWriter(file);
             writer.write(sb.toString());
             writer.close();
-            logActivity("Jordan Lee", "JL", "Exported user list", "Saved to " + file.getName(), true);
+            logActivity(getActorName(), getActorInitials(), "Exported user list", "Saved to " + file.getName(), true);
             return file.getAbsolutePath();
         } catch (Exception e) {
-            logActivity("Jordan Lee", "JL", "Exported user list", "Exported " + users.size() + " users to CSV", true);
+            logActivity(getActorName(), getActorInitials(), "Exported user list", "Exported " + users.size() + " users to CSV", true);
             return "teamup_users_export.csv";
         }
     }
@@ -618,7 +668,7 @@ public class AdminDataStore {
         for (UserModel u : users) {
             if (u.name.equalsIgnoreCase(name)) {
                 u.status = "Suspended";
-                logActivity("Jordan Lee", "JL", "Suspended user", u.name, true);
+                logActivity(getActorName(), getActorInitials(), "Suspended user", u.name, true);
                 AdminSync.syncUpdateUserStatus(u.mongoId != null && !u.mongoId.isEmpty() ? u.mongoId : u.id, u.name, "Suspended");
                 return true;
             }
@@ -630,7 +680,7 @@ public class AdminDataStore {
         for (UserModel u : users) {
             if (u.name.equalsIgnoreCase(name)) {
                 u.status = "Active";
-                logActivity("Jordan Lee", "JL", "Reactivated user", u.name, true);
+                logActivity(getActorName(), getActorInitials(), "Reactivated user", u.name, true);
                 AdminSync.syncUpdateUserStatus(u.mongoId != null && !u.mongoId.isEmpty() ? u.mongoId : u.id, u.name, "Active");
                 return true;
             }
@@ -643,7 +693,7 @@ public class AdminDataStore {
             if (u.name.equalsIgnoreCase(name)) {
                 String oldRole = u.role;
                 u.role = newRole;
-                logActivity("Jordan Lee", "JL", "Changed user role", u.name + " → " + newRole, true);
+                logActivity(getActorName(), getActorInitials(), "Changed user role", u.name + " → " + newRole, true);
                 AdminSync.syncUpdateUserRole(u.mongoId != null && !u.mongoId.isEmpty() ? u.mongoId : u.id, u.name, newRole);
                 return true;
             }
@@ -656,7 +706,7 @@ public class AdminDataStore {
     }
 
     public synchronized int getActiveUsersCount() {
-        return baseTotalUsers - getSuspendedUsersCount();
+        return users.size() - getSuspendedUsersCount();
     }
 
     // ==========================================
@@ -742,20 +792,19 @@ public class AdminDataStore {
             return false;
         String cleanName = name.trim();
         String cleanCat = (category == null || category.trim().isEmpty()) ? "Web Development" : category.trim();
-        String cleanOwner = (owner == null || owner.trim().isEmpty()) ? "Jordan Lee" : owner.trim();
+        String cleanOwner = (owner == null || owner.trim().isEmpty()) ? getActorName() : owner.trim();
         String cleanSize = (teamSize == null || teamSize.trim().isEmpty()) ? "1 / " + maxTeamSize : teamSize.trim();
         String cleanStatus = (status == null || status.trim().isEmpty()) ? "Active" : status.trim();
         String cleanDesc = (description == null || description.trim().isEmpty()) ? "Community initiative."
                 : description.trim();
 
         String newId = "P-" + (200 + projects.size() + 1);
-        String createdDate = "Nov 11, 2026";
+        String createdDate = formatToday();
 
         ProjectModel newProj = new ProjectModel(newId, cleanName, cleanCat, cleanOwner, cleanSize, cleanStatus,
                 createdDate, cleanDesc);
         projects.add(0, newProj);
-        baseTotalProjects++;
-        logActivity("Jordan Lee", "JL", "Created project", cleanName + " (" + cleanCat + ")", true);
+        logActivity(getActorName(), getActorInitials(), "Created project", cleanName + " (" + cleanCat + ")", true);
         AdminSync.syncAddProject(cleanName, cleanCat, cleanOwner, cleanSize, cleanStatus, cleanDesc);
         return true;
     }
@@ -767,8 +816,7 @@ public class AdminDataStore {
             if (projects.get(i).name.equalsIgnoreCase(name.trim())
                     || projects.get(i).id.equalsIgnoreCase(name.trim())) {
                 ProjectModel removed = projects.remove(i);
-                baseTotalProjects = Math.max(0, baseTotalProjects - 1);
-                logActivity("Jordan Lee", "JL", "Deleted project", removed.name, true);
+                logActivity(getActorName(), getActorInitials(), "Deleted project", removed.name, true);
                 AdminSync.syncDeleteProject(removed.mongoId != null && !removed.mongoId.isEmpty() ? removed.mongoId : removed.id, removed.name);
                 return true;
             }
@@ -781,7 +829,7 @@ public class AdminDataStore {
             if (p.name.equalsIgnoreCase(name) || p.id.equalsIgnoreCase(name)) {
                 String oldStatus = p.status;
                 p.status = newStatus;
-                logActivity("Jordan Lee", "JL", "Updated project status",
+                logActivity(getActorName(), getActorInitials(), "Updated project status",
                         p.name + " (" + oldStatus + " → " + newStatus + ")", true);
                 AdminSync.syncUpdateProjectStatus(p.mongoId != null && !p.mongoId.isEmpty() ? p.mongoId : p.id, p.name, newStatus);
                 return true;
@@ -809,41 +857,41 @@ public class AdminDataStore {
             java.io.FileWriter writer = new java.io.FileWriter(file);
             writer.write(sb.toString());
             writer.close();
-            logActivity("Jordan Lee", "JL", "Exported project registry", "Saved to " + file.getName(), true);
+            logActivity(getActorName(), getActorInitials(), "Exported project registry", "Saved to " + file.getName(), true);
             return file.getAbsolutePath();
         } catch (Exception e) {
-            logActivity("Jordan Lee", "JL", "Exported project registry",
+            logActivity(getActorName(), getActorInitials(), "Exported project registry",
                     "Exported " + projects.size() + " projects to CSV", true);
             return "teamup_projects_export.csv";
         }
     }
 
     public synchronized int getTotalProjectsCount() {
-        return baseTotalProjects;
+        return projects.size();
+    }
+
+    private int countProjectsWithStatus(String status) {
+        int n = 0;
+        for (ProjectModel p : projects) {
+            if (status.equalsIgnoreCase(p.status)) n++;
+        }
+        return n;
     }
 
     public synchronized int getActiveProjectsCount() {
-        int currentActive = (int) projects.stream().filter(p -> "Active".equalsIgnoreCase(p.status)).count();
-        int delta = currentActive - 4; // initial seeded active count was 4
-        return Math.max(0, 286 + delta);
+        return countProjectsWithStatus("Active");
     }
 
     public synchronized int getRecruitingProjectsCount() {
-        int currentRecruiting = (int) projects.stream().filter(p -> "Recruiting".equalsIgnoreCase(p.status)).count();
-        int delta = currentRecruiting - 2; // initial seeded recruiting count was 2
-        return Math.max(0, 92 + delta);
+        return countProjectsWithStatus("Recruiting");
     }
 
     public synchronized int getUnderReviewProjectsCount() {
-        int currentReview = (int) projects.stream().filter(p -> "Under review".equalsIgnoreCase(p.status)).count();
-        int delta = currentReview - 1; // initial seeded under review count was 1
-        return Math.max(0, 8 + delta);
+        return countProjectsWithStatus("Under review");
     }
 
     public synchronized int getCompletedProjectsCount() {
-        int currentCompleted = (int) projects.stream().filter(p -> "Completed".equalsIgnoreCase(p.status)).count();
-        int delta = currentCompleted - 1; // initial seeded completed count was 1
-        return Math.max(0, 96 + delta);
+        return countProjectsWithStatus("Completed");
     }
 
     // ==========================================
@@ -865,7 +913,7 @@ public class AdminDataStore {
                 r.status = "Resolved";
                 if (note != null && !note.isEmpty())
                     r.internalNote = note;
-                logActivity("Jordan Lee", "JL", "Resolved report", r.id + " · " + r.title, true);
+                logActivity(getActorName(), getActorInitials(), "Resolved report", r.id + " · " + r.title, true);
                 AdminSync.syncResolveReport(r.mongoId != null && !r.mongoId.isEmpty() ? r.mongoId : r.id, note);
                 return true;
             }
@@ -879,7 +927,7 @@ public class AdminDataStore {
                 r.status = "In review";
                 if (note != null && !note.isEmpty())
                     r.internalNote = note;
-                logActivity("Jordan Lee", "JL", "Issued warning", r.flaggedAuthor + " (Report " + r.id + ")", true);
+                logActivity(getActorName(), getActorInitials(), "Issued warning", r.flaggedAuthor + " (Report " + r.id + ")", true);
                 AdminSync.syncActionReport(r.mongoId != null && !r.mongoId.isEmpty() ? r.mongoId : r.id, "warn", note);
                 return true;
             }
@@ -893,7 +941,7 @@ public class AdminDataStore {
                 r.status = "Resolved";
                 if (note != null && !note.isEmpty())
                     r.internalNote = note;
-                logActivity("Jordan Lee", "JL", "Removed content", r.id + " · " + r.type, true);
+                logActivity(getActorName(), getActorInitials(), "Removed content", r.id + " · " + r.type, true);
                 AdminSync.syncActionReport(r.mongoId != null && !r.mongoId.isEmpty() ? r.mongoId : r.id, "remove", note);
                 return true;
             }
@@ -907,7 +955,7 @@ public class AdminDataStore {
                 r.status = "In review";
                 if (note != null && !note.isEmpty())
                     r.internalNote = note;
-                logActivity("Jordan Lee", "JL", "Escalated report", r.id + " to safety council", true);
+                logActivity(getActorName(), getActorInitials(), "Escalated report", r.id + " to safety council", true);
                 AdminSync.syncActionReport(r.mongoId != null && !r.mongoId.isEmpty() ? r.mongoId : r.id, "escalate", note);
                 return true;
             }
@@ -937,7 +985,7 @@ public class AdminDataStore {
         }
         CategoryModel cat = new CategoryModel("C-" + (categories.size() + 1), trimmed, 0, true);
         categories.add(0, cat);
-        logActivity("Jordan Lee", "JL", "Created category", trimmed, true);
+        logActivity(getActorName(), getActorInitials(), "Created category", trimmed, true);
         AdminSync.syncAddCategory(trimmed);
         return true;
     }
@@ -946,7 +994,7 @@ public class AdminDataStore {
         for (CategoryModel c : categories) {
             if (c.name.equalsIgnoreCase(name)) {
                 c.active = !c.active;
-                logActivity("Jordan Lee", "JL", (c.active ? "Enabled category" : "Disabled category"), c.name, true);
+                logActivity(getActorName(), getActorInitials(), (c.active ? "Enabled category" : "Disabled category"), c.name, true);
                 AdminSync.syncToggleCategory(c.mongoId, c.name, c.active);
                 return true;
             }
@@ -964,7 +1012,7 @@ public class AdminDataStore {
         }
         SkillModel skill = new SkillModel("S-" + (skills.size() + 1), trimmed, 1, true);
         skills.add(0, skill);
-        logActivity("Jordan Lee", "JL", "Created skill tag", trimmed, true);
+        logActivity(getActorName(), getActorInitials(), "Created skill tag", trimmed, true);
         AdminSync.syncAddSkill(trimmed);
         return true;
     }
@@ -973,7 +1021,7 @@ public class AdminDataStore {
         for (SkillModel s : skills) {
             if (s.name.equalsIgnoreCase(name)) {
                 s.active = !s.active;
-                logActivity("Jordan Lee", "JL", (s.active ? "Enabled skill tag" : "Disabled skill tag"), s.name, true);
+                logActivity(getActorName(), getActorInitials(), (s.active ? "Enabled skill tag" : "Disabled skill tag"), s.name, true);
                 AdminSync.syncToggleSkill(s.mongoId, s.name, s.active);
                 return true;
             }
@@ -994,7 +1042,7 @@ public class AdminDataStore {
             if (c.name.equalsIgnoreCase(oldName)) {
                 String prev = c.name;
                 c.name = trimmed;
-                logActivity("Jordan Lee", "JL", "Updated category name", prev + " → " + trimmed, true);
+                logActivity(getActorName(), getActorInitials(), "Updated category name", prev + " → " + trimmed, true);
                 AdminSync.syncUpdateCategory(oldName, trimmed);
                 return true;
             }
@@ -1015,7 +1063,7 @@ public class AdminDataStore {
             if (s.name.equalsIgnoreCase(oldName)) {
                 String prev = s.name;
                 s.name = trimmed;
-                logActivity("Jordan Lee", "JL", "Updated skill tag name", prev + " → " + trimmed, true);
+                logActivity(getActorName(), getActorInitials(), "Updated skill tag name", prev + " → " + trimmed, true);
                 AdminSync.syncUpdateSkill(oldName, trimmed);
                 return true;
             }
@@ -1133,7 +1181,7 @@ public class AdminDataStore {
             ReviewModel r = reviews.get(i);
             if (r.id.equalsIgnoreCase(id.trim())) {
                 ReviewModel removed = reviews.remove(i);
-                logActivity("Jordan Lee", "JL", "Deleted inappropriate feedback",
+                logActivity(getActorName(), getActorInitials(), "Deleted inappropriate feedback",
                         removed.id + " (" + removed.reviewerName + ")", true);
                 AdminSync.syncDeleteReview(removed.mongoId != null && !removed.mongoId.isEmpty() ? removed.mongoId : removed.id);
                 return true;
@@ -1150,7 +1198,7 @@ public class AdminDataStore {
                 r.status = "Published";
                 r.reportReason = null;
                 r.reportedBy = null;
-                logActivity("Jordan Lee", "JL", "Approved reported feedback", r.id + " (" + r.reviewerName + ")", true);
+                logActivity(getActorName(), getActorInitials(), "Approved reported feedback", r.id + " (" + r.reviewerName + ")", true);
                 AdminSync.syncUpdateReview(r.mongoId != null && !r.mongoId.isEmpty() ? r.mongoId : r.id, "approve", "Published");
                 return true;
             }
@@ -1165,11 +1213,11 @@ public class AdminDataStore {
             if (r.id.equalsIgnoreCase(id.trim())) {
                 if ("Hidden".equalsIgnoreCase(r.status)) {
                     r.status = "Published";
-                    logActivity("Jordan Lee", "JL", "Unhid feedback", r.id, true);
+                    logActivity(getActorName(), getActorInitials(), "Unhid feedback", r.id, true);
                     AdminSync.syncUpdateReview(r.mongoId != null && !r.mongoId.isEmpty() ? r.mongoId : r.id, "unhide", "Published");
                 } else {
                     r.status = "Hidden";
-                    logActivity("Jordan Lee", "JL", "Hid feedback", r.id, true);
+                    logActivity(getActorName(), getActorInitials(), "Hid feedback", r.id, true);
                     AdminSync.syncUpdateReview(r.mongoId != null && !r.mongoId.isEmpty() ? r.mongoId : r.id, "hide", "Hidden");
                 }
                 return true;
@@ -1183,7 +1231,7 @@ public class AdminDataStore {
             return false;
         for (ReviewModel r : reviews) {
             if (r.id.equalsIgnoreCase(id.trim())) {
-                logActivity("Jordan Lee", "JL", "Issued warning to feedback author", r.reviewerName + " for " + r.id,
+                logActivity(getActorName(), getActorInitials(), "Issued warning to feedback author", r.reviewerName + " for " + r.id,
                         true);
                 return true;
             }
@@ -1219,7 +1267,7 @@ public class AdminDataStore {
                 cleanProject, cleanRole, cleanRating, text.trim(),
                 cleanType, "Nov 11, 2026", "Published", null, null, 0, true);
         reviews.add(0, newRev);
-        logActivity("Jordan Lee", "JL", "Added review", newId + " (" + cleanReviewer + " → " + cleanReviewee + ")",
+        logActivity(getActorName(), getActorInitials(), "Added review", newId + " (" + cleanReviewer + " → " + cleanReviewee + ")",
                 true);
         AdminSync.syncAddReview(cleanReviewer, cleanReviewee, cleanProject, cleanRole, cleanRating, text, cleanType);
         return true;
@@ -1251,10 +1299,10 @@ public class AdminDataStore {
             java.io.FileWriter writer = new java.io.FileWriter(file);
             writer.write(sb.toString());
             writer.close();
-            logActivity("Jordan Lee", "JL", "Exported feedback registry", "Saved to " + file.getName(), true);
+            logActivity(getActorName(), getActorInitials(), "Exported feedback registry", "Saved to " + file.getName(), true);
             return file.getAbsolutePath();
         } catch (Exception e) {
-            logActivity("Jordan Lee", "JL", "Exported feedback registry",
+            logActivity(getActorName(), getActorInitials(), "Exported feedback registry",
                     "Exported " + reviews.size() + " reviews to CSV", true);
             return "teamup_reviews_export.csv";
         }
@@ -1319,46 +1367,289 @@ public class AdminDataStore {
     // ANALYTICS & PLATFORM METRICS
     // ==========================================
 
-    public synchronized int getTotalUsersCount() {
-        return baseTotalUsers + (users.size() - 8);
+    /** One month on the user-growth chart. */
+    public static class MonthPoint {
+        public final String label;
+        public final int newUsers;
+        public final int total;
+
+        public MonthPoint(String label, int newUsers, int total) {
+            this.label = label;
+            this.newUsers = newUsers;
+            this.total = total;
+        }
     }
 
+    /** A skill and the number of students listing it on their profile. */
+    public static class SkillStat {
+        public final String name;
+        public final int count;
+
+        public SkillStat(String name, int count) {
+            this.name = name;
+            this.count = count;
+        }
+    }
+
+    private static final String[] MONTH_LABELS = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep",
+            "Oct", "Nov", "Dec" };
+    public static final int GROWTH_MONTHS = 7;
+    private static final java.util.regex.Pattern TEAM_SIZE = java.util.regex.Pattern.compile("(\\d+)\\s*/\\s*(\\d+)");
+
+    /** Stores the analytics block of GET /api/admin/bootstrap (or /api/admin/overview). */
+    public synchronized void applyBackendStats(Map<String, Object> stats) {
+        if (stats == null) return;
+        this.liveStats = new java.util.HashMap<>(stats);
+        this.liveStatsSyncedAt = System.currentTimeMillis();
+        this.collaborationRequests = Json.integer(stats, "collaborationRequests", this.collaborationRequests);
+    }
+
+    /** True once analytics have been loaded from the backend (false in offline demo mode). */
+    public synchronized boolean hasLiveStats() {
+        return liveStats != null;
+    }
+
+    /** "14:05" — when the analytics were last refreshed from the backend, or null. */
+    public synchronized String getLastStatsSyncLabel() {
+        if (liveStatsSyncedAt == 0L) return null;
+        return new java.text.SimpleDateFormat("HH:mm").format(new java.util.Date(liveStatsSyncedAt));
+    }
+
+    private int liveInt(String key, int def) {
+        return liveStats != null ? Json.integer(liveStats, key, def) : def;
+    }
+
+    private double liveNum(String key, double def) {
+        return liveStats != null ? Json.num(liveStats, key, def) : def;
+    }
+
+    static String formatToday() {
+        return new java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.US).format(new java.util.Date());
+    }
+
+    /** Parses the "Nov 14, 2026" dates used by the admin tables; null when unparseable. */
+    private static java.util.Calendar parseDisplayDate(String s) {
+        if (s == null || s.trim().isEmpty()) return null;
+        try {
+            java.text.SimpleDateFormat f = new java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.US);
+            f.setLenient(false);
+            java.util.Calendar c = java.util.Calendar.getInstance();
+            c.setTime(f.parse(s.trim()));
+            return c;
+        } catch (java.text.ParseException e) {
+            return null;
+        }
+    }
+
+    private static int monthIndex(java.util.Calendar c) {
+        return c.get(java.util.Calendar.YEAR) * 12 + c.get(java.util.Calendar.MONTH);
+    }
+
+    // ---- Users ----
+
+    public synchronized int getTotalUsersCount() {
+        return users.size();
+    }
+
+    public synchronized int getNewUsersThisMonth() {
+        List<MonthPoint> g = getMonthlyUserGrowth();
+        return g.get(g.size() - 1).newUsers;
+    }
+
+    /** Cumulative users at the end of each of the last GROWTH_MONTHS months (oldest first). */
+    public synchronized List<MonthPoint> getMonthlyUserGrowth() {
+        int nowIdx = monthIndex(java.util.Calendar.getInstance());
+        int firstIdx = nowIdx - (GROWTH_MONTHS - 1);
+        int[] added = new int[GROWTH_MONTHS];
+        int before = 0;
+        for (UserModel u : users) {
+            java.util.Calendar c = parseDisplayDate(u.joined);
+            int idx = (c == null) ? Integer.MIN_VALUE : monthIndex(c);
+            if (idx < firstIdx) before++;
+            else if (idx <= nowIdx) added[idx - firstIdx]++;
+            else added[GROWTH_MONTHS - 1]++; // future-dated: count as this month
+        }
+        List<MonthPoint> out = new ArrayList<>();
+        int running = before;
+        for (int i = 0; i < GROWTH_MONTHS; i++) {
+            running += added[i];
+            out.add(new MonthPoint(MONTH_LABELS[Math.floorMod(firstIdx + i, 12)], added[i], running));
+        }
+        return out;
+    }
+
+    /** Share of users who belong to at least one project team, or -1 when offline. */
+    public synchronized double getEngagementRate() {
+        return liveNum("engagementRate", -1);
+    }
+
+    // ---- Projects ----
+
+    public synchronized int getNewProjectsThisMonth() {
+        int nowIdx = monthIndex(java.util.Calendar.getInstance());
+        int n = 0;
+        for (ProjectModel p : projects) {
+            java.util.Calendar c = parseDisplayDate(p.created);
+            if (c != null && monthIndex(c) >= nowIdx) n++;
+        }
+        return n;
+    }
+
+    public synchronized int getStartedProjectsCount() {
+        return getActiveProjectsCount() + getUnderReviewProjectsCount() + getCompletedProjectsCount();
+    }
+
+    /** Completed / (Active + Under review + Completed): delivered share of projects past recruiting. */
     public synchronized double getProjectSuccessRate() {
-        return 94.6; // Harmonized platform benchmark
+        int started = getStartedProjectsCount();
+        return started == 0 ? 0.0 : Math.round(getCompletedProjectsCount() * 1000.0 / started) / 10.0;
+    }
+
+    public synchronized int getMilestonesCompleted() {
+        return liveInt("milestonesCompleted", 0);
+    }
+
+    public synchronized int getMilestonesTotal() {
+        return liveInt("milestonesTotal", 0);
+    }
+
+    // ---- Teams ----
+
+    /** {members, capacity} parsed from a "3 / 6" team size label. */
+    private int[] parseTeam(ProjectModel p) {
+        java.util.regex.Matcher m = TEAM_SIZE.matcher(p.teamSize == null ? "" : p.teamSize);
+        if (m.find()) {
+            return new int[] { Integer.parseInt(m.group(1)), Math.max(1, Integer.parseInt(m.group(2))) };
+        }
+        return new int[] { 1, Math.max(1, maxTeamSize) };
+    }
+
+    /** A team is active when its project is not completed/archived and it has 2+ members. */
+    private List<int[]> activeTeams() {
+        List<int[]> out = new ArrayList<>();
+        for (ProjectModel p : projects) {
+            if (p.archived || "Completed".equalsIgnoreCase(p.status)) continue;
+            int[] t = parseTeam(p);
+            if (t[0] >= 2) out.add(t);
+        }
+        return out;
     }
 
     public synchronized int getActiveTeamsCount() {
-        int active = getActiveProjectsCount();
-        return Math.max(120, 186 + (active - 286));
+        return activeTeams().size();
     }
 
     public synchronized double getAverageTeamSize() {
-        return 4.6;
+        List<int[]> teams = activeTeams();
+        if (teams.isEmpty()) return 0.0;
+        int sum = 0;
+        for (int[] t : teams) sum += t[0];
+        return Math.round(sum * 10.0 / teams.size()) / 10.0;
     }
 
+    public synchronized double getAverageTeamCapacity() {
+        List<int[]> teams = activeTeams();
+        if (teams.isEmpty()) return 0.0;
+        int sum = 0;
+        for (int[] t : teams) sum += t[1];
+        return Math.round(sum * 10.0 / teams.size()) / 10.0;
+    }
+
+    /** Filled seats / total seats across active teams, in percent. */
+    public synchronized int getTeamFillRatio() {
+        int members = 0;
+        int seats = 0;
+        for (int[] t : activeTeams()) {
+            members += t[0];
+            seats += t[1];
+        }
+        return seats == 0 ? 0 : (int) Math.round(members * 100.0 / seats);
+    }
+
+    /** Active teams split into {full, open seats, over the platform max team size}. */
+    public synchronized int[] getTeamCapacityDistribution() {
+        int full = 0, open = 0, over = 0;
+        for (int[] t : activeTeams()) {
+            if (t[0] > maxTeamSize) over++;
+            else if (t[0] >= t[1]) full++;
+            else open++;
+        }
+        return new int[] { full, open, over };
+    }
+
+    // ---- Collaboration & tasks (backend only) ----
+
+    public synchronized int getPendingCollaborationRequests() {
+        return liveInt("pendingCollaborationRequests", 0);
+    }
+
+    public synchronized double getRequestAcceptanceRate() {
+        return liveNum("requestAcceptanceRate", 0);
+    }
+
+    public synchronized int getTasksDone() {
+        return liveInt("tasksDone", 0);
+    }
+
+    public synchronized int getTasksTotal() {
+        return liveInt("tasksTotal", 0);
+    }
+
+    /** Done tasks / all tasks on live projects, in percent. */
     public synchronized int getSprintVelocity() {
-        return 92;
+        return liveInt("sprintVelocity", 0);
+    }
+
+    // ---- Skills ----
+
+    /** Most common skills on student profiles; offline it falls back to the skills registry. */
+    public synchronized List<SkillStat> getTopSkills(int limit) {
+        List<SkillStat> out = new ArrayList<>();
+        if (liveStats != null && liveStats.containsKey("topSkills")) {
+            for (Map<String, Object> m : Json.maps(liveStats, "topSkills")) {
+                out.add(new SkillStat(Json.str(m, "name", ""), Json.integer(m, "count", 0)));
+            }
+        } else {
+            for (SkillModel sk : skills) {
+                if (sk.active) out.add(new SkillStat(sk.name, sk.memberCount));
+            }
+        }
+        out.sort((a, b) -> Integer.compare(b.count, a.count));
+        return out.size() > limit ? new ArrayList<>(out.subList(0, limit)) : out;
     }
 
     public synchronized String exportAnalyticsToCsv() {
         StringBuilder sb = new StringBuilder();
         sb.append("TeamUp Platform Analytics & Statistics Report\n");
-        sb.append("Generated on: Nov 11, 2026\n\n");
-        sb.append("METRIC,VALUE,TREND/NOTES\n");
-        sb.append(String.format("Total Platform Users,%d,+14.8%% MoM\n", getTotalUsersCount()));
-        sb.append(String.format("Total Projects,%d,+12.6%% vs last term\n", getTotalProjectsCount()));
-        sb.append(String.format("Active In-flight Projects,%d,Active sprints\n", getActiveProjectsCount()));
-        sb.append(
-                String.format("Project Success Rate,%.1f%%,Based on milestone completions\n", getProjectSuccessRate()));
-        sb.append(String.format("Active Teams,%d,In-flight collaboration\n", getActiveTeamsCount()));
-        sb.append(String.format("Average Team Size,%.1f / 6,84%% fill ratio\n", getAverageTeamSize()));
-        sb.append(String.format("Collaboration Requests,%d,Active matching\n", collaborationRequests));
-        sb.append(String.format("Platform Average Rating,%.1f ★,Verified peer reviews\n\n", getAverageRating()));
+        sb.append("Generated on: ").append(formatToday()).append("\n\n");
+        sb.append("METRIC,VALUE,NOTES\n");
+        sb.append(String.format("Total Platform Users,%d,+%d this month\n", getTotalUsersCount(), getNewUsersThisMonth()));
+        sb.append(String.format("Active Users,%d,%d suspended\n", getActiveUsersCount(), getSuspendedUsersCount()));
+        sb.append(String.format("Total Projects,%d,+%d this month\n", getTotalProjectsCount(), getNewProjectsThisMonth()));
+        sb.append(String.format("Active Projects,%d,In progress\n", getActiveProjectsCount()));
+        sb.append(String.format("Recruiting Projects,%d,Open for members\n", getRecruitingProjectsCount()));
+        sb.append(String.format("Completed Projects,%d,Delivered\n", getCompletedProjectsCount()));
+        sb.append(String.format("Project Success Rate,%.1f%%,Completed / started projects\n", getProjectSuccessRate()));
+        sb.append(String.format("Active Teams,%d,2+ members on an open project\n", getActiveTeamsCount()));
+        sb.append(String.format("Average Team Size,%.1f / %.1f,%d%% seats filled\n", getAverageTeamSize(),
+                getAverageTeamCapacity(), getTeamFillRatio()));
+        sb.append(String.format("Collaboration Requests,%d,%d pending\n", collaborationRequests,
+                getPendingCollaborationRequests()));
+        sb.append(String.format("Task Completion,%d%%,%d of %d tasks done\n", getSprintVelocity(), getTasksDone(),
+                getTasksTotal()));
+        sb.append(String.format("Platform Average Rating,%.1f,Verified peer reviews\n\n", getAverageRating()));
+
+        sb.append("MONTHLY USER GROWTH\n");
+        sb.append("Month,New Users,Total Users\n");
+        for (MonthPoint mp : getMonthlyUserGrowth()) {
+            sb.append(mp.label).append(',').append(mp.newUsers).append(',').append(mp.total).append('\n');
+        }
+        sb.append('\n');
 
         sb.append("TOP POPULAR SKILLS\n");
-        sb.append("Skill Name,Enrolled Students,Active Status\n");
-        for (SkillModel s : skills) {
-            sb.append(String.format("\"%s\",%d,%b\n", s.name, s.memberCount, s.active));
+        sb.append("Skill Name,Students\n");
+        for (SkillStat st : getTopSkills(10)) {
+            sb.append(String.format("\"%s\",%d\n", st.name.replace("\"", "\"\""), st.count));
         }
 
         try {
@@ -1366,10 +1657,10 @@ public class AdminDataStore {
             java.io.FileWriter writer = new java.io.FileWriter(file);
             writer.write(sb.toString());
             writer.close();
-            logActivity("Jordan Lee", "JL", "Exported platform analytics report", "Saved to " + file.getName(), true);
+            logActivity(getActorName(), getActorInitials(), "Exported platform analytics report", "Saved to " + file.getName(), true);
             return file.getAbsolutePath();
         } catch (Exception e) {
-            logActivity("Jordan Lee", "JL", "Exported platform analytics report", "CSV export", true);
+            logActivity(getActorName(), getActorInitials(), "Exported platform analytics report", "CSV export", true);
             return "teamup_analytics_report.csv";
         }
     }
@@ -1441,7 +1732,7 @@ public class AdminDataStore {
         if (!universityDomainsList.contains(clean)) {
             universityDomainsList.add(clean);
             allowedDomains = String.join(", ", universityDomainsList);
-            logActivity("Jordan Lee", "JL", "Added university domain", clean, true);
+            logActivity(getActorName(), getActorInitials(), "Added university domain", clean, true);
             AdminSync.syncAddDomain(clean);
             return true;
         }
@@ -1455,7 +1746,7 @@ public class AdminDataStore {
         boolean removed = universityDomainsList.remove(clean);
         if (removed) {
             allowedDomains = String.join(", ", universityDomainsList);
-            logActivity("Jordan Lee", "JL", "Removed university domain", clean, true);
+            logActivity(getActorName(), getActorInitials(), "Removed university domain", clean, true);
             AdminSync.syncRemoveDomain(clean);
             return true;
         }
@@ -1487,7 +1778,7 @@ public class AdminDataStore {
                     sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
             this.lastBackupDate = new java.text.SimpleDateFormat("MMM dd, yyyy, hh:mm a").format(new java.util.Date());
             this.lastBackupSize = String.format("%.1f KB", backupFile.length() / 1024.0f);
-            logActivity("Jordan Lee", "JL", "Created database backup", backupFile.getName(), true);
+            logActivity(getActorName(), getActorInitials(), "Created database backup", backupFile.getName(), true);
             return backupFile.getAbsolutePath();
         } catch (Exception e) {
             return null;
@@ -1510,7 +1801,7 @@ public class AdminDataStore {
 
             java.nio.file.Files.write(exportFile.toPath(),
                     sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            logActivity("Jordan Lee", "JL", "Exported full platform data", exportFile.getName(), true);
+            logActivity(getActorName(), getActorInitials(), "Exported full platform data", exportFile.getName(), true);
             return exportFile.getAbsolutePath();
         } catch (Exception e) {
             return null;
@@ -1525,7 +1816,7 @@ public class AdminDataStore {
         if (newPass.trim().length() < 6)
             return false;
         this.adminPassword = newPass;
-        logActivity("Jordan Lee", "JL", "Changed admin password", "Security Settings", true);
+        logActivity(getActorName(), getActorInitials(), "Changed admin password", "Security Settings", true);
         AdminSync.syncChangePassword(currentPass, newPass);
         return true;
     }
@@ -1584,7 +1875,7 @@ public class AdminDataStore {
 
         dataRetentionDays = 365;
 
-        logActivity("Jordan Lee", "JL", "Reset platform settings to default", "Global Configuration", true);
+        logActivity(getActorName(), getActorInitials(), "Reset platform settings to default", "Global Configuration", true);
         AdminSync.syncResetSettings();
     }
 }

@@ -5,16 +5,21 @@ import java.util.List;
 
 /**
  * Admin Dashboard - Projects Management View.
- * Displays all platform initiatives, category tags, team fill ratio, moderation review triggers.
+ * Displays all platform initiatives, category tags, team fill ratio, moderation
+ * review triggers.
  * Fully dynamic and reactive:
- * - Live filter tabs with real-time dynamic counters (All, Active, Recruiting, Under review)
+ * - Live filter tabs with real-time dynamic counters (All, Active, Recruiting,
+ * Under review)
  * - Dynamic Category filter populated from AdminDataStore categories
- * - Interactive filter dropdowns (Categories, Status, Created date) with floating popover menus
- * - Instant search by project name, owner, category, or description with ? Clear button
+ * - Interactive filter dropdowns (Categories, Status, Created date) with
+ * floating popover menus
+ * - Instant search by project name, owner, category, or description with ?
+ * Clear button
  * - Filter reset button when any filter is active
  * - "+ Add project" modal integration for creating new initiatives
  * - Real CSV export ("Export projects") with live data
- * - Interactive row actions ("Review project ?", "Approve", "Delete") wired to AdminModals and AdminDataStore
+ * - Interactive row actions ("Review project ?", "Approve", "Delete") wired to
+ * AdminModals and AdminDataStore
  * - Empty state with "Reset all filters" button when no projects match criteria
  * - Dynamic pagination (Previous, Page 1..N, Next) with true page slicing
  * - Multi-viewport responsiveness with dynamic computed height.
@@ -34,7 +39,8 @@ public class AdminProjects {
         public boolean hovered = false;
         public boolean selected = false;
 
-        public DropdownItemHitbox(int index, String label, int x, int y, int w, int h, boolean hovered, boolean selected) {
+        public DropdownItemHitbox(int index, String label, int x, int y, int w, int h, boolean hovered,
+                boolean selected) {
             this.index = index;
             this.label = label;
             this.x = x;
@@ -91,7 +97,7 @@ public class AdminProjects {
     private boolean clearSearchHovered = false;
 
     // Filter dropdown bounds & states
-    private final String[] statusOptions = {"All statuses", "Active", "Recruiting", "Under review", "Completed"};
+    private final String[] statusOptions = { "All statuses", "Active", "Recruiting", "Under review", "Completed" };
     private int statusFilterIdx = 0;
     private int statusDropX, statusDropY, statusDropW = 115, statusDropH = 36;
     private boolean statusDropHovered = false;
@@ -100,7 +106,7 @@ public class AdminProjects {
     private int catDropX, catDropY, catDropW = 135, catDropH = 36;
     private boolean catDropHovered = false;
 
-    private final String[] createdOptions = {"Created: Any time", "Past 30 days", "Past 6 months", "This year"};
+    private final String[] createdOptions = { "Created: Any time", "Past 30 days", "Past 6 months", "This year" };
     private int createdFilterIdx = 0;
     private int createdDropX, createdDropY, createdDropW = 145, createdDropH = 36;
     private boolean createdDropHovered = false;
@@ -137,23 +143,70 @@ public class AdminProjects {
         }
     }
 
-    public void setSearchQuery(String q) { this.searchQuery = (q == null) ? "" : q; this.currentPage = 1; }
-    public String getSearchQuery() { return searchQuery; }
-    public void setSearchFocused(boolean f) { this.searchFocused = f; }
-    public boolean isSearchFocused() { return searchFocused; }
-    public void setSelectedTab(int t) { this.selectedTab = t; this.currentPage = 1; }
-    public int getSelectedTab() { return selectedTab; }
-    public void setCategoryFilterIdx(int idx) { this.catFilterIdx = idx; this.currentPage = 1; }
-    public int getCategoryFilterIdx() { return catFilterIdx; }
-    public void setStatusFilterIdx(int idx) { this.statusFilterIdx = idx; this.currentPage = 1; }
-    public int getStatusFilterIdx() { return statusFilterIdx; }
-    public void setCreatedFilterIdx(int idx) { this.createdFilterIdx = idx; this.currentPage = 1; }
-    public int getCreatedFilterIdx() { return createdFilterIdx; }
-    public void setCurrentPage(int p) { this.currentPage = p; }
-    public int getCurrentPage() { return currentPage; }
+    public void setSearchQuery(String q) {
+        this.searchQuery = (q == null) ? "" : q;
+        this.currentPage = 1;
+    }
+
+    public String getSearchQuery() {
+        return searchQuery;
+    }
+
+    public void setSearchFocused(boolean f) {
+        this.searchFocused = f;
+    }
+
+    public boolean isSearchFocused() {
+        return searchFocused;
+    }
+
+    public void setSelectedTab(int t) {
+        this.selectedTab = t;
+        this.currentPage = 1;
+    }
+
+    public int getSelectedTab() {
+        return selectedTab;
+    }
+
+    public void setCategoryFilterIdx(int idx) {
+        this.catFilterIdx = idx;
+        this.currentPage = 1;
+    }
+
+    public int getCategoryFilterIdx() {
+        return catFilterIdx;
+    }
+
+    public void setStatusFilterIdx(int idx) {
+        this.statusFilterIdx = idx;
+        this.currentPage = 1;
+    }
+
+    public int getStatusFilterIdx() {
+        return statusFilterIdx;
+    }
+
+    public void setCreatedFilterIdx(int idx) {
+        this.createdFilterIdx = idx;
+        this.currentPage = 1;
+    }
+
+    public int getCreatedFilterIdx() {
+        return createdFilterIdx;
+    }
+
+    public void setCurrentPage(int p) {
+        this.currentPage = p;
+    }
+
+    public int getCurrentPage() {
+        return currentPage;
+    }
 
     /**
-     * Dynamically pulls categories from AdminDataStore (Category 0 is always "All categories").
+     * Dynamically pulls categories from AdminDataStore (Category 0 is always "All
+     * categories").
      */
     public List<String> getDynamicCategoryOptions() {
         List<String> options = new ArrayList<>();
@@ -168,15 +221,22 @@ public class AdminProjects {
     }
 
     /**
-     * Returns the reactive filtered list of projects based on search query, selected tab, and all dropdown filters.
+     * Returns the reactive filtered list of projects based on search query,
+     * selected tab, and all dropdown filters.
      */
     public List<AdminDataStore.ProjectModel> getFilteredProjects() {
         List<String> cats = getDynamicCategoryOptions();
-        String catFilter = (catFilterIdx >= 0 && catFilterIdx < cats.size()) ? cats.get(catFilterIdx) : "All categories";
-        String statusFilter = (statusFilterIdx >= 0 && statusFilterIdx < statusOptions.length) ? statusOptions[statusFilterIdx] : "All statuses";
-        String createdFilter = (createdFilterIdx >= 0 && createdFilterIdx < createdOptions.length) ? createdOptions[createdFilterIdx] : "Created: Any time";
+        String catFilter = (catFilterIdx >= 0 && catFilterIdx < cats.size()) ? cats.get(catFilterIdx)
+                : "All categories";
+        String statusFilter = (statusFilterIdx >= 0 && statusFilterIdx < statusOptions.length)
+                ? statusOptions[statusFilterIdx]
+                : "All statuses";
+        String createdFilter = (createdFilterIdx >= 0 && createdFilterIdx < createdOptions.length)
+                ? createdOptions[createdFilterIdx]
+                : "Created: Any time";
 
-        return AdminDataStore.getInstance().filterProjects(searchQuery, selectedTab, catFilter, statusFilter, createdFilter);
+        return AdminDataStore.getInstance().filterProjects(searchQuery, selectedTab, catFilter, statusFilter,
+                createdFilter);
     }
 
     public int getComputedHeight(int width) {
@@ -186,8 +246,6 @@ public class AdminProjects {
         int h = 28; // top pad
         // Header
         h += (contentW < 680) ? 116 : 76;
-        // Status filter tabs
-        h += 46;
         // Search & Filter bar
         h += (contentW < 760) ? 92 : 52;
 
@@ -202,8 +260,6 @@ public class AdminProjects {
 
         // Pagination
         h += 48;
-        // Footnote
-        h += 32;
         // Bottom pad
         h += 32;
 
@@ -218,22 +274,16 @@ public class AdminProjects {
         // 1. Header (Projects title, dynamic badge, + Add project, Export projects)
         curY = paintHeader(g, x + padX, curY, contentW, dashboard);
 
-        // 2. Status Filter Tabs (Dynamic counts & pills)
-        curY = paintStatusTabs(g, x + padX, curY, contentW);
-
-        // 3. Search and Dropdown Filters
+        // 2. Search and Dropdown Filters
         curY = paintFilterBar(g, x + padX, curY, contentW);
 
-        // 4. Projects Table
+        // 3. Projects Table
         curY = paintProjectsTable(g, x + padX, curY, contentW, dashboard);
 
-        // 5. Pagination Bar
+        // 4. Pagination Bar
         curY = paintPagination(g, x + padX, curY, contentW);
 
-        // 6. Footnote
-        paintFootnote(g, x + padX, curY, contentW);
-
-        // 7. Floating Dropdown Popover (drawn on top of all layers)
+        // 5. Floating Dropdown Popover (drawn on top of all layers)
         if (activePopover != 0) {
             paintActivePopover(g);
         }
@@ -270,16 +320,6 @@ public class AdminProjects {
         int btnY = wrapButtons ? y + 68 : y + 8;
         int rightX = x + w;
 
-        // "+ Add project" Button (Primary Forest Green)
-        addProjectBtnW = 120;
-        addProjectBtnH = 36;
-        addProjectBtnX = rightX - addProjectBtnW;
-        addProjectBtnY = btnY;
-
-        RoundRectangle2D addBox = new RoundRectangle2D.Float(addProjectBtnX, addProjectBtnY, addProjectBtnW, addProjectBtnH, 8, 8);
-        g.setColor(addProjectHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.BRAND_GREEN_DARK);
-        g.fill(addBox);
-
         // Plus icon
         g.setColor(Color.WHITE);
         g.setStroke(new BasicStroke(1.8f));
@@ -293,88 +333,19 @@ public class AdminProjects {
     }
 
     private int paintStatusTabs(Graphics2D g, int x, int y, int w) {
-        AdminDataStore store = AdminDataStore.getInstance();
-        List<AdminDataStore.ProjectModel> allList = store.getAllProjects();
-        int allCount = allList.size();
-        int actCount = 0;
-        int recCount = 0;
-        int revCount = 0;
-        for (AdminDataStore.ProjectModel p : allList) {
-            if ("Active".equalsIgnoreCase(p.status)) actCount++;
-            else if ("Recruiting".equalsIgnoreCase(p.status)) recCount++;
-            else if ("Under review".equalsIgnoreCase(p.status)) revCount++;
-        }
-
-        String[] tabs = {
-                String.format("All projects · %,d", allCount),
-                String.format("Active · %,d", actCount),
-                String.format("Recruiting · %,d", recCount),
-                String.format("Under review · %,d", revCount)
-        };
-
-        int curX = x;
-        int tabH = 32;
-
-        for (int i = 0; i < tabs.length; i++) {
-            boolean isSel = (i == selectedTab);
-            g.setFont(AdminTheme.FONT_BOLD_11);
-            FontMetrics tfm = g.getFontMetrics();
-            int tabW = tfm.stringWidth(tabs[i]) + 26;
-
-            tabBoxes[i].x = curX;
-            tabBoxes[i].y = y;
-            tabBoxes[i].w = tabW;
-            tabBoxes[i].h = tabH;
-            tabBoxes[i].label = tabs[i];
-            tabBoxes[i].count = (i == 0) ? allCount : (i == 1 ? actCount : (i == 2 ? recCount : revCount));
-
-            RoundRectangle2D tPill = new RoundRectangle2D.Float(curX, y, tabW, tabH, 8, 8);
-            if (isSel) {
-                g.setColor(AdminTheme.BRAND_GREEN_DARK);
-                g.fill(tPill);
-                g.setColor(Color.WHITE);
-            } else {
-                g.setColor(Color.WHITE);
-                g.fill(tPill);
-                g.setColor(AdminTheme.BORDER_COLOR);
-                g.setStroke(new BasicStroke(1.2f));
-                g.draw(tPill);
-                g.setColor(AdminTheme.TEXT_MUTED);
+        for (int i = 0; i < tabBoxes.length; i++) {
+            if (tabBoxes[i] != null) {
+                tabBoxes[i].x = -9999;
+                tabBoxes[i].y = -9999;
+                tabBoxes[i].w = 0;
+                tabBoxes[i].h = 0;
             }
-            g.drawString(tabs[i], curX + 13, y + 20);
-
-            curX += tabW + 10;
         }
-
-        // Reset filters button if any filter is active
-        boolean hasFilters = !searchQuery.isEmpty() || selectedTab != 0 || catFilterIdx != 0 || statusFilterIdx != 0 || createdFilterIdx != 0;
-        if (hasFilters) {
-            List<AdminDataStore.ProjectModel> filtered = getFilteredProjects();
-            String filterMatchStr = filtered.size() + " matching";
-            g.setFont(AdminTheme.FONT_REG_11);
-            g.setColor(AdminTheme.TEXT_MUTED);
-            g.drawString(filterMatchStr, curX + 6, y + 20);
-            curX += g.getFontMetrics().stringWidth(filterMatchStr) + 16;
-
-            resetBtnX = curX;
-            resetBtnY = y + 3;
-            resetBtnW = 96;
-            resetBtnH = 26;
-            RoundRectangle2D rBox = new RoundRectangle2D.Float(resetBtnX, resetBtnY, resetBtnW, resetBtnH, 12, 12);
-            g.setColor(resetBtnHovered ? new Color(0xF1, 0xF5, 0xF9) : Color.WHITE);
-            g.fill(rBox);
-            g.setColor(AdminTheme.BORDER_COLOR);
-            g.setStroke(new BasicStroke(1.0f));
-            g.draw(rBox);
-
-            g.setFont(AdminTheme.FONT_BOLD_10);
-            g.setColor(AdminTheme.BRAND_GREEN_DARK);
-            g.drawString("✕ Reset filters", resetBtnX + 10, resetBtnY + 17);
-        } else {
-            resetBtnX = -100;
-        }
-
-        return y + 46;
+        resetBtnX = -9999;
+        resetBtnY = -9999;
+        resetBtnW = 0;
+        resetBtnH = 0;
+        return y;
     }
 
     private int paintFilterBar(Graphics2D g, int x, int y, int w) {
@@ -402,7 +373,8 @@ public class AdminProjects {
         AdminTheme.drawSearchIcon(g, searchX + 10, searchY + 10, 16, AdminTheme.TEXT_LIGHT);
         g.setFont(AdminTheme.FONT_REG_12);
         g.setColor(searchQuery.isEmpty() ? AdminTheme.TEXT_LIGHT : AdminTheme.TEXT_DARK);
-        g.drawString(searchQuery.isEmpty() ? "Search projects, categories or owners..." : searchQuery, searchX + 34, searchY + 23);
+        g.drawString(searchQuery.isEmpty() ? "Search projects, categories or owners..." : searchQuery, searchX + 34,
+                searchY + 23);
 
         // Clear Search Button (✕)
         if (!searchQuery.isEmpty()) {
@@ -427,16 +399,19 @@ public class AdminProjects {
         // 1. Created Dropdown
         createdDropX = rightEdge - createdDropW;
         createdDropY = dropY;
-        paintDropdownButton(g, createdDropX, createdDropY, createdDropW, searchH, createdOptions[createdFilterIdx], createdDropHovered, activePopover == 3);
+        paintDropdownButton(g, createdDropX, createdDropY, createdDropW, searchH, createdOptions[createdFilterIdx],
+                createdDropHovered, activePopover == 3);
 
         // 2. Status Dropdown
         statusDropX = createdDropX - statusDropW - 10;
         statusDropY = dropY;
-        paintDropdownButton(g, statusDropX, statusDropY, statusDropW, searchH, statusOptions[statusFilterIdx], statusDropHovered, activePopover == 2);
+        paintDropdownButton(g, statusDropX, statusDropY, statusDropW, searchH, statusOptions[statusFilterIdx],
+                statusDropHovered, activePopover == 2);
 
         // 3. Category Dropdown
         List<String> dynamicCats = getDynamicCategoryOptions();
-        String currentCat = (catFilterIdx >= 0 && catFilterIdx < dynamicCats.size()) ? dynamicCats.get(catFilterIdx) : "All categories";
+        String currentCat = (catFilterIdx >= 0 && catFilterIdx < dynamicCats.size()) ? dynamicCats.get(catFilterIdx)
+                : "All categories";
         catDropX = statusDropX - catDropW - 10;
         catDropY = dropY;
         paintDropdownButton(g, catDropX, catDropY, catDropW, searchH, currentCat, catDropHovered, activePopover == 1);
@@ -444,7 +419,8 @@ public class AdminProjects {
         return wrapFilters ? (dropY + searchH + 14) : (y + searchH + 14);
     }
 
-    private void paintDropdownButton(Graphics2D g, int dx, int dy, int dw, int dh, String text, boolean hovered, boolean isOpen) {
+    private void paintDropdownButton(Graphics2D g, int dx, int dy, int dw, int dh, String text, boolean hovered,
+            boolean isOpen) {
         RoundRectangle2D box = new RoundRectangle2D.Float(dx, dy, dw, dh, 8, 8);
         g.setColor(hovered || isOpen ? new Color(0xF8, 0xFA, 0xFC) : Color.WHITE);
         g.fill(box);
@@ -455,7 +431,8 @@ public class AdminProjects {
         g.setFont(AdminTheme.FONT_REG_11);
         g.setColor(AdminTheme.TEXT_DARK);
         String label = text;
-        if (label.length() > 16) label = label.substring(0, 14) + "...";
+        if (label.length() > 16)
+            label = label.substring(0, 14) + "...";
         g.drawString(label, dx + 12, dy + 22);
 
         AdminTheme.drawChevronDown(g, dx + dw - 18, dy + 14, 8, AdminTheme.TEXT_LIGHT, isOpen ? 180f : 0f);
@@ -465,11 +442,13 @@ public class AdminProjects {
         List<AdminDataStore.ProjectModel> filteredList = getFilteredProjects();
         int totalItems = filteredList.size();
         int totalPages = Math.max(1, (int) Math.ceil((double) totalItems / pageSize));
-        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage > totalPages)
+            currentPage = totalPages;
 
         int fromIdx = (currentPage - 1) * pageSize;
         int toIdx = Math.min(fromIdx + pageSize, totalItems);
-        List<AdminDataStore.ProjectModel> pageItems = (fromIdx < totalItems) ? filteredList.subList(fromIdx, toIdx) : new ArrayList<>();
+        List<AdminDataStore.ProjectModel> pageItems = (fromIdx < totalItems) ? filteredList.subList(fromIdx, toIdx)
+                : new ArrayList<>();
 
         int tableH = (pageItems.isEmpty()) ? 240 : (42 + pageItems.size() * 55);
         RoundRectangle2D card = new RoundRectangle2D.Float(x, y, w, tableH, 12, 12);
@@ -533,7 +512,8 @@ public class AdminProjects {
             g.setFont(AdminTheme.FONT_BOLD_12);
             g.setColor(AdminTheme.TEXT_DARK);
             String pName = p.name;
-            if (pName.length() > 28) pName = pName.substring(0, 26) + "...";
+            if (pName.length() > 28)
+                pName = pName.substring(0, 26) + "...";
             g.drawString(pName, colName, curRowY + 23);
 
             g.setFont(AdminTheme.FONT_REG_11);
@@ -576,7 +556,8 @@ public class AdminProjects {
                 hb.quickApproveY = curRowY + 16;
                 hb.quickApproveW = 56;
                 hb.quickApproveH = 22;
-                RoundRectangle2D qb = new RoundRectangle2D.Float(hb.quickApproveX, hb.quickApproveY, hb.quickApproveW, hb.quickApproveH, 6, 6);
+                RoundRectangle2D qb = new RoundRectangle2D.Float(hb.quickApproveX, hb.quickApproveY, hb.quickApproveW,
+                        hb.quickApproveH, 6, 6);
                 g.setColor(hb.quickApproveHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.BRAND_GREEN_DARK);
                 g.fill(qb);
                 g.setFont(AdminTheme.FONT_BOLD_10);
@@ -628,7 +609,8 @@ public class AdminProjects {
         emptyResetBtnX = x + (w - emptyResetBtnW) / 2;
         emptyResetBtnY = cy + 96;
 
-        RoundRectangle2D rb = new RoundRectangle2D.Float(emptyResetBtnX, emptyResetBtnY, emptyResetBtnW, emptyResetBtnH, 8, 8);
+        RoundRectangle2D rb = new RoundRectangle2D.Float(emptyResetBtnX, emptyResetBtnY, emptyResetBtnW, emptyResetBtnH,
+                8, 8);
         g.setColor(emptyResetHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.BRAND_GREEN_DARK);
         g.fill(rb);
         g.setFont(AdminTheme.FONT_BOLD_11);
@@ -669,7 +651,8 @@ public class AdminProjects {
         List<AdminDataStore.ProjectModel> filtered = getFilteredProjects();
         int totalItems = filtered.size();
         int totalPages = Math.max(1, (int) Math.ceil((double) totalItems / pageSize));
-        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage > totalPages)
+            currentPage = totalPages;
 
         int fromIdx = (totalItems == 0) ? 0 : ((currentPage - 1) * pageSize + 1);
         int toIdx = Math.min(currentPage * pageSize, totalItems);
@@ -719,7 +702,8 @@ public class AdminProjects {
         return y + 48;
     }
 
-    private void paintPageBtn(Graphics2D g, int bx, int by, int bw, int bh, String text, boolean active, boolean enabled, boolean hovered) {
+    private void paintPageBtn(Graphics2D g, int bx, int by, int bw, int bh, String text, boolean active,
+            boolean enabled, boolean hovered) {
         RoundRectangle2D b = new RoundRectangle2D.Float(bx, by, bw, bh, 6, 6);
         if (active) {
             g.setColor(AdminTheme.BRAND_GREEN_DARK);
@@ -746,9 +730,7 @@ public class AdminProjects {
     }
 
     private void paintFootnote(Graphics2D g, int x, int y, int w) {
-        g.setFont(AdminTheme.FONT_REG_11);
-        g.setColor(AdminTheme.TEXT_MUTED);
-        g.drawString("Team size shows current members / available places. Projects under review may have restricted visibility.", x, y + 16);
+        // Footnote deleted as requested
     }
 
     private void paintActivePopover(Graphics2D g) {
@@ -768,13 +750,15 @@ public class AdminProjects {
             popX = statusDropX;
             popY = statusDropY + statusDropH + 4;
             popW = 140;
-            for (String s : statusOptions) options.add(s);
+            for (String s : statusOptions)
+                options.add(s);
             selectedIndex = statusFilterIdx;
         } else if (activePopover == 3) { // Created Popover
             popX = createdDropX;
             popY = createdDropY + createdDropH + 4;
             popW = 160;
-            for (String c : createdOptions) options.add(c);
+            for (String c : createdOptions)
+                options.add(c);
             selectedIndex = createdFilterIdx;
         }
 
@@ -847,7 +831,8 @@ public class AdminProjects {
         }
 
         // 2. Add Project button
-        if (mx >= addProjectBtnX && mx <= addProjectBtnX + addProjectBtnW && my >= addProjectBtnY && my <= addProjectBtnY + addProjectBtnH) {
+        if (mx >= addProjectBtnX && mx <= addProjectBtnX + addProjectBtnW && my >= addProjectBtnY
+                && my <= addProjectBtnY + addProjectBtnH) {
             dashboard.openAddProjectModal();
             return true;
         }
@@ -864,21 +849,24 @@ public class AdminProjects {
         }
 
         // 5. Reset filters button
-        if (resetBtnX > 0 && mx >= resetBtnX && mx <= resetBtnX + resetBtnW && my >= resetBtnY && my <= resetBtnY + resetBtnH) {
+        if (resetBtnX > 0 && mx >= resetBtnX && mx <= resetBtnX + resetBtnW && my >= resetBtnY
+                && my <= resetBtnY + resetBtnH) {
             resetAllFilters();
             dashboard.showToast("All project filters reset");
             return true;
         }
 
         // 6. Empty state reset button
-        if (emptyResetBtnX > 0 && mx >= emptyResetBtnX && mx <= emptyResetBtnX + emptyResetBtnW && my >= emptyResetBtnY && my <= emptyResetBtnY + emptyResetBtnH) {
+        if (emptyResetBtnX > 0 && mx >= emptyResetBtnX && mx <= emptyResetBtnX + emptyResetBtnW && my >= emptyResetBtnY
+                && my <= emptyResetBtnY + emptyResetBtnH) {
             resetAllFilters();
             dashboard.showToast("Filters reset to show all projects");
             return true;
         }
 
         // 7. Clear search button (✕)
-        if (clearSearchX > 0 && mx >= clearSearchX && mx <= clearSearchX + clearSearchSize && my >= clearSearchY && my <= clearSearchY + clearSearchSize) {
+        if (clearSearchX > 0 && mx >= clearSearchX && mx <= clearSearchX + clearSearchSize && my >= clearSearchY
+                && my <= clearSearchY + clearSearchSize) {
             searchQuery = "";
             currentPage = 1;
             return true;
@@ -897,11 +885,13 @@ public class AdminProjects {
             activePopover = (activePopover == 1) ? 0 : 1;
             return true;
         }
-        if (mx >= statusDropX && mx <= statusDropX + statusDropW && my >= statusDropY && my <= statusDropY + statusDropH) {
+        if (mx >= statusDropX && mx <= statusDropX + statusDropW && my >= statusDropY
+                && my <= statusDropY + statusDropH) {
             activePopover = (activePopover == 2) ? 0 : 2;
             return true;
         }
-        if (mx >= createdDropX && mx <= createdDropX + createdDropW && my >= createdDropY && my <= createdDropY + createdDropH) {
+        if (mx >= createdDropX && mx <= createdDropX + createdDropW && my >= createdDropY
+                && my <= createdDropY + createdDropH) {
             activePopover = (activePopover == 3) ? 0 : 3;
             return true;
         }
@@ -970,77 +960,102 @@ public class AdminProjects {
             for (DropdownItemHitbox dh : popoverHitboxes) {
                 boolean was = dh.hovered;
                 dh.hovered = (mx >= dh.x && mx <= dh.x + dh.w && my >= dh.y && my <= dh.y + dh.h);
-                if (dh.hovered != was) changed = true;
+                if (dh.hovered != was)
+                    changed = true;
             }
             return changed;
         }
 
         // Buttons hover
         boolean pAdd = addProjectHovered;
-        addProjectHovered = (mx >= addProjectBtnX && mx <= addProjectBtnX + addProjectBtnW && my >= addProjectBtnY && my <= addProjectBtnY + addProjectBtnH);
-        if (addProjectHovered != pAdd) changed = true;
+        addProjectHovered = (mx >= addProjectBtnX && mx <= addProjectBtnX + addProjectBtnW && my >= addProjectBtnY
+                && my <= addProjectBtnY + addProjectBtnH);
+        if (addProjectHovered != pAdd)
+            changed = true;
 
         boolean pRst = resetBtnHovered;
-        resetBtnHovered = (resetBtnX > 0 && mx >= resetBtnX && mx <= resetBtnX + resetBtnW && my >= resetBtnY && my <= resetBtnY + resetBtnH);
-        if (resetBtnHovered != pRst) changed = true;
+        resetBtnHovered = (resetBtnX > 0 && mx >= resetBtnX && mx <= resetBtnX + resetBtnW && my >= resetBtnY
+                && my <= resetBtnY + resetBtnH);
+        if (resetBtnHovered != pRst)
+            changed = true;
 
         boolean pEr = emptyResetHovered;
-        emptyResetHovered = (emptyResetBtnX > 0 && mx >= emptyResetBtnX && mx <= emptyResetBtnX + emptyResetBtnW && my >= emptyResetBtnY && my <= emptyResetBtnY + emptyResetBtnH);
-        if (emptyResetHovered != pEr) changed = true;
+        emptyResetHovered = (emptyResetBtnX > 0 && mx >= emptyResetBtnX && mx <= emptyResetBtnX + emptyResetBtnW
+                && my >= emptyResetBtnY && my <= emptyResetBtnY + emptyResetBtnH);
+        if (emptyResetHovered != pEr)
+            changed = true;
 
         boolean pClr = clearSearchHovered;
-        clearSearchHovered = (clearSearchX > 0 && mx >= clearSearchX && mx <= clearSearchX + clearSearchSize && my >= clearSearchY && my <= clearSearchY + clearSearchSize);
-        if (clearSearchHovered != pClr) changed = true;
+        clearSearchHovered = (clearSearchX > 0 && mx >= clearSearchX && mx <= clearSearchX + clearSearchSize
+                && my >= clearSearchY && my <= clearSearchY + clearSearchSize);
+        if (clearSearchHovered != pClr)
+            changed = true;
 
         boolean pCat = catDropHovered;
         catDropHovered = (mx >= catDropX && mx <= catDropX + catDropW && my >= catDropY && my <= catDropY + catDropH);
-        if (catDropHovered != pCat) changed = true;
+        if (catDropHovered != pCat)
+            changed = true;
 
         boolean pStat = statusDropHovered;
-        statusDropHovered = (mx >= statusDropX && mx <= statusDropX + statusDropW && my >= statusDropY && my <= statusDropY + statusDropH);
-        if (statusDropHovered != pStat) changed = true;
+        statusDropHovered = (mx >= statusDropX && mx <= statusDropX + statusDropW && my >= statusDropY
+                && my <= statusDropY + statusDropH);
+        if (statusDropHovered != pStat)
+            changed = true;
 
         boolean pCre = createdDropHovered;
-        createdDropHovered = (mx >= createdDropX && mx <= createdDropX + createdDropW && my >= createdDropY && my <= createdDropY + createdDropH);
-        if (createdDropHovered != pCre) changed = true;
+        createdDropHovered = (mx >= createdDropX && mx <= createdDropX + createdDropW && my >= createdDropY
+                && my <= createdDropY + createdDropH);
+        if (createdDropHovered != pCre)
+            changed = true;
 
         // Table row hover
         for (ProjectRowHitbox p : hitboxes) {
             boolean wasRow = p.rowHovered;
             p.rowHovered = (mx >= p.rowX && mx <= p.rowX + p.rowW && my >= p.rowY && my <= p.rowY + p.rowH);
-            if (p.rowHovered != wasRow) changed = true;
+            if (p.rowHovered != wasRow)
+                changed = true;
 
             boolean wasAct = p.actionHovered;
-            p.actionHovered = (mx >= p.actionX && mx <= p.actionX + p.actionW && my >= p.actionY && my <= p.actionY + p.actionH);
-            if (p.actionHovered != wasAct) changed = true;
+            p.actionHovered = (mx >= p.actionX && mx <= p.actionX + p.actionW && my >= p.actionY
+                    && my <= p.actionY + p.actionH);
+            if (p.actionHovered != wasAct)
+                changed = true;
 
             if (p.quickApproveX > 0) {
                 boolean wasQA = p.quickApproveHovered;
-                p.quickApproveHovered = (mx >= p.quickApproveX && mx <= p.quickApproveX + p.quickApproveW && my >= p.quickApproveY && my <= p.quickApproveY + p.quickApproveH);
-                if (p.quickApproveHovered != wasQA) changed = true;
+                p.quickApproveHovered = (mx >= p.quickApproveX && mx <= p.quickApproveX + p.quickApproveW
+                        && my >= p.quickApproveY && my <= p.quickApproveY + p.quickApproveH);
+                if (p.quickApproveHovered != wasQA)
+                    changed = true;
             }
         }
 
         // Pagination hover
         boolean pPrev = prevHovered;
-        prevHovered = (prevEnabled && mx >= prevBtnX && mx <= prevBtnX + prevBtnW && my >= prevBtnY && my <= prevBtnY + prevBtnH);
-        if (prevHovered != pPrev) changed = true;
+        prevHovered = (prevEnabled && mx >= prevBtnX && mx <= prevBtnX + prevBtnW && my >= prevBtnY
+                && my <= prevBtnY + prevBtnH);
+        if (prevHovered != pPrev)
+            changed = true;
 
         boolean pNext = nextHovered;
-        nextHovered = (nextEnabled && mx >= nextBtnX && mx <= nextBtnX + nextBtnW && my >= nextBtnY && my <= nextBtnY + nextBtnH);
-        if (nextHovered != pNext) changed = true;
+        nextHovered = (nextEnabled && mx >= nextBtnX && mx <= nextBtnX + nextBtnW && my >= nextBtnY
+                && my <= nextBtnY + nextBtnH);
+        if (nextHovered != pNext)
+            changed = true;
 
         for (PageBtnHitbox pb : pageHitboxes) {
             boolean was = pb.hovered;
             pb.hovered = (mx >= pb.x && mx <= pb.x + pb.w && my >= pb.y && my <= pb.y + pb.h);
-            if (pb.hovered != was) changed = true;
+            if (pb.hovered != was)
+                changed = true;
         }
 
         return changed;
     }
 
     public boolean onKey(char ch, int keyCode, AdminDashboard dashboard) {
-        if (!searchFocused) return false;
+        if (!searchFocused)
+            return false;
 
         if (keyCode == java.awt.event.KeyEvent.VK_BACK_SPACE) {
             if (searchQuery.length() > 0) {

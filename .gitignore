@@ -18,3 +18,9 @@ out/
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Environment files (contains secrets - each dev sets their own locally)
+.env
+server/.env
+**/.env
+*.env
