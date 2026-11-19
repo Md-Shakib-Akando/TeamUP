@@ -67,6 +67,7 @@ public class AdminDataStore {
         public String status; // "Active", "Completed", "Recruiting", "Under review"
         public String created;
         public String description;
+        public boolean archived = false;
 
         public ProjectModel(String id, String name, String category, String owner, String teamSize, String status,
                 String created, String description) {
@@ -320,20 +321,12 @@ public class AdminDataStore {
     public String lastBackupSize = "42.8 MB";
     public int dataRetentionDays = 365;
 
-    // Metrics counters
-    public int baseTotalUsers = 12480;
-    public int baseTotalProjects = 482;
-    public int collaborationRequests = 1642;
-
-    // Backend live stats overrides (populated dynamically from GET /api/admin/bootstrap)
-    private Integer backendTotalUsers = null;
-    private Integer backendTotalProjects = null;
-    private Integer backendPendingReportsCount = null;
-    private Integer backendActiveTeamsCount = null;
-    private Double backendProjectSuccessRate = null;
-    private Double backendAverageTeamSize = null;
-    private Integer backendCollaborationRequests = null;
-    private Integer backendSprintVelocity = null;
+    // Backend-only metrics (collaboration requests, tasks, profile skills...) from
+    // GET /api/admin/bootstrap → stats. Counts that can be derived from the loaded
+    // users / projects / reports lists are computed locally so they react instantly.
+    public int collaborationRequests = 0;
+    private Map<String, Object> liveStats = null;
+    private long liveStatsSyncedAt = 0L;
 
     private AdminDataStore() {
         seedInitialDemoData();
@@ -628,14 +621,10 @@ public class AdminDataStore {
         }
 
         String newId = "U-" + (100 + users.size() + 1);
-        String joinedDate = "Nov 06, 2026";
+        String joinedDate = formatToday();
 
         UserModel newUser = new UserModel(newId, cleanName, initials, cleanEmail, cleanRole, joinedDate, "Active");
         users.add(0, newUser);
-        baseTotalUsers++;
-        if (backendTotalUsers != null) {
-            backendTotalUsers++;
-        }
         logActivity(getActorName(), getActorInitials(), "Added new user", cleanName + " (" + cleanRole + ")", true);
         AdminSync.syncAddUser(cleanName, cleanEmail, cleanRole);
         return true;
@@ -647,10 +636,6 @@ public class AdminDataStore {
         for (int i = 0; i < users.size(); i++) {
             if (users.get(i).name.equalsIgnoreCase(name.trim())) {
                 UserModel removed = users.remove(i);
-                baseTotalUsers = Math.max(0, baseTotalUsers - 1);
-                if (backendTotalUsers != null) {
-                    backendTotalUsers = Math.max(0, backendTotalUsers - 1);
-                }
                 logActivity(getActorName(), getActorInitials(), "Deleted user", removed.name, true);
                 AdminSync.syncDeleteUser(removed.mongoId != null && !removed.mongoId.isEmpty() ? removed.mongoId : removed.id, removed.name);
                 return true;
@@ -721,7 +706,7 @@ public class AdminDataStore {
     }
 
     public synchronized int getActiveUsersCount() {
-        return baseTotalUsers - getSuspendedUsersCount();
+        return users.size() - getSuspendedUsersCount();
     }
 
     // ==========================================
@@ -814,15 +799,11 @@ public class AdminDataStore {
                 : description.trim();
 
         String newId = "P-" + (200 + projects.size() + 1);
-        String createdDate = "Nov 11, 2026";
+        String createdDate = formatToday();
 
         ProjectModel newProj = new ProjectModel(newId, cleanName, cleanCat, cleanOwner, cleanSize, cleanStatus,
                 createdDate, cleanDesc);
         projects.add(0, newProj);
-        baseTotalProjects++;
-        if (backendTotalProjects != null) {
-            backendTotalProjects++;
-        }
         logActivity(getActorName(), getActorInitials(), "Created project", cleanName + " (" + cleanCat + ")", true);
         AdminSync.syncAddProject(cleanName, cleanCat, cleanOwner, cleanSize, cleanStatus, cleanDesc);
         return true;
@@ -835,10 +816,6 @@ public class AdminDataStore {
             if (projects.get(i).name.equalsIgnoreCase(name.trim())
                     || projects.get(i).id.equalsIgnoreCase(name.trim())) {
                 ProjectModel removed = projects.remove(i);
-                baseTotalProjects = Math.max(0, baseTotalProjects - 1);
-                if (backendTotalProjects != null) {
-                    backendTotalProjects = Math.max(0, backendTotalProjects - 1);
-                }
                 logActivity(getActorName(), getActorInitials(), "Deleted project", removed.name, true);
                 AdminSync.syncDeleteProject(removed.mongoId != null && !removed.mongoId.isEmpty() ? removed.mongoId : removed.id, removed.name);
                 return true;
@@ -890,34 +867,31 @@ public class AdminDataStore {
     }
 
     public synchronized int getTotalProjectsCount() {
-        if (backendTotalProjects != null) {
-            return backendTotalProjects;
+        return projects.size();
+    }
+
+    private int countProjectsWithStatus(String status) {
+        int n = 0;
+        for (ProjectModel p : projects) {
+            if (status.equalsIgnoreCase(p.status)) n++;
         }
-        return baseTotalProjects;
+        return n;
     }
 
     public synchronized int getActiveProjectsCount() {
-        int currentActive = (int) projects.stream().filter(p -> "Active".equalsIgnoreCase(p.status)).count();
-        int delta = currentActive - 4; // initial seeded active count was 4
-        return Math.max(0, 286 + delta);
+        return countProjectsWithStatus("Active");
     }
 
     public synchronized int getRecruitingProjectsCount() {
-        int currentRecruiting = (int) projects.stream().filter(p -> "Recruiting".equalsIgnoreCase(p.status)).count();
-        int delta = currentRecruiting - 2; // initial seeded recruiting count was 2
-        return Math.max(0, 92 + delta);
+        return countProjectsWithStatus("Recruiting");
     }
 
     public synchronized int getUnderReviewProjectsCount() {
-        int currentReview = (int) projects.stream().filter(p -> "Under review".equalsIgnoreCase(p.status)).count();
-        int delta = currentReview - 1; // initial seeded under review count was 1
-        return Math.max(0, 8 + delta);
+        return countProjectsWithStatus("Under review");
     }
 
     public synchronized int getCompletedProjectsCount() {
-        int currentCompleted = (int) projects.stream().filter(p -> "Completed".equalsIgnoreCase(p.status)).count();
-        int delta = currentCompleted - 1; // initial seeded completed count was 1
-        return Math.max(0, 96 + delta);
+        return countProjectsWithStatus("Completed");
     }
 
     // ==========================================
@@ -929,9 +903,6 @@ public class AdminDataStore {
     }
 
     public synchronized int getPendingReportsCount() {
-        if (backendPendingReportsCount != null) {
-            return backendPendingReportsCount;
-        }
         return (int) reports.stream()
                 .filter(r -> "Pending".equalsIgnoreCase(r.status) || "In review".equalsIgnoreCase(r.status)).count();
     }
@@ -942,9 +913,6 @@ public class AdminDataStore {
                 r.status = "Resolved";
                 if (note != null && !note.isEmpty())
                     r.internalNote = note;
-                if (backendPendingReportsCount != null && backendPendingReportsCount > 0) {
-                    backendPendingReportsCount--;
-                }
                 logActivity(getActorName(), getActorInitials(), "Resolved report", r.id + " · " + r.title, true);
                 AdminSync.syncResolveReport(r.mongoId != null && !r.mongoId.isEmpty() ? r.mongoId : r.id, note);
                 return true;
@@ -1399,92 +1367,289 @@ public class AdminDataStore {
     // ANALYTICS & PLATFORM METRICS
     // ==========================================
 
+    /** One month on the user-growth chart. */
+    public static class MonthPoint {
+        public final String label;
+        public final int newUsers;
+        public final int total;
+
+        public MonthPoint(String label, int newUsers, int total) {
+            this.label = label;
+            this.newUsers = newUsers;
+            this.total = total;
+        }
+    }
+
+    /** A skill and the number of students listing it on their profile. */
+    public static class SkillStat {
+        public final String name;
+        public final int count;
+
+        public SkillStat(String name, int count) {
+            this.name = name;
+            this.count = count;
+        }
+    }
+
+    private static final String[] MONTH_LABELS = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep",
+            "Oct", "Nov", "Dec" };
+    public static final int GROWTH_MONTHS = 7;
+    private static final java.util.regex.Pattern TEAM_SIZE = java.util.regex.Pattern.compile("(\\d+)\\s*/\\s*(\\d+)");
+
+    /** Stores the analytics block of GET /api/admin/bootstrap (or /api/admin/overview). */
     public synchronized void applyBackendStats(Map<String, Object> stats) {
         if (stats == null) return;
-        if (stats.containsKey("totalUsers")) {
-            this.backendTotalUsers = Json.integer(stats, "totalUsers", this.baseTotalUsers);
-            this.baseTotalUsers = this.backendTotalUsers;
-        }
-        if (stats.containsKey("totalProjects")) {
-            this.backendTotalProjects = Json.integer(stats, "totalProjects", this.baseTotalProjects);
-            this.baseTotalProjects = this.backendTotalProjects;
-        }
-        if (stats.containsKey("pendingReportsCount")) {
-            this.backendPendingReportsCount = Json.integer(stats, "pendingReportsCount", getPendingReportsCount());
-        }
-        if (stats.containsKey("activeTeamsCount")) {
-            this.backendActiveTeamsCount = Json.integer(stats, "activeTeamsCount", getActiveTeamsCount());
-        }
-        if (stats.containsKey("projectSuccessRate")) {
-            this.backendProjectSuccessRate = Json.num(stats, "projectSuccessRate", 94.6);
-        }
-        if (stats.containsKey("averageTeamSize")) {
-            this.backendAverageTeamSize = Json.num(stats, "averageTeamSize", 4.6);
-        }
-        if (stats.containsKey("collaborationRequests")) {
-            this.backendCollaborationRequests = Json.integer(stats, "collaborationRequests", this.collaborationRequests);
-            this.collaborationRequests = this.backendCollaborationRequests;
-        }
-        if (stats.containsKey("sprintVelocity")) {
-            this.backendSprintVelocity = Json.integer(stats, "sprintVelocity", 92);
+        this.liveStats = new java.util.HashMap<>(stats);
+        this.liveStatsSyncedAt = System.currentTimeMillis();
+        this.collaborationRequests = Json.integer(stats, "collaborationRequests", this.collaborationRequests);
+    }
+
+    /** True once analytics have been loaded from the backend (false in offline demo mode). */
+    public synchronized boolean hasLiveStats() {
+        return liveStats != null;
+    }
+
+    /** "14:05" — when the analytics were last refreshed from the backend, or null. */
+    public synchronized String getLastStatsSyncLabel() {
+        if (liveStatsSyncedAt == 0L) return null;
+        return new java.text.SimpleDateFormat("HH:mm").format(new java.util.Date(liveStatsSyncedAt));
+    }
+
+    private int liveInt(String key, int def) {
+        return liveStats != null ? Json.integer(liveStats, key, def) : def;
+    }
+
+    private double liveNum(String key, double def) {
+        return liveStats != null ? Json.num(liveStats, key, def) : def;
+    }
+
+    static String formatToday() {
+        return new java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.US).format(new java.util.Date());
+    }
+
+    /** Parses the "Nov 14, 2026" dates used by the admin tables; null when unparseable. */
+    private static java.util.Calendar parseDisplayDate(String s) {
+        if (s == null || s.trim().isEmpty()) return null;
+        try {
+            java.text.SimpleDateFormat f = new java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.US);
+            f.setLenient(false);
+            java.util.Calendar c = java.util.Calendar.getInstance();
+            c.setTime(f.parse(s.trim()));
+            return c;
+        } catch (java.text.ParseException e) {
+            return null;
         }
     }
+
+    private static int monthIndex(java.util.Calendar c) {
+        return c.get(java.util.Calendar.YEAR) * 12 + c.get(java.util.Calendar.MONTH);
+    }
+
+    // ---- Users ----
 
     public synchronized int getTotalUsersCount() {
-        if (backendTotalUsers != null) {
-            return backendTotalUsers;
-        }
-        return baseTotalUsers + (users.size() - 8);
+        return users.size();
     }
 
-    public synchronized double getProjectSuccessRate() {
-        if (backendProjectSuccessRate != null) {
-            return backendProjectSuccessRate;
+    public synchronized int getNewUsersThisMonth() {
+        List<MonthPoint> g = getMonthlyUserGrowth();
+        return g.get(g.size() - 1).newUsers;
+    }
+
+    /** Cumulative users at the end of each of the last GROWTH_MONTHS months (oldest first). */
+    public synchronized List<MonthPoint> getMonthlyUserGrowth() {
+        int nowIdx = monthIndex(java.util.Calendar.getInstance());
+        int firstIdx = nowIdx - (GROWTH_MONTHS - 1);
+        int[] added = new int[GROWTH_MONTHS];
+        int before = 0;
+        for (UserModel u : users) {
+            java.util.Calendar c = parseDisplayDate(u.joined);
+            int idx = (c == null) ? Integer.MIN_VALUE : monthIndex(c);
+            if (idx < firstIdx) before++;
+            else if (idx <= nowIdx) added[idx - firstIdx]++;
+            else added[GROWTH_MONTHS - 1]++; // future-dated: count as this month
         }
-        return 94.6; // Harmonized platform benchmark
+        List<MonthPoint> out = new ArrayList<>();
+        int running = before;
+        for (int i = 0; i < GROWTH_MONTHS; i++) {
+            running += added[i];
+            out.add(new MonthPoint(MONTH_LABELS[Math.floorMod(firstIdx + i, 12)], added[i], running));
+        }
+        return out;
+    }
+
+    /** Share of users who belong to at least one project team, or -1 when offline. */
+    public synchronized double getEngagementRate() {
+        return liveNum("engagementRate", -1);
+    }
+
+    // ---- Projects ----
+
+    public synchronized int getNewProjectsThisMonth() {
+        int nowIdx = monthIndex(java.util.Calendar.getInstance());
+        int n = 0;
+        for (ProjectModel p : projects) {
+            java.util.Calendar c = parseDisplayDate(p.created);
+            if (c != null && monthIndex(c) >= nowIdx) n++;
+        }
+        return n;
+    }
+
+    public synchronized int getStartedProjectsCount() {
+        return getActiveProjectsCount() + getUnderReviewProjectsCount() + getCompletedProjectsCount();
+    }
+
+    /** Completed / (Active + Under review + Completed): delivered share of projects past recruiting. */
+    public synchronized double getProjectSuccessRate() {
+        int started = getStartedProjectsCount();
+        return started == 0 ? 0.0 : Math.round(getCompletedProjectsCount() * 1000.0 / started) / 10.0;
+    }
+
+    public synchronized int getMilestonesCompleted() {
+        return liveInt("milestonesCompleted", 0);
+    }
+
+    public synchronized int getMilestonesTotal() {
+        return liveInt("milestonesTotal", 0);
+    }
+
+    // ---- Teams ----
+
+    /** {members, capacity} parsed from a "3 / 6" team size label. */
+    private int[] parseTeam(ProjectModel p) {
+        java.util.regex.Matcher m = TEAM_SIZE.matcher(p.teamSize == null ? "" : p.teamSize);
+        if (m.find()) {
+            return new int[] { Integer.parseInt(m.group(1)), Math.max(1, Integer.parseInt(m.group(2))) };
+        }
+        return new int[] { 1, Math.max(1, maxTeamSize) };
+    }
+
+    /** A team is active when its project is not completed/archived and it has 2+ members. */
+    private List<int[]> activeTeams() {
+        List<int[]> out = new ArrayList<>();
+        for (ProjectModel p : projects) {
+            if (p.archived || "Completed".equalsIgnoreCase(p.status)) continue;
+            int[] t = parseTeam(p);
+            if (t[0] >= 2) out.add(t);
+        }
+        return out;
     }
 
     public synchronized int getActiveTeamsCount() {
-        if (backendActiveTeamsCount != null) {
-            return backendActiveTeamsCount;
-        }
-        int active = getActiveProjectsCount();
-        return Math.max(120, 186 + (active - 286));
+        return activeTeams().size();
     }
 
     public synchronized double getAverageTeamSize() {
-        if (backendAverageTeamSize != null) {
-            return backendAverageTeamSize;
-        }
-        return 4.6;
+        List<int[]> teams = activeTeams();
+        if (teams.isEmpty()) return 0.0;
+        int sum = 0;
+        for (int[] t : teams) sum += t[0];
+        return Math.round(sum * 10.0 / teams.size()) / 10.0;
     }
 
-    public synchronized int getSprintVelocity() {
-        if (backendSprintVelocity != null) {
-            return backendSprintVelocity;
+    public synchronized double getAverageTeamCapacity() {
+        List<int[]> teams = activeTeams();
+        if (teams.isEmpty()) return 0.0;
+        int sum = 0;
+        for (int[] t : teams) sum += t[1];
+        return Math.round(sum * 10.0 / teams.size()) / 10.0;
+    }
+
+    /** Filled seats / total seats across active teams, in percent. */
+    public synchronized int getTeamFillRatio() {
+        int members = 0;
+        int seats = 0;
+        for (int[] t : activeTeams()) {
+            members += t[0];
+            seats += t[1];
         }
-        return 92;
+        return seats == 0 ? 0 : (int) Math.round(members * 100.0 / seats);
+    }
+
+    /** Active teams split into {full, open seats, over the platform max team size}. */
+    public synchronized int[] getTeamCapacityDistribution() {
+        int full = 0, open = 0, over = 0;
+        for (int[] t : activeTeams()) {
+            if (t[0] > maxTeamSize) over++;
+            else if (t[0] >= t[1]) full++;
+            else open++;
+        }
+        return new int[] { full, open, over };
+    }
+
+    // ---- Collaboration & tasks (backend only) ----
+
+    public synchronized int getPendingCollaborationRequests() {
+        return liveInt("pendingCollaborationRequests", 0);
+    }
+
+    public synchronized double getRequestAcceptanceRate() {
+        return liveNum("requestAcceptanceRate", 0);
+    }
+
+    public synchronized int getTasksDone() {
+        return liveInt("tasksDone", 0);
+    }
+
+    public synchronized int getTasksTotal() {
+        return liveInt("tasksTotal", 0);
+    }
+
+    /** Done tasks / all tasks on live projects, in percent. */
+    public synchronized int getSprintVelocity() {
+        return liveInt("sprintVelocity", 0);
+    }
+
+    // ---- Skills ----
+
+    /** Most common skills on student profiles; offline it falls back to the skills registry. */
+    public synchronized List<SkillStat> getTopSkills(int limit) {
+        List<SkillStat> out = new ArrayList<>();
+        if (liveStats != null && liveStats.containsKey("topSkills")) {
+            for (Map<String, Object> m : Json.maps(liveStats, "topSkills")) {
+                out.add(new SkillStat(Json.str(m, "name", ""), Json.integer(m, "count", 0)));
+            }
+        } else {
+            for (SkillModel sk : skills) {
+                if (sk.active) out.add(new SkillStat(sk.name, sk.memberCount));
+            }
+        }
+        out.sort((a, b) -> Integer.compare(b.count, a.count));
+        return out.size() > limit ? new ArrayList<>(out.subList(0, limit)) : out;
     }
 
     public synchronized String exportAnalyticsToCsv() {
         StringBuilder sb = new StringBuilder();
         sb.append("TeamUp Platform Analytics & Statistics Report\n");
-        sb.append("Generated on: Nov 11, 2026\n\n");
-        sb.append("METRIC,VALUE,TREND/NOTES\n");
-        sb.append(String.format("Total Platform Users,%d,+14.8%% MoM\n", getTotalUsersCount()));
-        sb.append(String.format("Total Projects,%d,+12.6%% vs last term\n", getTotalProjectsCount()));
-        sb.append(String.format("Active In-flight Projects,%d,Active sprints\n", getActiveProjectsCount()));
-        sb.append(
-                String.format("Project Success Rate,%.1f%%,Based on milestone completions\n", getProjectSuccessRate()));
-        sb.append(String.format("Active Teams,%d,In-flight collaboration\n", getActiveTeamsCount()));
-        sb.append(String.format("Average Team Size,%.1f / 6,84%% fill ratio\n", getAverageTeamSize()));
-        sb.append(String.format("Collaboration Requests,%d,Active matching\n", collaborationRequests));
-        sb.append(String.format("Platform Average Rating,%.1f ★,Verified peer reviews\n\n", getAverageRating()));
+        sb.append("Generated on: ").append(formatToday()).append("\n\n");
+        sb.append("METRIC,VALUE,NOTES\n");
+        sb.append(String.format("Total Platform Users,%d,+%d this month\n", getTotalUsersCount(), getNewUsersThisMonth()));
+        sb.append(String.format("Active Users,%d,%d suspended\n", getActiveUsersCount(), getSuspendedUsersCount()));
+        sb.append(String.format("Total Projects,%d,+%d this month\n", getTotalProjectsCount(), getNewProjectsThisMonth()));
+        sb.append(String.format("Active Projects,%d,In progress\n", getActiveProjectsCount()));
+        sb.append(String.format("Recruiting Projects,%d,Open for members\n", getRecruitingProjectsCount()));
+        sb.append(String.format("Completed Projects,%d,Delivered\n", getCompletedProjectsCount()));
+        sb.append(String.format("Project Success Rate,%.1f%%,Completed / started projects\n", getProjectSuccessRate()));
+        sb.append(String.format("Active Teams,%d,2+ members on an open project\n", getActiveTeamsCount()));
+        sb.append(String.format("Average Team Size,%.1f / %.1f,%d%% seats filled\n", getAverageTeamSize(),
+                getAverageTeamCapacity(), getTeamFillRatio()));
+        sb.append(String.format("Collaboration Requests,%d,%d pending\n", collaborationRequests,
+                getPendingCollaborationRequests()));
+        sb.append(String.format("Task Completion,%d%%,%d of %d tasks done\n", getSprintVelocity(), getTasksDone(),
+                getTasksTotal()));
+        sb.append(String.format("Platform Average Rating,%.1f,Verified peer reviews\n\n", getAverageRating()));
+
+        sb.append("MONTHLY USER GROWTH\n");
+        sb.append("Month,New Users,Total Users\n");
+        for (MonthPoint mp : getMonthlyUserGrowth()) {
+            sb.append(mp.label).append(',').append(mp.newUsers).append(',').append(mp.total).append('\n');
+        }
+        sb.append('\n');
 
         sb.append("TOP POPULAR SKILLS\n");
-        sb.append("Skill Name,Enrolled Students,Active Status\n");
-        for (SkillModel s : skills) {
-            sb.append(String.format("\"%s\",%d,%b\n", s.name, s.memberCount, s.active));
+        sb.append("Skill Name,Students\n");
+        for (SkillStat st : getTopSkills(10)) {
+            sb.append(String.format("\"%s\",%d\n", st.name.replace("\"", "\"\""), st.count));
         }
 
         try {

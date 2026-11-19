@@ -7,6 +7,7 @@ const Review = require('../models/Review');
 const AuditLog = require('../models/AuditLog');
 const PlatformSetting = require('../models/PlatformSetting');
 const bcrypt = require('bcryptjs');
+const { computeOverviewStats, profileSkillCounts, projectCategoryCounts, teamSizeLabel } = require('../services/adminStats');
 
 // Format date helper: "Nov 14, 2026"
 function formatDate(d) {
@@ -557,9 +558,7 @@ const getAdminBootstrap = async (req, res) => {
     let pIdx = 200;
     const projects = rawProjects.map((p) => {
       pIdx++;
-      const currentMembers = (p.members && p.members.length) || 1;
-      const maxM = p.maxMembers || 6;
-      const teamSizeStr = p.teamSize || `${currentMembers} / ${maxM}`;
+      const teamSizeStr = teamSizeLabel(p);
       return {
         id: `P-${pIdx}`,
         mongoId: String(p._id),
@@ -568,6 +567,7 @@ const getAdminBootstrap = async (req, res) => {
         owner: p.ownerName || (p.owner && p.owner.name) || 'Jordan Lee',
         teamSize: teamSizeStr,
         status: p.status || 'Active',
+        archived: !!p.archived,
         created: formatDate(p.createdAt),
         description: p.description || '',
       };
@@ -595,12 +595,16 @@ const getAdminBootstrap = async (req, res) => {
     }));
 
     // 4. Fetch Categories & Skills
+    // Counts are computed live: projects per category, users per skill (from profiles).
+    const [categoryCounts, skillCounts] = await Promise.all([projectCategoryCounts(), profileSkillCounts()]);
+    const keyOf = (name) => String(name || '').trim().toLowerCase();
+
     const rawCategories = await Category.find({}).sort({ createdAt: 1 });
     const categories = rawCategories.map((c, i) => ({
       id: c.categoryId || `C-${i + 1}`,
       mongoId: String(c._id),
       name: c.name,
-      projectCount: c.projectCount || 0,
+      projectCount: categoryCounts.get(keyOf(c.name)) || 0,
       active: c.active !== false,
     }));
 
@@ -609,7 +613,7 @@ const getAdminBootstrap = async (req, res) => {
       id: s.skillId || `S-${i + 1}`,
       mongoId: String(s._id),
       name: s.name,
-      memberCount: s.memberCount || 0,
+      memberCount: (skillCounts.get(keyOf(s.name)) || { count: 0 }).count,
       active: s.active !== false,
     }));
 
@@ -699,12 +703,8 @@ const getAdminBootstrap = async (req, res) => {
       dataRetentionDays: settingsDoc.dataRetentionDays,
     };
 
-    // Calculate Platform Statistics
-    const totalUsers = Math.max(12480, 12480 + (users.length - 8));
-    const totalProjects = Math.max(482, 482 + (projects.length - 8));
-    const pendingReportsCount = reports.filter((r) => r.status === 'Pending' || r.status === 'In review').length;
-    const activeProjectsCount = projects.filter((p) => p.status === 'Active').length;
-    const activeTeamsCount = Math.max(120, 186 + (activeProjectsCount - 4));
+    // Platform statistics for the Overview page, computed from the database
+    const stats = await computeOverviewStats({ skillCounts });
 
     return res.status(200).json({
       success: true,
@@ -718,15 +718,7 @@ const getAdminBootstrap = async (req, res) => {
         reviews,
         auditLogs,
         settings,
-        stats: {
-          totalUsers,
-          totalProjects,
-          pendingReportsCount,
-          activeTeamsCount,
-          projectSuccessRate: 94.6,
-          averageTeamSize: 4.6,
-          collaborationRequests: 1642,
-        },
+        stats,
       },
     });
   } catch (error) {
@@ -735,6 +727,20 @@ const getAdminBootstrap = async (req, res) => {
       success: false,
       message: 'Failed to load admin data: ' + error.message,
     });
+  }
+};
+
+// =========================================================================
+// GET /api/admin/overview
+// Overview analytics only — cheap refresh after a mutation
+// =========================================================================
+const getAdminOverview = async (req, res) => {
+  try {
+    const stats = await computeOverviewStats();
+    return res.status(200).json({ success: true, data: stats });
+  } catch (error) {
+    console.error('[Admin Overview Error]:', error);
+    return res.status(500).json({ success: false, message: 'Failed to compute overview stats: ' + error.message });
   }
 };
 
@@ -1484,6 +1490,7 @@ const resetSettings = async (req, res) => {
 
 module.exports = {
   getAdminBootstrap,
+  getAdminOverview,
   createUser,
   updateUserRole,
   updateUserStatus,

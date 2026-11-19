@@ -238,7 +238,7 @@ public class AdminUsers {
     }
 
     private int paintSummaryPills(Graphics2D g, int x, int y, int w) {
-        int total = AdminDataStore.getInstance().baseTotalUsers;
+        int total = AdminDataStore.getInstance().getTotalUsersCount();
         int active = AdminDataStore.getInstance().getActiveUsersCount();
         int suspended = AdminDataStore.getInstance().getSuspendedUsersCount();
         List<AdminDataStore.UserModel> filtered = getFilteredUsers();

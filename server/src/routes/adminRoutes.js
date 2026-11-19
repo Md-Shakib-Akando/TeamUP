@@ -5,6 +5,9 @@ const adminController = require('../controllers/adminController');
 // Bootstrap full admin dashboard data (Users, Projects, Reports, Categories, Skills, Reviews, Logs, Settings)
 router.get('/bootstrap', adminController.getAdminBootstrap);
 
+// Overview analytics (live counts computed from MongoDB)
+router.get('/overview', adminController.getAdminOverview);
+
 // Users management
 router.post('/users', adminController.createUser);
 router.put('/users/:id/role', adminController.updateUserRole);

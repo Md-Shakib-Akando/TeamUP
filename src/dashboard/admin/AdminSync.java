@@ -66,7 +66,7 @@ public final class AdminSync {
         synchronized (store) {
             // 1. Users
             List<Map<String, Object>> userList = Json.maps(data, "users");
-            if (userList != null && !userList.isEmpty()) {
+            if (data.containsKey("users")) {
                 store.clearUsers();
                 for (Map<String, Object> u : userList) {
                     AdminDataStore.UserModel um = new AdminDataStore.UserModel(
@@ -85,7 +85,7 @@ public final class AdminSync {
 
             // 2. Projects
             List<Map<String, Object>> projList = Json.maps(data, "projects");
-            if (projList != null && !projList.isEmpty()) {
+            if (data.containsKey("projects")) {
                 store.clearProjects();
                 for (Map<String, Object> p : projList) {
                     AdminDataStore.ProjectModel pm = new AdminDataStore.ProjectModel(
@@ -99,13 +99,14 @@ public final class AdminSync {
                             Json.str(p, "description", "")
                     );
                     pm.mongoId = Json.str(p, "mongoId", "");
+                    pm.archived = Json.bool(p, "archived", false);
                     store.getProjectsRaw().add(pm);
                 }
             }
 
             // 3. Reports
             List<Map<String, Object>> repList = Json.maps(data, "reports");
-            if (repList != null && !repList.isEmpty()) {
+            if (data.containsKey("reports")) {
                 store.clearReports();
                 for (Map<String, Object> r : repList) {
                     AdminDataStore.ReportModel rm = new AdminDataStore.ReportModel(
@@ -132,7 +133,7 @@ public final class AdminSync {
 
             // 4. Categories & Skills
             List<Map<String, Object>> catList = Json.maps(data, "categories");
-            if (catList != null && !catList.isEmpty()) {
+            if (data.containsKey("categories")) {
                 store.clearCategories();
                 for (Map<String, Object> c : catList) {
                     AdminDataStore.CategoryModel cm = new AdminDataStore.CategoryModel(
@@ -147,7 +148,7 @@ public final class AdminSync {
             }
 
             List<Map<String, Object>> skillList = Json.maps(data, "skills");
-            if (skillList != null && !skillList.isEmpty()) {
+            if (data.containsKey("skills")) {
                 store.clearSkills();
                 for (Map<String, Object> s : skillList) {
                     AdminDataStore.SkillModel sm = new AdminDataStore.SkillModel(
@@ -163,7 +164,7 @@ public final class AdminSync {
 
             // 5. Reviews
             List<Map<String, Object>> revList = Json.maps(data, "reviews");
-            if (revList != null && !revList.isEmpty()) {
+            if (data.containsKey("reviews")) {
                 store.clearReviews();
                 for (Map<String, Object> rev : revList) {
                     AdminDataStore.ReviewModel rm = new AdminDataStore.ReviewModel(
@@ -190,7 +191,7 @@ public final class AdminSync {
 
             // 6. Audit Logs
             List<Map<String, Object>> logList = Json.maps(data, "auditLogs");
-            if (logList != null && !logList.isEmpty()) {
+            if (data.containsKey("auditLogs")) {
                 store.clearAuditLogs();
                 for (Map<String, Object> l : logList) {
                     AdminDataStore.AuditLogModel lm = new AdminDataStore.AuditLogModel(
@@ -268,6 +269,21 @@ public final class AdminSync {
         }
     }
 
+    /**
+     * Re-reads the overview analytics (GET /api/admin/overview) after a mutation so
+     * backend-only metrics (engagement, requests, tasks, top skills) stay current.
+     * Must run on the IO thread, after the mutation request it follows.
+     */
+    private static void refreshStatsNow() {
+        try {
+            ApiClient.Response r = ApiClient.get("/admin/overview");
+            Map<String, Object> stats = r.ok() ? Json.map(r.json, "data") : null;
+            if (stats != null) AdminDataStore.getInstance().applyBackendStats(stats);
+        } catch (IOException e) {
+            System.err.println("[AdminSync] Could not refresh overview stats: " + e.getMessage());
+        }
+    }
+
     // =========================================================================
     // ASYNCHRONOUS BACKEND MUTATION HELPERS
     // =========================================================================
@@ -277,6 +293,7 @@ public final class AdminSync {
         IO.submit(() -> {
             try {
                 ApiClient.post("/admin/users", Json.obj("name", name, "email", email, "role", role));
+                refreshStatsNow();
             } catch (Exception e) {
                 System.err.println("[AdminSync] Failed to sync addUser to MongoDB: " + e.getMessage());
             }
@@ -301,6 +318,7 @@ public final class AdminSync {
             try {
                 String segId = ApiClient.seg(id != null && !id.isEmpty() ? id : name);
                 ApiClient.put("/admin/users/" + segId + "/status", Json.obj("name", name, "status", status));
+                refreshStatsNow();
             } catch (Exception e) {
                 System.err.println("[AdminSync] Failed to sync updateUserStatus to MongoDB: " + e.getMessage());
             }
@@ -313,6 +331,7 @@ public final class AdminSync {
             try {
                 String segId = ApiClient.seg(id != null && !id.isEmpty() ? id : name);
                 ApiClient.delete("/admin/users/" + segId + "?name=" + ApiClient.seg(name));
+                refreshStatsNow();
             } catch (Exception e) {
                 System.err.println("[AdminSync] Failed to sync deleteUser to MongoDB: " + e.getMessage());
             }
@@ -331,6 +350,7 @@ public final class AdminSync {
                         "status", status,
                         "description", desc
                 ));
+                refreshStatsNow();
             } catch (Exception e) {
                 System.err.println("[AdminSync] Failed to sync addProject to MongoDB: " + e.getMessage());
             }
@@ -343,6 +363,7 @@ public final class AdminSync {
             try {
                 String segId = ApiClient.seg(id != null && !id.isEmpty() ? id : name);
                 ApiClient.put("/admin/projects/" + segId + "/status", Json.obj("name", name, "status", status));
+                refreshStatsNow();
             } catch (Exception e) {
                 System.err.println("[AdminSync] Failed to sync updateProjectStatus to MongoDB: " + e.getMessage());
             }
@@ -355,6 +376,7 @@ public final class AdminSync {
             try {
                 String segId = ApiClient.seg(id != null && !id.isEmpty() ? id : name);
                 ApiClient.delete("/admin/projects/" + segId + "?name=" + ApiClient.seg(name));
+                refreshStatsNow();
             } catch (Exception e) {
                 System.err.println("[AdminSync] Failed to sync deleteProject to MongoDB: " + e.getMessage());
             }
@@ -366,6 +388,7 @@ public final class AdminSync {
         IO.submit(() -> {
             try {
                 ApiClient.put("/admin/reports/" + ApiClient.seg(id) + "/resolve", Json.obj("note", note));
+                refreshStatsNow();
             } catch (Exception e) {
                 System.err.println("[AdminSync] Failed to sync resolveReport to MongoDB: " + e.getMessage());
             }
@@ -377,6 +400,7 @@ public final class AdminSync {
         IO.submit(() -> {
             try {
                 ApiClient.put("/admin/reports/" + ApiClient.seg(id) + "/action", Json.obj("action", action, "note", note));
+                refreshStatsNow();
             } catch (Exception e) {
                 System.err.println("[AdminSync] Failed to sync actionReport to MongoDB: " + e.getMessage());
             }
@@ -530,6 +554,7 @@ public final class AdminSync {
         IO.submit(() -> {
             try {
                 ApiClient.put("/admin/settings", patch);
+                refreshStatsNow();
             } catch (Exception e) {
                 System.err.println("[AdminSync] Failed to sync updateSettings to MongoDB: " + e.getMessage());
             }

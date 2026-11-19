@@ -86,8 +86,8 @@ public class AdminOverview {
     private boolean refreshHovered = false;
 
     // Chart month points coordinates for tooltip
-    private final int[] chartMonthPointsX = new int[7];
-    private final int[] chartMonthPointsY = new int[7];
+    private final int[] chartMonthPointsX = new int[AdminDataStore.GROWTH_MONTHS];
+    private final int[] chartMonthPointsY = new int[AdminDataStore.GROWTH_MONTHS];
 
     public AdminOverview() {
         syncFromStore();
@@ -242,7 +242,9 @@ public class AdminOverview {
         // 6. Footer Note
         g.setFont(AdminTheme.FONT_REG_11);
         g.setColor(AdminTheme.TEXT_LIGHT);
-        g.drawString("TeamUp Analytics Suite · Live synchronization with AdminDataStore · Real-time university metrics.", x + padX, curY + 12);
+        g.drawString(AdminDataStore.getInstance().hasLiveStats()
+                ? "TeamUp Analytics · Computed from MongoDB · Refreshes every 45s and after each admin action."
+                : "TeamUp Analytics · Offline demo data — log in with the backend running for live metrics.", x + padX, curY + 12);
     }
 
     private int paintHeaderSection(Graphics2D g, int x, int y, int w, AdminDashboard dashboard) {
@@ -253,21 +255,24 @@ public class AdminOverview {
 
         int titleW = hfm.stringWidth("Overview & Analytics");
 
-        // Live status pill badge
+        // Live / offline status pill badge
+        AdminDataStore store = AdminDataStore.getInstance();
+        boolean live = store.hasLiveStats();
+        String pillText = live ? "LIVE METRICS" : "OFFLINE DEMO";
         int pillX = x + titleW + 12;
         int pillY = y + 7;
         int pillW = 104;
         int pillH = 22;
         RoundRectangle2D livePill = new RoundRectangle2D.Float(pillX, pillY, pillW, pillH, 11, 11);
-        g.setColor(new Color(0xDC, 0xFC, 0xE7));
+        g.setColor(live ? new Color(0xDC, 0xFC, 0xE7) : AdminTheme.STATUS_GRAY_BG);
         g.fill(livePill);
 
-        // Green dot
-        g.setColor(new Color(0x10, 0xB9, 0x81));
+        Color dot = live ? new Color(0x10, 0xB9, 0x81) : AdminTheme.TEXT_MUTED;
+        g.setColor(dot);
         g.fillOval(pillX + 9, pillY + 7, 7, 7);
 
         g.setFont(AdminTheme.FONT_BOLD_10);
-        g.drawString("LIVE METRICS", pillX + 22, pillY + 15);
+        g.drawString(pillText, pillX + 22, pillY + 15);
 
         // Sync / Refresh Live button on the right
         int refW = 124;
@@ -290,6 +295,15 @@ public class AdminOverview {
             String refText = "↻ Refresh Live";
             FontMetrics rfm = g.getFontMetrics();
             g.drawString(refText, refreshBtnX + (refreshBtnW - rfm.stringWidth(refText)) / 2, refreshBtnY + 19);
+
+            // Last sync time, left of the refresh button
+            String synced = store.getLastStatsSyncLabel();
+            if (synced != null && w >= 760) {
+                g.setFont(AdminTheme.FONT_REG_11);
+                g.setColor(AdminTheme.TEXT_LIGHT);
+                String syncText = "Synced " + synced;
+                g.drawString(syncText, refreshBtnX - g.getFontMetrics().stringWidth(syncText) - 12, refreshBtnY + 19);
+            }
         } else {
             refreshBtnX = -9999;
             refreshBtnY = -9999;
@@ -298,9 +312,9 @@ public class AdminOverview {
         // Subtitle
         g.setFont(AdminTheme.FONT_REG_13);
         g.setColor(AdminTheme.TEXT_MUTED);
-        String sub = "Real-time platform performance, user acquisition, project delivery velocity, skill distribution, and active team health.";
-        if (w < 700) {
-            sub = "Real-time performance, user acquisition, project success & team health.";
+        String sub = "Platform performance, user growth, project delivery, skill distribution and team health at a glance.";
+        if (w < 900) {
+            sub = "User growth, project success & team health at a glance.";
         }
         g.drawString(sub, x, y + 48);
 
@@ -313,54 +327,42 @@ public class AdminOverview {
 
         AdminDataStore store = AdminDataStore.getInstance();
         int totalUsers = store.getTotalUsersCount();
+        int newUsers = store.getNewUsersThisMonth();
         int totalProjects = store.getTotalProjectsCount();
+        int newProjects = store.getNewProjectsThisMonth();
         double successRate = store.getProjectSuccessRate();
         int activeTeams = store.getActiveTeamsCount();
         int activeProj = store.getActiveProjectsCount();
         int compProj = store.getCompletedProjectsCount();
-        int recProj = store.getRecruitingProjectsCount();
+        int started = store.getStartedProjectsCount();
 
-        List<AdminDataStore.UserModel> allUsers = store.getAllUsers();
-        long activeUsersCount = allUsers.stream().filter(u -> "Active".equalsIgnoreCase(u.status)).count();
-        double verifiedRatio = allUsers.isEmpty() ? 98.4 : Math.min(100.0, Math.max(90.0, (double) activeUsersCount / allUsers.size() * 100.0));
-        String userSub = String.format("%,d active · %.1f%% verified", Math.max(1, (int)(totalUsers * (verifiedRatio / 100.0))), verifiedRatio);
-        String projSub = activeProj + " Active · " + compProj + " Completed";
-        String succSub = compProj + " delivered on schedule";
-        int fillRatio = Math.max(50, Math.min(100, (int) Math.round((store.getAverageTeamSize() / Math.max(1, store.maxTeamSize)) * 100.0)));
-        String fillBadge = "⚡ " + fillRatio + "% Fill Ratio";
-        String teamSub = String.format("%.1f avg size · %,d requests", store.getAverageTeamSize(), store.collaborationRequests);
+        String[] titles = { "TOTAL USERS", "TOTAL PROJECTS", "PROJECT SUCCESS RATE", "ACTIVE TEAMS" };
+        String[] values = {
+                String.format("%,d", totalUsers),
+                String.format("%,d", totalProjects),
+                String.format("%.1f%%", successRate),
+                String.format("%,d Teams", activeTeams) };
+        String[] badges = {
+                newUsers > 0 ? "↑ +" + newUsers + " this month" : "No new this month",
+                newProjects > 0 ? "↑ +" + newProjects + " this month" : "No new this month",
+                compProj + " of " + started + " delivered",
+                store.getTeamFillRatio() + "% seats filled" };
+        String[] subs = {
+                String.format("%,d active · %,d suspended", store.getActiveUsersCount(), store.getSuspendedUsersCount()),
+                activeProj + " Active · " + store.getRecruitingProjectsCount() + " Recruiting · " + compProj + " Done",
+                "Completed vs. projects past recruiting",
+                String.format("%.1f avg size · %,d requests", store.getAverageTeamSize(), store.collaborationRequests) };
 
-        if (w >= 1050) {
-            // 4 Cards across
-            int kpiW = (w - kpiGap * 3) / 4;
-            paintElevatedKpiCard(g, x, y, kpiW, kpiH, "TOTAL PLATFORM USERS", String.format("%,d", totalUsers), "↑ +14.8% MoM", userSub, AdminTheme.BRAND_PRIMARY, new Color(0xFD, 0xEE, 0xF4), 0);
-            paintElevatedKpiCard(g, x + (kpiW + kpiGap), y, kpiW, kpiH, "TOTAL PROJECTS & INITIATIVES", String.format("%,d", totalProjects), "↑ +12.6% vs term", projSub, AdminTheme.BRAND_SECONDARY, new Color(0xEE, 0xF2, 0xFF), 1);
-            paintElevatedKpiCard(g, x + (kpiW + kpiGap) * 2, y, kpiW, kpiH, "PROJECT SUCCESS RATE", String.format("%.1f%%", successRate), "★ Top Benchmark", succSub, AdminTheme.BRAND_AMBER, new Color(0xFE, 0xF3, 0xC7), 2);
-            paintElevatedKpiCard(g, x + (kpiW + kpiGap) * 3, y, kpiW, kpiH, "ACTIVE TEAMS COLLABORATING", String.format("%,d Teams", activeTeams), fillBadge, teamSub, AdminTheme.BRAND_ACCENT, new Color(0xEC, 0xFE, 0xFF), 3);
-            return y + kpiH;
-        } else if (w >= 620) {
-            // 2 Columns x 2 Rows
-            int kpiW = (w - kpiGap) / 2;
-            paintElevatedKpiCard(g, x, y, kpiW, kpiH, "TOTAL PLATFORM USERS", String.format("%,d", totalUsers), "↑ +14.8% MoM", userSub, AdminTheme.BRAND_PRIMARY, new Color(0xFD, 0xEE, 0xF4), 0);
-            paintElevatedKpiCard(g, x + kpiW + kpiGap, y, kpiW, kpiH, "TOTAL PROJECTS & INITIATIVES", String.format("%,d", totalProjects), "↑ +12.6% vs term", projSub, AdminTheme.BRAND_SECONDARY, new Color(0xEE, 0xF2, 0xFF), 1);
-
-            int row2Y = y + kpiH + kpiGap;
-            paintElevatedKpiCard(g, x, row2Y, kpiW, kpiH, "PROJECT SUCCESS RATE", String.format("%.1f%%", successRate), "★ Top Benchmark", succSub, AdminTheme.BRAND_AMBER, new Color(0xFE, 0xF3, 0xC7), 2);
-            paintElevatedKpiCard(g, x + kpiW + kpiGap, row2Y, kpiW, kpiH, "ACTIVE TEAMS COLLABORATING", String.format("%,d Teams", activeTeams), fillBadge, teamSub, AdminTheme.BRAND_ACCENT, new Color(0xEC, 0xFE, 0xFF), 3);
-            return row2Y + kpiH;
-        } else {
-            // 1 Column x 4 Rows
-            int kpiW = w;
-            int curCardY = y;
-            paintElevatedKpiCard(g, x, curCardY, kpiW, kpiH, "TOTAL PLATFORM USERS", String.format("%,d", totalUsers), "↑ +14.8% MoM", userSub, AdminTheme.BRAND_PRIMARY, new Color(0xFD, 0xEE, 0xF4), 0);
-            curCardY += kpiH + kpiGap;
-            paintElevatedKpiCard(g, x, curCardY, kpiW, kpiH, "TOTAL PROJECTS & INITIATIVES", String.format("%,d", totalProjects), "↑ +12.6% vs term", projSub, AdminTheme.BRAND_SECONDARY, new Color(0xEE, 0xF2, 0xFF), 1);
-            curCardY += kpiH + kpiGap;
-            paintElevatedKpiCard(g, x, curCardY, kpiW, kpiH, "PROJECT SUCCESS RATE", String.format("%.1f%%", successRate), "★ Top Benchmark", succSub, AdminTheme.BRAND_AMBER, new Color(0xFE, 0xF3, 0xC7), 2);
-            curCardY += kpiH + kpiGap;
-            paintElevatedKpiCard(g, x, curCardY, kpiW, kpiH, "ACTIVE TEAMS COLLABORATING", String.format("%,d Teams", activeTeams), fillBadge, teamSub, AdminTheme.BRAND_ACCENT, new Color(0xEC, 0xFE, 0xFF), 3);
-            return curCardY + kpiH;
+        int cols = (w >= 1050) ? 4 : (w >= 620) ? 2 : 1;
+        int kpiW = (w - kpiGap * (cols - 1)) / cols;
+        int bottom = y;
+        for (int i = 0; i < 4; i++) {
+            int cx = x + (i % cols) * (kpiW + kpiGap);
+            int cy = y + (i / cols) * (kpiH + kpiGap);
+            paintElevatedKpiCard(g, cx, cy, kpiW, kpiH, titles[i], values[i], badges[i], subs[i], null, null, i);
+            bottom = cy + kpiH;
         }
+        return bottom;
     }
 
     private void paintElevatedKpiCard(Graphics2D g, int cx, int cy, int cw, int ch, String title, String val, String badge, String subtext, Color accent, Color tint, int type) {
@@ -377,20 +379,27 @@ public class AdminOverview {
         g.setStroke(new BasicStroke(1.2f));
         g.draw(card);
 
-        // Top left title
-        g.setFont(AdminTheme.FONT_SEMIBOLD_11);
-        g.setColor(AdminTheme.TEXT_MUTED);
-        String drawTitle = title;
-        if (cw < 200 && title.length() > 16) {
-            drawTitle = title.substring(0, 15) + "…";
-        }
-        g.drawString(drawTitle, cx + 16, cy + 24);
-
-        // Top right trend pill badge
+        // Top right trend pill badge (measured first so the title can make room for it)
         g.setFont(AdminTheme.FONT_BOLD_10);
         FontMetrics bfm = g.getFontMetrics();
         int bw = bfm.stringWidth(badge) + 14;
         int bx = cx + cw - bw - 14;
+
+        // Top left title, shortened with an ellipsis when it would run into the badge
+        g.setFont(AdminTheme.FONT_SEMIBOLD_11);
+        g.setColor(AdminTheme.TEXT_MUTED);
+        FontMetrics tfm = g.getFontMetrics();
+        int maxTitleW = bx - (cx + 16) - 8;
+        String drawTitle = title;
+        if (tfm.stringWidth(drawTitle) > maxTitleW) {
+            while (drawTitle.length() > 4 && tfm.stringWidth(drawTitle + "…") > maxTitleW) {
+                drawTitle = drawTitle.substring(0, drawTitle.length() - 1);
+            }
+            drawTitle = drawTitle.trim() + "…";
+        }
+        g.drawString(drawTitle, cx + 16, cy + 24);
+
+        g.setFont(AdminTheme.FONT_BOLD_10);
         int by = cy + 12;
         RoundRectangle2D bpill = new RoundRectangle2D.Float(bx, by, bw, 20, 10, 10);
         g.setColor(tint);
@@ -406,9 +415,14 @@ public class AdminOverview {
         // Bottom subtext
         g.setFont(AdminTheme.FONT_REG_11);
         g.setColor(AdminTheme.TEXT_MUTED);
+        FontMetrics sfm = g.getFontMetrics();
+        int maxSubW = cw - 32;
         String drawSub = subtext;
-        if (cw < 240 && subtext.length() > 24) {
-            drawSub = subtext.substring(0, 22) + "…";
+        if (sfm.stringWidth(drawSub) > maxSubW) {
+            while (drawSub.length() > 4 && sfm.stringWidth(drawSub + "…") > maxSubW) {
+                drawSub = drawSub.substring(0, drawSub.length() - 1);
+            }
+            drawSub = drawSub.trim() + "…";
         }
         g.drawString(drawSub, cx + 16, cy + 96);
 
@@ -432,7 +446,7 @@ public class AdminOverview {
 
         g.setFont(AdminTheme.FONT_REG_12);
         g.setColor(AdminTheme.TEXT_LIGHT);
-        g.drawString("Cumulative student enrollment & active collaborative members", x + 20, y + 46);
+        g.drawString("Registered users (line) and new sign-ups per month (bars)", x + 20, y + 46);
 
         // Plot area
         int plotX = x + 48;
@@ -441,25 +455,23 @@ public class AdminOverview {
         int plotH = 150;
 
         AdminDataStore store = AdminDataStore.getInstance();
-        int totalUsers = store.getTotalUsersCount();
 
-        // Data arrays (May to Nov) - dynamically calibrated from current platform total users
-        String[] months = {"May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov"};
-        int[] userCounts = new int[] {
-            Math.max(10, Math.round(totalUsers * 0.58f)),
-            Math.max(15, Math.round(totalUsers * 0.65f)),
-            Math.max(20, Math.round(totalUsers * 0.72f)),
-            Math.max(25, Math.round(totalUsers * 0.81f)),
-            Math.max(30, Math.round(totalUsers * 0.89f)),
-            Math.max(35, Math.round(totalUsers * 0.95f)),
-            totalUsers
-        };
-        int[] newUsers = new int[months.length];
-        newUsers[0] = Math.max(10, Math.round(userCounts[0] * 0.08f));
-        for (int i = 1; i < months.length; i++) {
-            newUsers[i] = Math.max(5, userCounts[i] - userCounts[i - 1]);
+        // Last 7 months of registrations, bucketed from each user's join date
+        List<AdminDataStore.MonthPoint> growth = store.getMonthlyUserGrowth();
+        String[] months = new String[growth.size()];
+        int[] userCounts = new int[growth.size()];
+        int[] newUsers = new int[growth.size()];
+        int peakTotal = 0;
+        int peakNew = 0;
+        for (int i = 0; i < growth.size(); i++) {
+            AdminDataStore.MonthPoint mp = growth.get(i);
+            months[i] = mp.label;
+            userCounts[i] = mp.total;
+            newUsers[i] = mp.newUsers;
+            peakTotal = Math.max(peakTotal, mp.total);
+            peakNew = Math.max(peakNew, mp.newUsers);
         }
-        int maxUserVal = Math.max(1000, (int) Math.ceil((totalUsers * 1.15f) / 1000.0) * 1000);
+        int maxUserVal = niceAxisMax(peakTotal);
 
         // Y-axis gridlines & labels
         String[] yLabels = {
@@ -493,8 +505,9 @@ public class AdminOverview {
 
         // Vertical bars for monthly new additions
         int barW = Math.max(6, Math.min(12, plotW / 24));
-        int maxNewUser = Math.max(100, Math.round(maxUserVal * 0.15f));
+        int maxNewUser = Math.max(1, peakNew);
         for (int i = 0; i < numPoints; i++) {
+            if (newUsers[i] == 0) continue;
             int bx = chartMonthPointsX[i] - barW / 2;
             float newFrac = Math.min(1.0f, newUsers[i] / (float) maxNewUser);
             int bH = Math.round(plotH * 0.45f * newFrac);
@@ -571,18 +584,23 @@ public class AdminOverview {
         // Summary footer inside card
         int footY = y + h - 18;
         g.setFont(AdminTheme.FONT_BOLD_11);
+        FontMetrics ffm = g.getFontMetrics();
+        double engagement = store.getEngagementRate();
+        String totalText = "● " + String.format("%,d Total Users", store.getTotalUsersCount());
+        String newText = "■ +" + newUsers[numPoints - 1] + " this month";
+        String engText = engagement >= 0 ? String.format("↑ %.1f%% in a team", engagement) : null;
+        int fx = x + 20;
+        g.setColor(AdminTheme.BRAND_PRIMARY);
+        g.drawString(totalText, fx, footY);
+        fx += ffm.stringWidth(totalText) + 18;
         if (w >= 440) {
-            g.setColor(AdminTheme.BRAND_PRIMARY);
-            g.drawString("● " + String.format("%,d Total Users", store.getTotalUsersCount()), x + 20, footY);
             g.setColor(AdminTheme.BRAND_SECONDARY);
-            g.drawString("■ " + store.getActiveProjectsCount() + " Active Sprints", x + 160, footY);
+            g.drawString(newText, fx, footY);
+            fx += ffm.stringWidth(newText) + 18;
+        }
+        if (engText != null && fx + ffm.stringWidth(engText) <= x + w - 16) {
             g.setColor(AdminTheme.BRAND_GREEN_DARK);
-            g.drawString("↑ 89.4% Retention", x + Math.min(w - 120, 290), footY);
-        } else {
-            g.setColor(AdminTheme.BRAND_PRIMARY);
-            g.drawString("● " + String.format("%,d Total", store.getTotalUsersCount()), x + 20, footY);
-            g.setColor(AdminTheme.BRAND_GREEN_DARK);
-            g.drawString("↑ 89.4% Retention", x + w - 120, footY);
+            g.drawString(engText, fx, footY);
         }
     }
 
@@ -601,7 +619,7 @@ public class AdminOverview {
 
         g.setFont(AdminTheme.FONT_REG_12);
         g.setColor(AdminTheme.TEXT_LIGHT);
-        g.drawString("Milestone completion health & student team performance", x + 20, y + 46);
+        g.drawString("Delivered projects vs. everything past recruiting", x + 20, y + 46);
 
         AdminDataStore store = AdminDataStore.getInstance();
         int completed = store.getCompletedProjectsCount();
@@ -609,10 +627,13 @@ public class AdminOverview {
         int recruiting = store.getRecruitingProjectsCount();
         int review = store.getUnderReviewProjectsCount();
         int total = completed + active + recruiting + review;
-        if (total == 0) total = Math.max(1, store.getTotalProjectsCount());
+        boolean noProjects = (total == 0);
+        if (noProjects) total = 1;
+        int msDone = store.getMilestonesCompleted();
+        int msTotal = store.getMilestonesTotal();
 
         double rate = store.getProjectSuccessRate();
-        int arcDeg = Math.min(260, Math.max(10, (int) Math.round(260.0 * (rate / 100.0))));
+        int arcDeg = Math.min(260, (int) Math.round(260.0 * (rate / 100.0)));
 
         int curY = y + 78;
         int gaugeD = (w < 460) ? 84 : 100;
@@ -625,8 +646,10 @@ public class AdminOverview {
         g.drawArc(gaugeX, gaugeY, gaugeD, gaugeD, -40, 260);
 
         // Success arc (Dynamic)
-        g.setColor(new Color(0x10, 0xB9, 0x81));
-        g.drawArc(gaugeX, gaugeY, gaugeD, gaugeD, -40, arcDeg);
+        if (arcDeg > 0) {
+            g.setColor(new Color(0x10, 0xB9, 0x81));
+            g.drawArc(gaugeX, gaugeY, gaugeD, gaugeD, 220 - arcDeg, arcDeg);
+        }
 
         // Inside gauge text
         g.setFont((w < 460) ? AdminTheme.FONT_BOLD_16 : AdminTheme.FONT_BOLD_20);
@@ -645,10 +668,15 @@ public class AdminOverview {
         int pipeX = gaugeX + gaugeD + ((w < 460) ? 16 : 28);
         int pipeW = w - (pipeX - x) - 18;
 
-        paintPipelineRow(g, pipeX, curY + 4, pipeW, "Delivered", completed + " projects", String.format("%.1f%% on-time", rate), new Color(0x10, 0xB9, 0x81));
-        paintPipelineRow(g, pipeX, curY + 34, pipeW, "Active Sprints", active + " in-flight", active + " active", AdminTheme.BRAND_PRIMARY);
-        paintPipelineRow(g, pipeX, curY + 64, pipeW, "Recruiting", recruiting + " open teams", recruiting + " recruiting", AdminTheme.CHART_MUTED);
-        paintPipelineRow(g, pipeX, curY + 94, pipeW, "In Review", review + " in review", review + " pending", AdminTheme.BRAND_AMBER);
+        paintPipelineRow(g, pipeX, curY + 4, pipeW, "Delivered", completed + (completed == 1 ? " project" : " projects"), sharePct(completed, total), new Color(0x10, 0xB9, 0x81));
+        paintPipelineRow(g, pipeX, curY + 34, pipeW, "Active", active + " in progress", sharePct(active, total), AdminTheme.BRAND_PRIMARY);
+        paintPipelineRow(g, pipeX, curY + 64, pipeW, "Recruiting", recruiting + " open teams", sharePct(recruiting, total), AdminTheme.CHART_MUTED);
+        paintPipelineRow(g, pipeX, curY + 94, pipeW, "In Review", review + " in review", sharePct(review, total), AdminTheme.BRAND_AMBER);
+        if (msTotal > 0) {
+            g.setFont(AdminTheme.FONT_REG_11);
+            g.setColor(AdminTheme.TEXT_LIGHT);
+            g.drawString(msDone + " of " + msTotal + " milestones completed", pipeX + 14, curY + 136);
+        }
 
         // Segmented Progress Bar
         int segY = y + h - 56;
@@ -666,7 +694,7 @@ public class AdminOverview {
         int cW = Math.round(segW * compFrac);
         int aW = Math.round(segW * actFrac);
         int rW = Math.round(segW * recFrac);
-        int rvW = Math.max(4, Math.round(segW * revFrac));
+        int rvW = noProjects ? 0 : Math.max(0, segW - cW - aW - rW); // remainder, so the bar fills exactly
 
         int barCurX = x + 20;
         g.setColor(new Color(0x10, 0xB9, 0x81));
@@ -693,6 +721,10 @@ public class AdminOverview {
             legText = "■ Del (" + completed + ")  ■ Act (" + active + ")  ■ Rec (" + recruiting + ")";
         }
         g.drawString(legText, x + 20, legY);
+    }
+
+    private static String sharePct(int part, int total) {
+        return total <= 0 ? "0%" : Math.round(part * 100.0 / total) + "% of all";
     }
 
     private void paintPipelineRow(Graphics2D g, int px, int py, int pw, String label, String count, String badge, Color c) {
@@ -731,27 +763,26 @@ public class AdminOverview {
 
         g.setFont(AdminTheme.FONT_REG_12);
         g.setColor(AdminTheme.TEXT_LIGHT);
-        g.drawString("Top talent demand & skills distribution across student profiles", x + 20, y + 46);
+        g.drawString("Skills most often listed on student profiles", x + 20, y + 46);
 
-        List<AdminDataStore.SkillModel> allSkills = new ArrayList<>(AdminDataStore.getInstance().getAllSkills());
-        allSkills.sort((a, b) -> Integer.compare(b.memberCount, a.memberCount));
+        List<AdminDataStore.SkillStat> allSkills = AdminDataStore.getInstance().getTopSkills(5);
         int curY = y + 76;
         int rowH = 44;
         int maxUsers = 1;
-        for (AdminDataStore.SkillModel s : allSkills) {
-            if (s.memberCount > maxUsers) maxUsers = s.memberCount;
+        for (AdminDataStore.SkillStat s : allSkills) {
+            if (s.count > maxUsers) maxUsers = s.count;
         }
 
         if (allSkills.isEmpty()) {
             g.setFont(AdminTheme.FONT_REG_12);
             g.setColor(AdminTheme.TEXT_MUTED);
-            g.drawString("No skills registered in the database.", x + 20, y + 100);
+            g.drawString("No skills listed on any student profile yet.", x + 20, y + 100);
         }
 
         Color[] barColors = { AdminTheme.BRAND_PRIMARY }; // single series: one colour
 
         for (int i = 0; i < Math.min(5, allSkills.size()); i++) {
-            AdminDataStore.SkillModel skill = allSkills.get(i);
+            AdminDataStore.SkillStat skill = allSkills.get(i);
 
             // Rank #
             g.setFont(AdminTheme.FONT_BOLD_11);
@@ -766,7 +797,7 @@ public class AdminOverview {
             // Progress Bar Track
             int trackX = (w < 400) ? x + 125 : x + 150;
             int trackW = Math.max(40, w - (trackX - x) - 75);
-            int barWidth = Math.max(12, Math.min(trackW, Math.round(trackW * (skill.memberCount / (float) maxUsers))));
+            int barWidth = Math.max(12, Math.min(trackW, Math.round(trackW * (skill.count / (float) maxUsers))));
 
             RoundRectangle2D trk = new RoundRectangle2D.Float(trackX, curY + 6, trackW, 12, 6, 6);
             g.setColor(new Color(0xF1, 0xF5, 0xF9));
@@ -780,11 +811,11 @@ public class AdminOverview {
             // User Count
             g.setFont(AdminTheme.FONT_BOLD_11);
             g.setColor(AdminTheme.TEXT_DARK);
-            String uStr = String.format("%,d", skill.memberCount);
+            String uStr = String.format("%,d", skill.count);
             g.drawString(uStr, x + w - 65, curY + 16);
 
             // Interactive hitbox
-            skillHitboxes.add(new SkillRowHitbox(skill.name, skill.memberCount, x + 16, curY - 2, w - 32, 26));
+            skillHitboxes.add(new SkillRowHitbox(skill.name, skill.count, x + 16, curY - 2, w - 32, 26));
 
             curY += rowH;
         }
@@ -793,7 +824,7 @@ public class AdminOverview {
         int footY = y + h - 18;
         g.setFont(AdminTheme.FONT_REG_11);
         g.setColor(AdminTheme.TEXT_MUTED);
-        g.drawString("Real-time data from Categories & Skills registry · Click any skill for insights.", x + 20, footY);
+        g.drawString("Counted from student profiles · Click a skill for details.", x + 20, footY);
     }
 
     private void paintActiveTeamsCard(Graphics2D g, int x, int y, int w, int h, AdminDashboard dashboard) {
@@ -811,7 +842,7 @@ public class AdminOverview {
 
         g.setFont(AdminTheme.FONT_REG_12);
         g.setColor(AdminTheme.TEXT_LIGHT);
-        g.drawString("Sprint velocity, composition fill rates & matching dynamics", x + 20, y + 46);
+        g.drawString("Team sizes, open seats, matching requests & task progress", x + 20, y + 46);
 
         // 4 Tiles
         int gridX = x + 20;
@@ -820,24 +851,31 @@ public class AdminOverview {
         boolean stackTiles = (w < 440);
         AdminDataStore store = AdminDataStore.getInstance();
 
-        String compStr = String.format("%.1f / %d Members", store.getAverageTeamSize(), store.maxTeamSize);
+        int teamCount = store.getActiveTeamsCount();
+        String teamsStr = teamCount + (teamCount == 1 ? " Team" : " Teams");
+        String compStr = String.format("%.1f / %.1f Members", store.getAverageTeamSize(), store.getAverageTeamCapacity());
+        String reqStr = String.format("%,d Requests", store.collaborationRequests);
         String velStr = store.getSprintVelocity() + "%";
+        String teamsSub = "2+ members, project not done";
+        String compSub = store.getTeamFillRatio() + "% of seats filled";
+        String reqSub = String.format("%,d pending · %.0f%% accepted", store.getPendingCollaborationRequests(), store.getRequestAcceptanceRate());
+        String velSub = String.format("%,d of %,d tasks done", store.getTasksDone(), store.getTasksTotal());
 
         if (!stackTiles) {
             int tileW = (w - 40 - tileGap) / 2;
             int tileH = 68;
 
-            paintMicroTile(g, gridX, gridY, tileW, tileH, "ACTIVE TEAMS", store.getActiveTeamsCount() + " Teams", "In-flight sprint squads", AdminTheme.BRAND_PRIMARY);
-            paintMicroTile(g, gridX + tileW + tileGap, gridY, tileW, tileH, "AVG COMPOSITION", compStr, "84% optimal fill", AdminTheme.BRAND_SECONDARY);
-            paintMicroTile(g, gridX, gridY + tileH + tileGap, tileW, tileH, "MATCHING REQUESTS", String.format("%,d Requests", store.collaborationRequests), "+18.4% this term", AdminTheme.BRAND_AMBER);
-            paintMicroTile(g, gridX + tileW + tileGap, gridY + tileH + tileGap, tileW, tileH, "SPRINT VELOCITY", velStr, "Milestones on track", new Color(0x10, 0xB9, 0x81));
+            paintMicroTile(g, gridX, gridY, tileW, tileH, "ACTIVE TEAMS", teamsStr, teamsSub, AdminTheme.BRAND_PRIMARY);
+            paintMicroTile(g, gridX + tileW + tileGap, gridY, tileW, tileH, "AVG COMPOSITION", compStr, compSub, AdminTheme.BRAND_SECONDARY);
+            paintMicroTile(g, gridX, gridY + tileH + tileGap, tileW, tileH, "MATCHING REQUESTS", reqStr, reqSub, AdminTheme.BRAND_AMBER);
+            paintMicroTile(g, gridX + tileW + tileGap, gridY + tileH + tileGap, tileW, tileH, "TASK COMPLETION", velStr, velSub, new Color(0x10, 0xB9, 0x81));
         } else {
             int tileW = w - 40;
             int tileH = 46;
-            paintMicroTileCompact(g, gridX, gridY, tileW, tileH, "ACTIVE TEAMS", store.getActiveTeamsCount() + " Teams", AdminTheme.BRAND_PRIMARY);
+            paintMicroTileCompact(g, gridX, gridY, tileW, tileH, "ACTIVE TEAMS", teamsStr, AdminTheme.BRAND_PRIMARY);
             paintMicroTileCompact(g, gridX, gridY + (tileH + 6), tileW, tileH, "AVG COMPOSITION", compStr, AdminTheme.BRAND_SECONDARY);
-            paintMicroTileCompact(g, gridX, gridY + (tileH + 6) * 2, tileW, tileH, "MATCHING REQUESTS", String.format("%,d Requests", store.collaborationRequests), AdminTheme.BRAND_AMBER);
-            paintMicroTileCompact(g, gridX, gridY + (tileH + 6) * 3, tileW, tileH, "SPRINT VELOCITY", velStr, new Color(0x10, 0xB9, 0x81));
+            paintMicroTileCompact(g, gridX, gridY + (tileH + 6) * 2, tileW, tileH, "MATCHING REQUESTS", reqStr, AdminTheme.BRAND_AMBER);
+            paintMicroTileCompact(g, gridX, gridY + (tileH + 6) * 3, tileW, tileH, "TASK COMPLETION", velStr, new Color(0x10, 0xB9, 0x81));
         }
 
         // Capacity section
@@ -857,32 +895,36 @@ public class AdminOverview {
         int barW = w - 40;
         int barH = 10;
 
-        int totalProj = Math.max(1, store.getTotalProjectsCount());
-        float optPct = Math.min(0.85f, Math.max(0.35f, (float) store.getActiveProjectsCount() / totalProj));
-        float recPct = Math.min(0.50f, Math.max(0.10f, (float) store.getRecruitingProjectsCount() / totalProj));
-        float hvyPct = Math.max(0.04f, 1.0f - optPct - recPct);
-        int optPctInt = Math.round(optPct * 100f);
-        int recPctInt = Math.round(recPct * 100f);
-        int hvyPctInt = Math.max(1, 100 - optPctInt - recPctInt);
+        int[] dist = store.getTeamCapacityDistribution(); // {full, open seats, over limit}
+        int teamTotal = dist[0] + dist[1] + dist[2];
+        g.setColor(new Color(0xF1, 0xF5, 0xF9));
+        g.fill(new RoundRectangle2D.Float(gridX, barY, barW, barH, 4, 4));
 
-        RoundRectangle2D b1 = new RoundRectangle2D.Float(gridX, barY, Math.round(barW * optPct), barH, 4, 4);
-        g.setColor(new Color(0x10, 0xB9, 0x81)); // optimal
-        g.fill(b1);
-
-        RoundRectangle2D b2 = new RoundRectangle2D.Float(gridX + Math.round(barW * optPct), barY, Math.round(barW * recPct), barH, 4, 4);
-        g.setColor(AdminTheme.CHART_MUTED); // recruiting
-        g.fill(b2);
-
-        RoundRectangle2D b3 = new RoundRectangle2D.Float(gridX + Math.round(barW * (optPct + recPct)), barY, Math.round(barW * hvyPct), barH, 4, 4);
-        g.setColor(AdminTheme.BRAND_AMBER); // heavy
-        g.fill(b3);
+        Color[] segColors = { new Color(0x10, 0xB9, 0x81), AdminTheme.CHART_MUTED, AdminTheme.BRAND_AMBER };
+        int[] pcts = new int[3];
+        int segX = gridX;
+        for (int i = 0; i < 3; i++) {
+            pcts[i] = teamTotal == 0 ? 0 : (int) Math.round(dist[i] * 100.0 / teamTotal);
+            if (dist[i] == 0) continue;
+            int segW = Math.round(barW * dist[i] / (float) teamTotal);
+            boolean lastNonEmpty = true;
+            for (int k = i + 1; k < 3; k++) if (dist[k] > 0) lastNonEmpty = false;
+            if (lastNonEmpty) segW = gridX + barW - segX; // absorb rounding
+            g.setColor(segColors[i]);
+            g.fill(new RoundRectangle2D.Float(segX, barY, segW, barH, 4, 4));
+            segX += segW;
+        }
 
         int footY = y + h - 18;
         g.setFont(AdminTheme.FONT_REG_11);
         g.setColor(AdminTheme.TEXT_MUTED);
-        String capLegend = "■ Optimal (4-" + store.maxTeamSize + " · " + optPctInt + "%)   ■ Recruiting (1-3 · " + recPctInt + "%)   ■ Heavy (> " + store.maxTeamSize + " · " + hvyPctInt + "%)";
+        String capLegend = "■ Full (" + dist[0] + " · " + pcts[0] + "%)   ■ Open seats (" + dist[1] + " · " + pcts[1]
+                + "%)   ■ Over " + store.maxTeamSize + " members (" + dist[2] + ")";
         if (w < 440) {
-            capLegend = "■ Opt " + optPctInt + "%   ■ Rec " + recPctInt + "%   ■ Hvy " + hvyPctInt + "%";
+            capLegend = "■ Full " + dist[0] + "   ■ Open " + dist[1] + "   ■ Over " + dist[2];
+        }
+        if (teamTotal == 0) {
+            capLegend = "No active teams yet.";
         }
         g.drawString(capLegend, gridX, footY);
     }
@@ -1180,7 +1222,7 @@ public class AdminOverview {
         // 3. Popular Skills row clicks
         for (SkillRowHitbox sh : skillHitboxes) {
             if (mx >= sh.x && mx <= sh.x + sh.w && my >= sh.y && my <= sh.y + sh.h) {
-                dashboard.showToast("Skill: " + sh.name + " (" + String.format("%,d", sh.count) + " enrolled students)");
+                dashboard.showToast("Skill: " + sh.name + " (" + String.format("%,d", sh.count) + (sh.count == 1 ? " student)" : " students)"));
                 return true;
             }
         }
@@ -1224,6 +1266,21 @@ public class AdminOverview {
         }
 
         return changed;
+    }
+
+    /** Smallest "round" axis maximum (divisible into 4 integer ticks) that leaves headroom above v. */
+    static int niceAxisMax(int v) {
+        int target = Math.max(4, (int) Math.ceil(v * 1.1));
+        int[] ladderTimesTen = { 10, 12, 15, 20, 25, 30, 40, 50, 60, 80 }; // 1, 1.2, 1.5 … 8 (× magnitude)
+        long mag = 1;
+        while (true) {
+            for (int m : ladderTimesTen) {
+                if ((m * mag) % 10 != 0) continue; // tick step must be a whole number
+                long max = (m * mag / 10) * 4;
+                if (max >= target) return (int) max;
+            }
+            mag *= 10;
+        }
     }
 
     private String formatMetricVal(int v) {
