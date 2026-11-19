@@ -24,6 +24,12 @@ router.put('/me/profile', protect, s.updateProfile);
 router.put('/me/settings', protect, s.updateSettings);
 router.post('/me/skills/:name/endorse', protect, s.toggleEndorsement);
 
+router.post('/projects/:id/members/:userId/remove', protect, s.removeMember);
+router.post('/reports', protect, s.createReport);
+router.post('/users/:id/review', protect, s.createReview);
+router.post('/invitations/:id/accept', protect, s.acceptInvitation);
+router.post('/invitations/:id/decline', protect, s.declineInvitation);
+
 router.post('/notifications/read', protect, s.markNotificationsRead);
 
 module.exports = router;

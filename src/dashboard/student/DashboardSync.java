@@ -61,7 +61,7 @@ public final class DashboardSync {
         applyOverview(d, Json.map(data, "overview"), Json.list(data, "notifications"));
         applyDiscover(d, Json.maps(data, "discover"));
         applyTeammates(d, Json.maps(data, "teammates"));
-        applyMyProjects(d, Json.maps(data, "myProjects"));
+        applyMyProjects(d, Json.maps(data, "myProjects"), Json.maps(data, "invitations"));
         applyTeam(d.getTeamData(), Json.map(data, "team"));
         applyProfile(d.getProfileData(), Json.map(data, "profile"));
         applySettings(d.getSettingsData(), Json.map(data, "settings"));
@@ -169,9 +169,14 @@ public final class DashboardSync {
     private static void applyTeammates(StudentDashboard d, List<Map<String, Object>> list) {
         List<DashboardTeammates.TeammateCard> cards = new ArrayList<DashboardTeammates.TeammateCard>();
         int idx = 1;
+        String myName = d != null ? d.getProfileName() : null;
         for (Map<String, Object> t : list) {
+            String tName = Json.str(t, "name", "");
+            if (myName != null && !myName.trim().isEmpty() && myName.trim().equalsIgnoreCase(tName.trim())) {
+                continue; // Exclude logged-in user's own account
+            }
             DashboardTeammates.TeammateCard c = new DashboardTeammates.TeammateCard(
-                    idx++, Json.str(t, "name", ""), Json.str(t, "role", ""), Json.str(t, "university", ""),
+                    idx++, tName, Json.str(t, "role", ""), Json.str(t, "university", ""),
                     Json.str(t, "initials", "TU"), color(t, "avatarBg"), color(t, "avatarFg"),
                     Json.str(t, "availability", ""), Json.num(t, "rating", 0), Json.integer(t, "reviews", 0),
                     Json.strings(t, "skills"), Json.integer(t, "matchPct", 0) + "% skill match",
@@ -185,7 +190,7 @@ public final class DashboardSync {
         d.getTeammatesView().setTeammates(cards);
     }
 
-    private static void applyMyProjects(StudentDashboard d, List<Map<String, Object>> list) {
+    private static void applyMyProjects(StudentDashboard d, List<Map<String, Object>> list, List<Map<String, Object>> invList) {
         List<DashboardMyProjects.MyProjectCard> cards = new ArrayList<DashboardMyProjects.MyProjectCard>();
         int idx = 1;
         for (Map<String, Object> p : list) {
@@ -199,8 +204,11 @@ public final class DashboardSync {
             c.remoteId = Json.str(p, "id", null);
             c.isArchived = Json.bool(p, "archived", false);
             for (Map<String, Object> m : Json.maps(p, "members")) {
-                c.members.add(new DashboardMyProjects.MemberAvatar(Json.str(m, "initials", "TU"), Json.str(m, "name", ""),
-                        Json.str(m, "role", ""), color(m, "bg"), color(m, "fg")));
+                DashboardMyProjects.MemberAvatar mem = new DashboardMyProjects.MemberAvatar(
+                        Json.str(m, "initials", "TU"), Json.str(m, "name", ""),
+                        Json.str(m, "role", ""), color(m, "bg"), color(m, "fg"),
+                        Json.integer(m, "progress", 0), Json.str(m, "id", ""));
+                c.members.add(mem);
             }
             for (Map<String, Object> t : Json.maps(p, "tasks")) {
                 DashboardMyProjects.ProjectTask task = new DashboardMyProjects.ProjectTask(
@@ -213,11 +221,43 @@ public final class DashboardSync {
                         Json.str(k, "name", ""), Json.str(k, "role", ""), Json.str(k, "initials", "TU"),
                         color(k, "bg"), color(k, "fg"), Json.str(k, "matchPct", ""));
                 cand.remoteId = Json.str(k, "id", null);
+                cand.userId = Json.str(k, "userId", "");
+                cand.headline = Json.str(k, "headline", "");
+                cand.university = Json.str(k, "university", "");
+                cand.department = Json.str(k, "department", "");
+                cand.bio = Json.str(k, "bio", "");
+                cand.portfolio = Json.str(k, "portfolio", "");
+                cand.github = Json.str(k, "github", "");
+                cand.skills.addAll(Arrays.asList(Json.strings(k, "skills")));
+                cand.message = Json.str(k, "message", "");
                 c.candidates.add(cand);
             }
             cards.add(c);
         }
+
+        List<DashboardMyProjects.ProjectInvitation> invs = new ArrayList<DashboardMyProjects.ProjectInvitation>();
+        if (invList != null) {
+            for (Map<String, Object> invMap : invList) {
+                DashboardMyProjects.ProjectInvitation pi = new DashboardMyProjects.ProjectInvitation(
+                        Json.str(invMap, "id", ""),
+                        Json.str(invMap, "projectId", ""),
+                        Json.str(invMap, "projectTitle", "Project Invitation"),
+                        Json.str(invMap, "category", "General"),
+                        Json.str(invMap, "projectDesc", ""),
+                        Json.str(invMap, "fromId", ""),
+                        Json.str(invMap, "fromName", "Teammate"),
+                        Json.str(invMap, "fromHeadline", ""),
+                        Json.str(invMap, "fromUniversity", ""),
+                        color(invMap, "fromBg"),
+                        color(invMap, "fromFg"),
+                        Json.str(invMap, "date", "recently")
+                );
+                invs.add(pi);
+            }
+        }
+
         d.getMyProjectsView().setProjects(cards);
+        d.getMyProjectsView().setInvitations(invs);
     }
 
     private static void applyTeam(TeamWorkspaceData td, Map<String, Object> t) {
@@ -524,6 +564,51 @@ public final class DashboardSync {
 
     public static void markNotificationsRead(StudentDashboard d) {
         submit(d, () -> ApiClient.post("/notifications/read", Json.obj()), null, false, false);
+    }
+
+    public static void removeMember(StudentDashboard d, final String projectId, final String userId) {
+        if (projectId == null || userId == null) return;
+        submit(d, () -> ApiClient.post("/projects/" + projectId + "/members/" + userId + "/remove", Json.obj()),
+                null, false, true);
+    }
+
+    public static void submitReport(StudentDashboard d, String title, String category, String description, String severity, String reportedUserId) {
+        final Map<String, Object> body = Json.obj(
+                "title", title,
+                "category", category,
+                "description", description,
+                "severity", severity,
+                "reportedUserId", reportedUserId != null ? reportedUserId : ""
+        );
+        submit(d, () -> ApiClient.post("/reports", body), null, false, false);
+    }
+
+    public static void submitReview(StudentDashboard d, String userId, int rating, String feedback, String projectId) {
+        if (userId == null) return;
+        final Map<String, Object> body = Json.obj(
+                "rating", rating,
+                "feedback", feedback,
+                "projectId", projectId != null ? projectId : ""
+        );
+        submit(d, () -> ApiClient.post("/users/" + userId + "/review", body), null, false, true);
+    }
+
+    public static void sendProjectInvite(StudentDashboard d, final String userId, final String projectId) {
+        if (userId == null) return;
+        submit(d, () -> ApiClient.post("/users/" + userId + "/invite", Json.obj("active", true, "projectId", projectId)),
+                null, false, false);
+    }
+
+    public static void acceptInvitation(StudentDashboard d, final String invitationId) {
+        if (invitationId == null) return;
+        submit(d, () -> ApiClient.post("/invitations/" + invitationId + "/accept", Json.obj()),
+                null, false, true);
+    }
+
+    public static void declineInvitation(StudentDashboard d, final String invitationId) {
+        if (invitationId == null) return;
+        submit(d, () -> ApiClient.post("/invitations/" + invitationId + "/decline", Json.obj()),
+                null, false, false);
     }
 
     // =========================================================================

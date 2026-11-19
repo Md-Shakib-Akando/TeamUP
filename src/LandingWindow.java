@@ -74,6 +74,7 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
                     dashboard.getProfileData().name = user.name;
                     dashboard.getProfileData().email = user.email;
                     dashboard.setProfileName(user.name);
+                    dashboard.setActiveNav(StudentDashboard.NavItem.OVERVIEW);
                     // Pull this user's projects, tasks, teammates... from MongoDB
                     dashboard.loadFromServer();
                     openDashboard();
@@ -404,6 +405,7 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
     @Override
     public void openDashboard() {
         this.showDashboard = true;
+        dashboard.setActiveNav(StudentDashboard.NavItem.OVERVIEW);
         this.canvas.requestFocus();
     }
 
@@ -419,6 +421,8 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
     public void switchToStudentDashboard() {
         this.showAdminDashboard = false;
         this.showDashboard = true;
+        dashboard.setActiveNav(StudentDashboard.NavItem.OVERVIEW);
+        dashboard.loadFromServer();
         this.canvas.requestFocus();
     }
 

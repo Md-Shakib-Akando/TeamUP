@@ -154,10 +154,6 @@ public class DashboardSidebar {
                 g.drawRoundRect(x, y + 3, size - 2, size - 5, 3, 3);
                 g.drawLine(x, y + 6, x + 6, y + 6);
                 break;
-            case MY_TEAMS:
-                g.drawOval(x + 5, y + 1, 6, 6);
-                g.drawArc(x + 2, y + 9, 12, 7, 0, 180);
-                break;
             case MY_PROFILE:
                 g.drawOval(x + 4, y + 1, 8, 8);
                 g.drawArc(x + 1, y + 10, 14, 6, 0, 180);
