@@ -96,6 +96,24 @@ set TEAMUP_API_URL=http://localhost:5050/api
 run.bat
 ```
 
+#### 📦 Packaging Standalone Desktop App (Installer & Portable)
+
+To package TeamUp as a standalone Windows desktop app (bundles its own lightweight JRE, zero Java install required by end users):
+
+```cmd
+package.bat
+```
+
+Outputs generated in `dist/`:
+- **`dist\TeamUp\TeamUp.exe`**: Standalone portable Windows desktop application.
+- **`dist\TeamUp-Windows-x64.zip`**: Portable distribution zip archive ready to share.
+- **`dist\TeamUp.jar`**: Universal executable JAR.
+
+On macOS / Linux:
+```bash
+./package.sh
+```
+
 #### Direct Compilation & Execution:
 
 ```bash

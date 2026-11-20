@@ -4,6 +4,7 @@ jdk/
 # Compiled Java bytecode
 bin/
 out/
+dist/
 *.class
 **/*.class
 

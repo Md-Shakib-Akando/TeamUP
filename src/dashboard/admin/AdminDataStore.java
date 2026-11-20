@@ -652,7 +652,7 @@ public class AdminDataStore {
                     u.id, u.name, u.email, u.role, u.joined, u.status));
         }
         try {
-            java.io.File file = new java.io.File("teamup_users_export.csv");
+            java.io.File file = AppPaths.exportFile("teamup_users_export.csv");
             java.io.FileWriter writer = new java.io.FileWriter(file);
             writer.write(sb.toString());
             writer.close();
@@ -853,7 +853,7 @@ public class AdminDataStore {
                     (p.description != null ? p.description.replace("\"", "\"\"") : "")));
         }
         try {
-            java.io.File file = new java.io.File("teamup_projects_export.csv");
+            java.io.File file = AppPaths.exportFile("teamup_projects_export.csv");
             java.io.FileWriter writer = new java.io.FileWriter(file);
             writer.write(sb.toString());
             writer.close();
@@ -1302,7 +1302,7 @@ public class AdminDataStore {
                     (r.reviewText != null ? r.reviewText.replace("\"", "\"\"") : "")));
         }
         try {
-            java.io.File file = new java.io.File("teamup_reviews_export.csv");
+            java.io.File file = AppPaths.exportFile("teamup_reviews_export.csv");
             java.io.FileWriter writer = new java.io.FileWriter(file);
             writer.write(sb.toString());
             writer.close();
@@ -1665,7 +1665,7 @@ public class AdminDataStore {
         }
 
         try {
-            java.io.File file = new java.io.File("teamup_analytics_report.csv");
+            java.io.File file = AppPaths.exportFile("teamup_analytics_report.csv");
             java.io.FileWriter writer = new java.io.FileWriter(file);
             writer.write(sb.toString());
             writer.close();
@@ -1767,7 +1767,7 @@ public class AdminDataStore {
 
     public synchronized String createDatabaseBackup() {
         try {
-            java.io.File dir = new java.io.File("backups");
+            java.io.File dir = AppPaths.backupsDir();
             if (!dir.exists())
                 dir.mkdirs();
             String timestamp = new java.text.SimpleDateFormat("yyyyMMdd_HHmmss").format(new java.util.Date());
@@ -1799,7 +1799,7 @@ public class AdminDataStore {
 
     public synchronized String exportAllPlatformData() {
         try {
-            java.io.File exportFile = new java.io.File("teamup_platform_full_export.json");
+            java.io.File exportFile = AppPaths.exportFile("teamup_platform_full_export.json");
             StringBuilder sb = new StringBuilder();
             sb.append("{\n");
             sb.append("  \"exportTimestamp\": \"").append(new java.util.Date()).append("\",\n");

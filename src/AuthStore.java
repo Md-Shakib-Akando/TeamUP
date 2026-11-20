@@ -34,7 +34,7 @@ import javax.crypto.spec.PBEKeySpec;
  */
 public class AuthStore {
 
-    private static final Path DATA_DIR = Paths.get("data");
+    private static final Path DATA_DIR = AppPaths.dataDir().toPath(); // %APPDATA%\TeamUp\data when installed
     private static final Path USERS_PATH = DATA_DIR.resolve("users.csv");
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
     private static final Object LOCK = new Object();

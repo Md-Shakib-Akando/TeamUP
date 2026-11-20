@@ -14,7 +14,7 @@ import java.util.regex.Pattern;
  */
 public class LeadStore {
 
-    private static final Path DATA_DIR = Paths.get("data");
+    private static final Path DATA_DIR = AppPaths.dataDir().toPath(); // %APPDATA%\TeamUp\data when installed
     private static final Path CSV_PATH = DATA_DIR.resolve("leads.csv");
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
             "^[A-Za-z0-9_+%-]+(\\.[A-Za-z0-9_+%-]+)*@[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)*\\.[A-Za-z]{2,}$"
