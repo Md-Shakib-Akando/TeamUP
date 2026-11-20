@@ -99,6 +99,8 @@ npm run dev
 | `POST` | `/api/auth/login` | ইউজার লগইন ও JWT টোকেন ইস্যু | Public |
 | `GET` | `/api/auth/me` | বর্তমান লগইন করা ইউজারের প্রোফাইল | Private (JWT Bearer) |
 | `GET` | `/api/auth/users` | সমস্ত রেজিস্ট্রেশন করা ইউজারের লিস্ট | Admin (JWT) |
+| `GET` | `/api/platform-stats` | Landing page numbers: verified members, active teams (2+ members), match accuracy, ghosting rate | Public |
+| `GET` | `/api/match-demo` | Landing "See matching in real time": public student profiles (shortened names), most requested skills | Public |
 | `GET` | `/api/admin/bootstrap` | পুরো Admin Dashboard ডাটা + `stats` (Overview analytics) | Admin panel |
 | `GET` | `/api/admin/overview` | শুধু Overview analytics — users, monthly growth, project lifecycle, success rate, active teams, requests, tasks, top skills (সব MongoDB থেকে হিসাব করা) | Admin panel |
 

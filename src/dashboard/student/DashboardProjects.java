@@ -1245,7 +1245,19 @@ public class DashboardProjects {
 
     public void setSearchKeyword(String kw) {
         this.searchKeyword = kw;
+        this.currentPage = 1;
         applyFilters();
+    }
+
+    /** Every project loaded on the Discover page (read-only) — used by the header search. */
+    public List<ProjectCard> getAllProjects() {
+        return Collections.unmodifiableList(allProjects);
+    }
+
+    /** Opens the project details modal for a card (same as clicking "View details"). */
+    public void openDetails(ProjectCard p, StudentDashboard dashboard) {
+        dashboard.setSelectedProject(toProjectItem(p));
+        dashboard.openModal(StudentDashboard.ActiveModal.PROJECT_DETAILS);
     }
 }
 

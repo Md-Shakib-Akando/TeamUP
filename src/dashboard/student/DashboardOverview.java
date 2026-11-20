@@ -1,11 +1,10 @@
 import java.awt.*;
-import java.awt.geom.Path2D;
 import java.awt.geom.RoundRectangle2D;
 import java.util.List;
 
 /**
  * Handles the main scrollable overview content for TeamUp Student Dashboard.
- * Includes Hero welcome, profile completion banner, 4 stat cards, recommended projects,
+ * Includes the welcome heading, 4 stat cards, recommended projects,
  * suggested teammates, recent activity, and upcoming deadlines.
  */
 public class DashboardOverview {
@@ -13,9 +12,6 @@ public class DashboardOverview {
     // Hitboxes
     private int createProjBtnX, createProjBtnY, createProjBtnW, createProjBtnH;
     private boolean createProjBtnHovered = false;
-
-    private int compProfileBtnX, compProfileBtnY, compProfileBtnW, compProfileBtnH;
-    private boolean compProfileBtnHovered = false;
 
     private int findTeammatesBtnX, findTeammatesBtnY, findTeammatesBtnW, findTeammatesBtnH;
     private boolean findTeammatesBtnHovered = false;
@@ -42,10 +38,6 @@ public class DashboardOverview {
         g.setColor(DashboardTheme.TEXT_DARK);
         g.drawString("Welcome back, " + dashboard.getFirstName() + "!", startX + padX, curY + 26);
 
-        g.setFont(DashboardTheme.FONT_REG_13);
-        g.setColor(DashboardTheme.TEXT_MUTED);
-        g.drawString("A little progress, a great team. Here's what's happening today.", startX + padX, curY + 48);
-
         // "+ Create Project" Primary Pill Button
         createProjBtnW = 136;
         createProjBtnH = 38;
@@ -61,75 +53,7 @@ public class DashboardOverview {
 
         curY += 72;
 
-        // 2. Profile Completion Banner Card
-        int bannerH = 72;
-        RoundRectangle2D bannerShape = new RoundRectangle2D.Float(startX + padX, curY, contentW, bannerH, 14, 14);
-        g.setColor(new Color(0xFD, 0xEE, 0xF4)); // single accent tint, no gradient
-        g.fill(bannerShape);
-        g.setColor(new Color(0xFC, 0xD6, 0xE6));
-        g.setStroke(new BasicStroke(1.2f));
-        g.draw(bannerShape);
-
-        // Sparkle icon
-        int spX = startX + padX + 16;
-        int spY = curY + 16;
-        int spSize = 38;
-        g.setColor(Color.WHITE);
-        g.fillOval(spX, spY, spSize, spSize);
-        g.setColor(new Color(0xFC, 0xD6, 0xE6));
-        g.drawOval(spX, spY, spSize, spSize);
-        g.setColor(DashboardTheme.BRAND_PURPLE);
-        drawSparkle(g, spX + 13, spY + 13, 12);
-
-        // Banner text
-        int pct = dashboard.getProfileCompletePercent();
-        g.setFont(DashboardTheme.FONT_BOLD_13);
-        g.setColor(DashboardTheme.TEXT_DARK);
-        String bTitle = (pct >= 100) ? "✓ Great profile! You're ready to get discovered." : "Great teammates start with a great profile.";
-        g.drawString(bTitle, spX + 50, curY + 30);
-
-        g.setFont(DashboardTheme.FONT_REG_12);
-        g.setColor(DashboardTheme.TEXT_MUTED);
-        String bSub = (pct >= 100) ? "Your portfolio and skills are live. Recruiters can view your card." : "Add your portfolio to help people see what you can build.";
-        g.drawString(bSub, spX + 50, curY + 48);
-
-        // Progress bar
-        int progW = 100;
-        int progH = 6;
-        int progX = startX + padX + contentW - 270;
-        int progY = curY + 36;
-
-        g.setFont(DashboardTheme.FONT_BOLD_11);
-        g.setColor(DashboardTheme.BRAND_PURPLE);
-        g.drawString(pct + "% complete", progX, curY + 26);
-
-        RoundRectangle2D progTrack = new RoundRectangle2D.Float(progX, progY, progW, progH, progH, progH);
-        g.setColor(new Color(0xFC, 0xD6, 0xE6));
-        g.fill(progTrack);
-        RoundRectangle2D progFill = new RoundRectangle2D.Float(progX, progY, Math.round(progW * (pct / 100f)), progH, progH, progH);
-        g.setColor(DashboardTheme.BRAND_PURPLE);
-        g.fill(progFill);
-
-        // "Complete profile ->" button
-        compProfileBtnW = 142;
-        compProfileBtnH = 34;
-        compProfileBtnX = startX + padX + contentW - compProfileBtnW - 16;
-        compProfileBtnY = curY + (bannerH - compProfileBtnH) / 2;
-        RoundRectangle2D cpBtnShape = new RoundRectangle2D.Float(compProfileBtnX, compProfileBtnY, compProfileBtnW, compProfileBtnH, compProfileBtnH, compProfileBtnH);
-        g.setColor(compProfileBtnHovered ? new Color(0xF8, 0xFA, 0xFC) : Color.WHITE);
-        g.fill(cpBtnShape);
-        g.setColor(new Color(0xD1, 0xD5, 0xDB));
-        g.setStroke(new BasicStroke(1.2f));
-        g.draw(cpBtnShape);
-
-        g.setFont(DashboardTheme.FONT_BOLD_12);
-        g.setColor(DashboardTheme.TEXT_DARK);
-        String cpText = (pct >= 100) ? "Edit profile →" : "Complete profile →";
-        g.drawString(cpText, compProfileBtnX + 16, compProfileBtnY + 21);
-
-        curY += bannerH + 20;
-
-        // 3. Stat Cards Row (4 cards with real counts)
+        // 2. Stat Cards Row (4 cards with real counts)
         int statGap = 16;
         int statW = (contentW - statGap * 3) / 4;
         int statH = 116;
@@ -576,28 +500,11 @@ public class DashboardOverview {
         }
     }
 
-    private void drawSparkle(Graphics2D g, int cx, int cy, int size) {
-        Path2D.Float p = new Path2D.Float();
-        p.moveTo(cx, cy - size);
-        p.quadTo(cx, cy, cx + size, cy);
-        p.quadTo(cx, cy, cx, cy + size);
-        p.quadTo(cx, cy, cx - size, cy);
-        p.quadTo(cx, cy, cx, cy - size);
-        g.fill(p);
-    }
-
     public boolean onClick(int mx, int my, StudentDashboard dashboard) {
         // "+ Create Project" button (Primary)
         if (mx >= createProjBtnX && mx <= createProjBtnX + createProjBtnW &&
                 my >= createProjBtnY && my <= createProjBtnY + createProjBtnH) {
             dashboard.openModal(StudentDashboard.ActiveModal.CREATE_PROJECT);
-            return true;
-        }
-
-        // "Complete profile ->" banner button
-        if (mx >= compProfileBtnX && mx <= compProfileBtnX + compProfileBtnW &&
-                my >= compProfileBtnY && my <= compProfileBtnY + compProfileBtnH) {
-            dashboard.openModal(StudentDashboard.ActiveModal.COMPLETE_PROFILE);
             return true;
         }
 
@@ -691,17 +598,12 @@ public class DashboardOverview {
                 my >= createProjBtnY && my <= createProjBtnY + createProjBtnH);
         if (createProjBtnHovered != p2) changed = true;
 
-        boolean p4 = compProfileBtnHovered;
-        compProfileBtnHovered = (mx >= compProfileBtnX && mx <= compProfileBtnX + compProfileBtnW &&
-                my >= compProfileBtnY && my <= compProfileBtnY + compProfileBtnH);
-        if (compProfileBtnHovered != p4) changed = true;
-
         boolean p5 = findTeammatesBtnHovered;
         findTeammatesBtnHovered = (mx >= findTeammatesBtnX && mx <= findTeammatesBtnX + findTeammatesBtnW &&
                 my >= findTeammatesBtnY && my <= findTeammatesBtnY + findTeammatesBtnH);
         if (findTeammatesBtnHovered != p5) changed = true;
 
-        return changed || createProjBtnHovered || compProfileBtnHovered || findTeammatesBtnHovered;
+        return changed || createProjBtnHovered || findTeammatesBtnHovered;
     }
 }
 

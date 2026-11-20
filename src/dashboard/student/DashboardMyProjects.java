@@ -332,6 +332,23 @@ public class DashboardMyProjects {
         return totalContentHeight;
     }
 
+    /** All of the user's projects (read-only) — used by the header search. */
+    public List<MyProjectCard> getAllProjects() {
+        return Collections.unmodifiableList(allProjects);
+    }
+
+    /** Filters My Projects by a keyword (shows the "All projects" tab). */
+    public void setSearchKeyword(String kw) {
+        searchKeyword = kw == null ? "" : kw;
+        selectedTab = 0;
+        applyFilters();
+    }
+
+    /** True while a full-screen overlay (Manage team / task board / candidate profile) covers the page. */
+    public boolean hasOverlay() {
+        return activeSubModal != SubModal.NONE;
+    }
+
     // =========================================================================
     // PAINTING METHODS
     // =========================================================================
