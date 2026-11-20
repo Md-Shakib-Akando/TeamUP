@@ -1381,7 +1381,24 @@ public class DashboardTeammates {
 
     public void setSearchKeyword(String kw) {
         this.searchKeyword = kw;
+        this.currentPage = 1;
         applyFilters();
+    }
+
+    /** Every teammate loaded on Find Teammates (read-only) — used by the header search. */
+    public List<TeammateCard> getAllTeammates() {
+        return Collections.unmodifiableList(allTeammates);
+    }
+
+    /** Opens the profile modal for a teammate (same as clicking "View profile"). */
+    public void openProfile(TeammateCard tm) {
+        activeDropdown = DropdownType.NONE;
+        activeProfileTeammate = tm;
+    }
+
+    /** True while a full-screen overlay (the profile modal) covers the page. */
+    public boolean hasOverlay() {
+        return activeProfileTeammate != null;
     }
 
     private void handleInviteTeammate(StudentDashboard dashboard, TeammateCard tm) {

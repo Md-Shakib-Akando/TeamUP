@@ -234,7 +234,7 @@ public class StudentDashboard {
     // =========================================================================
     // HITBOXES - SETTINGS (4 TABS)
     // =========================================================================
-    private final Rectangle[] settingsTabBounds = new Rectangle[4];
+    private final Rectangle[] settingsTabBounds = new Rectangle[SettingsData.SettingsTab.values().length];
     private int hoveredSettingsTab = -1;
 
     // Tab 1: Account
@@ -259,22 +259,6 @@ public class StudentDashboard {
     private final Rectangle cancelPrivacyBtnBox = new Rectangle();
     private boolean cancelPrivacyHovered = false;
 
-    // Tab 3: Collaboration Preferences
-    private final List<Rectangle> catRemoveBounds = new ArrayList<Rectangle>();
-    private final Rectangle addCatBox = new Rectangle();
-    private final Rectangle checkFrontendBox = new Rectangle();
-    private final Rectangle checkUiBox = new Rectangle();
-    private final Rectangle checkBackendBox = new Rectangle();
-    private final Rectangle checkLeadBox = new Rectangle();
-    private final Rectangle availDropdown = new Rectangle();
-    private final Rectangle commitDropdown = new Rectangle();
-    private final Rectangle modeRemoteBox = new Rectangle();
-    private final Rectangle modeInPersonBox = new Rectangle();
-    private final Rectangle modeEitherBox = new Rectangle();
-    private final Rectangle saveCollabBtnBox = new Rectangle();
-    private boolean saveCollabHovered = false;
-    private final Rectangle cancelCollabBtnBox = new Rectangle();
-    private boolean cancelCollabHovered = false;
 
     // Tab 4: Danger Zone
     private final Rectangle deactivateBtnBox = new Rectangle();
@@ -1041,56 +1025,7 @@ public class StudentDashboard {
     private int paintProfileOverviewSidebar(Graphics2D g, int x, int y, int w) {
         int cy = y;
 
-        // 1. Profile strength
-        List<String> missing = missingProfileItems();
-        int strength = profileStrength();
-        int shownMissing = Math.min(3, missing.size());
-        int cardH = 104 + (strength < 100 ? shownMissing * 24 + 50 : 22);
-        drawProfileCard(g, x, cy, w, cardH, 14);
-        g.setFont(PF_SECTION);
-        g.setColor(TEXT_DARK);
-        g.drawString("Profile strength", x + 20, cy + 32);
-        g.setFont(PF_BOLD_13);
-        g.setColor(strength >= 80 ? SUCCESS_GREEN : BRAND_ACCENT);
-        String pct = strength + "%";
-        g.drawString(pct, x + w - 20 - g.getFontMetrics().stringWidth(pct), cy + 32);
-        g.setFont(PF_REG_12);
-        g.setColor(TEXT_MUTED);
-        g.drawString(strength >= 100 ? "All set — teams can see everything." : strengthLabel(strength), x + 20, cy + 54);
-        int barY = cy + 70;
-        g.setColor(new Color(0xF1, 0xEF, 0xEA));
-        g.fill(new RoundRectangle2D.Float(x + 20, barY, w - 40, 8, 8, 8));
-        g.setColor(strength >= 80 ? SUCCESS_GREEN : BRAND_ACCENT);
-        g.fill(new RoundRectangle2D.Float(x + 20, barY, Math.max(8, (w - 40) * strength / 100), 8, 8, 8));
-        int ly = barY + 34;
-        if (strength < 100) {
-            g.setFont(PF_REG_12);
-            for (int i = 0; i < shownMissing; i++) {
-                g.setColor(BORDER_COLOR);
-                g.setStroke(new BasicStroke(1.4f));
-                g.drawOval(x + 20, ly - 10, 12, 12);
-                g.setColor(TEXT_DARK);
-                g.drawString(missing.get(i), x + 40, ly);
-                ly += 24;
-            }
-            int bw = w - 40;
-            completeProfileBtnBox.setBounds(x + 20, ly - 6, bw, 34);
-            RoundRectangle2D btn = new RoundRectangle2D.Float(x + 20, ly - 6, bw, 34, 10, 10);
-            g.setColor(completeProfileHovered ? BRAND_TINT_BG : Color.WHITE);
-            g.fill(btn);
-            g.setColor(BRAND_TINT_BORDER);
-            g.draw(btn);
-            g.setFont(PF_BOLD_12);
-            g.setColor(BRAND_ACCENT);
-            String bt = "Complete your profile";
-            g.drawString(bt, x + 20 + (bw - g.getFontMetrics().stringWidth(bt)) / 2, ly + 15);
-        } else {
-            drawCheckCircle(g, x + 29, ly - 8);
-            g.setFont(PF_BOLD_12);
-            g.setColor(SUCCESS_GREEN);
-            g.drawString("Profile complete", x + 44, ly - 4);
-        }
-        cy += cardH + 16;
+       
 
         // 2. Top skills
         List<Integer> order = new ArrayList<Integer>();
@@ -1737,7 +1672,7 @@ public class StudentDashboard {
 
         g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
         g.setColor(TEXT_MUTED);
-        g.drawString("Manage your account and collaboration preferences.", startX + padX, titleY + 22);
+        g.drawString("Manage your account, profile privacy and security.", startX + padX, titleY + 22);
 
         curY += 68;
 
@@ -1756,9 +1691,6 @@ public class StudentDashboard {
                 break;
             case PROFILE_PRIVACY:
                 rightBottomY = paintProfilePrivacyTab(g, rightX, curY, rightW);
-                break;
-            case COLLAB_PREFERENCES:
-                rightBottomY = paintCollabPreferencesTab(g, rightX, curY, rightW);
                 break;
             case DANGER_ZONE:
                 rightBottomY = paintDangerZoneTab(g, rightX, curY, rightW);
@@ -1801,7 +1733,7 @@ public class StudentDashboard {
             Color iconCol = isSel ? BRAND_ACCENT : TEXT_MUTED;
             Color textCol = isSel ? BRAND_ACCENT : TEXT_DARK;
 
-            drawSettingsTabIcon(g, i, itemX + 12, curY + 12, iconCol);
+            drawSettingsTabIcon(g, tab, itemX + 12, curY + 12, iconCol);
 
             g.setFont(new Font(Font.SANS_SERIF, isSel ? Font.BOLD : Font.PLAIN, 12));
             g.setColor(textCol);
@@ -1811,20 +1743,16 @@ public class StudentDashboard {
         }
     }
 
-    private void drawSettingsTabIcon(Graphics2D g, int tabIndex, int x, int y, Color c) {
+    /** Icon per settings tab (chosen by the tab, so removing or reordering tabs keeps the right icon). */
+    private void drawSettingsTabIcon(Graphics2D g, SettingsData.SettingsTab tab, int x, int y, Color c) {
         g.setColor(c);
         g.setStroke(new BasicStroke(1.4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-        if (tabIndex == 0) {
+        if (tab == SettingsData.SettingsTab.ACCOUNT) {
             g.drawOval(x + 3, y, 6, 6);
             g.drawArc(x, y + 7, 12, 7, 0, 180);
-        } else if (tabIndex == 1) {
+        } else if (tab == SettingsData.SettingsTab.PROFILE_PRIVACY) {
             g.drawOval(x + 1, y + 2, 12, 8);
             g.drawOval(x + 5, y + 4, 4, 4);
-        } else if (tabIndex == 2) {
-            g.drawOval(x + 2, y + 1, 4, 4);
-            g.drawArc(x, y + 6, 8, 5, 0, 180);
-            g.drawOval(x + 8, y + 4, 4, 4);
-            g.drawArc(x + 6, y + 9, 8, 5, 0, 180);
         } else {
             Path2D.Float p = new Path2D.Float();
             p.moveTo(x + 6, y);
@@ -2159,212 +2087,6 @@ public class StudentDashboard {
         int knobY = b.y + 2;
         g.setColor(Color.WHITE);
         g.fillOval(knobX, knobY, knobSize, knobSize);
-    }
-
-    private int paintCollabPreferencesTab(Graphics2D g, int x, int y, int w) {
-        int curY = y;
-        int cardH = 520;
-        catRemoveBounds.clear();
-
-        RoundRectangle2D card = new RoundRectangle2D.Float(x, curY, w, cardH, 14, 14);
-        g.setColor(Color.WHITE);
-        g.fill(card);
-        g.setColor(BORDER_COLOR);
-        g.draw(card);
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 16));
-        g.setColor(TEXT_DARK);
-        g.drawString("Collaboration Preferences", x + 24, curY + 30);
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
-        g.setColor(TEXT_MUTED);
-        g.drawString("Help us connect you with projects that fit your interests and schedule.", x + 24, curY + 48);
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
-        g.setColor(TEXT_DARK);
-        g.drawString("Project categories", x + 24, curY + 76);
-
-        int chipX = x + 24;
-        int chipY = curY + 86;
-        for (int i = 0; i < settingsData.categories.size(); i++) {
-            String cat = settingsData.categories.get(i);
-            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
-            int tw = g.getFontMetrics().stringWidth(cat);
-            int chipW = tw + 28;
-            int chipH = 24;
-
-            RoundRectangle2D chip = new RoundRectangle2D.Float(chipX, chipY, chipW, chipH, 6, 6);
-            g.setColor(BRAND_TINT_BG);
-            g.fill(chip);
-            g.setColor(BRAND_TINT_BORDER);
-            g.draw(chip);
-
-            g.setColor(BRAND_ACCENT);
-            g.drawString(cat, chipX + 8, chipY + 16);
-            g.drawString("×", chipX + tw + 14, chipY + 16);
-
-            catRemoveBounds.add(new Rectangle(chipX, chipY, chipW, chipH));
-            chipX += chipW + 10;
-        }
-
-        int addY = chipY + 36;
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
-        g.setColor(TEXT_DARK);
-        g.drawString("Add a category", x + 24, addY + 12);
-
-        int fullInputW = w - 48;
-        addCatBox.setBounds(x + 24, addY + 20, fullInputW, 36);
-        RoundRectangle2D addCatShape = new RoundRectangle2D.Float(addCatBox.x, addCatBox.y, addCatBox.width,
-                addCatBox.height, 8, 8);
-        g.setColor(Color.WHITE);
-        g.fill(addCatShape);
-        g.setColor(BORDER_COLOR);
-        g.draw(addCatShape);
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
-        g.setColor(TEXT_MUTED);
-        g.drawString("Search project categories...", addCatBox.x + 14, addCatBox.y + 22);
-        Draw.drawChevronDown(g, addCatBox.x + addCatBox.width - 24, addCatBox.y + 14, 8, TEXT_MUTED, 0f);
-
-        int rolesY = addCatBox.y + 50;
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
-        g.setColor(TEXT_DARK);
-        g.drawString("Preferred roles", x + 24, rolesY + 12);
-
-        int row1Y = rolesY + 24;
-        int halfW = (w - 48) / 2;
-
-        checkFrontendBox.setBounds(x + 24, row1Y, 18, 18);
-        paintCheckbox(g, checkFrontendBox, settingsData.roleFrontendDev, "Frontend Developer");
-
-        checkUiBox.setBounds(x + 24 + halfW, row1Y, 18, 18);
-        paintCheckbox(g, checkUiBox, settingsData.roleUiDev, "UI Developer");
-
-        int row2Y = row1Y + 28;
-        checkBackendBox.setBounds(x + 24, row2Y, 18, 18);
-        paintCheckbox(g, checkBackendBox, settingsData.roleBackendDev, "Backend Developer");
-
-        checkLeadBox.setBounds(x + 24 + halfW, row2Y, 18, 18);
-        paintCheckbox(g, checkLeadBox, settingsData.roleProjectLead, "Project Lead");
-
-        int ddY = row2Y + 36;
-        int ddW = (w - 48 - 16) / 2;
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
-        g.setColor(TEXT_DARK);
-        g.drawString("Weekly availability", x + 24, ddY + 12);
-        availDropdown.setBounds(x + 24, ddY + 20, ddW, 36);
-        paintDropdownInput(g, availDropdown, settingsData.weeklyAvailability);
-
-        g.drawString("Preferred commitment", x + 24 + ddW + 16, ddY + 12);
-        commitDropdown.setBounds(x + 24 + ddW + 16, ddY + 20, ddW, 36);
-        paintDropdownInput(g, commitDropdown, settingsData.preferredCommitment);
-
-        int collabY = ddY + 70;
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
-        g.setColor(TEXT_DARK);
-        g.drawString("How would you like to collaborate?", x + 24, collabY + 12);
-
-        int segW = w - 48;
-        int segH = 38;
-        int segX = x + 24;
-        int segY = collabY + 20;
-
-        RoundRectangle2D segBg = new RoundRectangle2D.Float(segX, segY, segW, segH, 8, 8);
-        g.setColor(BG_CANVAS);
-        g.fill(segBg);
-        g.setColor(BORDER_COLOR);
-        g.draw(segBg);
-
-        int itemSegW = (segW - 8) / 3;
-        modeRemoteBox.setBounds(segX + 4, segY + 4, itemSegW, segH - 8);
-        paintSegmentItem(g, modeRemoteBox, "Remote", settingsData.collabMode == SettingsData.CollabMode.REMOTE);
-
-        modeInPersonBox.setBounds(segX + 4 + itemSegW, segY + 4, itemSegW, segH - 8);
-        paintSegmentItem(g, modeInPersonBox, "In person", settingsData.collabMode == SettingsData.CollabMode.IN_PERSON);
-
-        modeEitherBox.setBounds(segX + 4 + itemSegW * 2, segY + 4, itemSegW, segH - 8);
-        paintSegmentItem(g, modeEitherBox, "Either works", settingsData.collabMode == SettingsData.CollabMode.EITHER);
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 10));
-        g.setColor(TEXT_LIGHT);
-        g.drawString(settingsData.timeZoneInfo, x + 24, segY + segH + 16);
-
-        int btnY = segY + segH + 32;
-        saveCollabBtnBox.setBounds(x + 24, btnY, 104, 34);
-        RoundRectangle2D saveBtn = new RoundRectangle2D.Float(saveCollabBtnBox.x, saveCollabBtnBox.y,
-                saveCollabBtnBox.width, saveCollabBtnBox.height, 8, 8);
-        g.setColor(saveCollabHovered ? BRAND_ACCENT_HOVER : BRAND_ACCENT);
-        g.fill(saveBtn);
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
-        g.setColor(Color.WHITE);
-        g.drawString("Save changes", saveCollabBtnBox.x + 16, saveCollabBtnBox.y + 21);
-
-        cancelCollabBtnBox.setBounds(saveCollabBtnBox.x + 104 + 10, btnY, 72, 34);
-        RoundRectangle2D canBtn = new RoundRectangle2D.Float(cancelCollabBtnBox.x, cancelCollabBtnBox.y,
-                cancelCollabBtnBox.width, cancelCollabBtnBox.height, 8, 8);
-        g.setColor(cancelCollabHovered ? BG_CANVAS : Color.WHITE);
-        g.fill(canBtn);
-        g.setColor(BORDER_COLOR);
-        g.draw(canBtn);
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
-        g.setColor(TEXT_DARK);
-        g.drawString("Cancel", cancelCollabBtnBox.x + 16, cancelCollabBtnBox.y + 21);
-
-        return curY + cardH + 30;
-    }
-
-    private void paintCheckbox(Graphics2D g, Rectangle b, boolean checked, String label) {
-        RoundRectangle2D box = new RoundRectangle2D.Float(b.x, b.y, b.width, b.height, 4, 4);
-        if (checked) {
-            g.setColor(BRAND_ACCENT);
-            g.fill(box);
-            g.setColor(Color.WHITE);
-            g.setStroke(new BasicStroke(1.8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-            g.drawLine(b.x + 4, b.y + 9, b.x + 7, b.y + 13);
-            g.drawLine(b.x + 7, b.y + 13, b.x + 13, b.y + 5);
-        } else {
-            g.setColor(Color.WHITE);
-            g.fill(box);
-            g.setColor(BORDER_COLOR);
-            g.draw(box);
-        }
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
-        g.setColor(TEXT_DARK);
-        g.drawString(label, b.x + b.width + 10, b.y + 14);
-    }
-
-    private void paintDropdownInput(Graphics2D g, Rectangle b, String text) {
-        RoundRectangle2D shape = new RoundRectangle2D.Float(b.x, b.y, b.width, b.height, 8, 8);
-        g.setColor(Color.WHITE);
-        g.fill(shape);
-        g.setColor(BORDER_COLOR);
-        g.draw(shape);
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
-        g.setColor(TEXT_DARK);
-        g.drawString(text, b.x + 14, b.y + 22);
-
-        Draw.drawChevronDown(g, b.x + b.width - 24, b.y + 14, 8, TEXT_MUTED, 0f);
-    }
-
-    private void paintSegmentItem(Graphics2D g, Rectangle b, String label, boolean isSelected) {
-        RoundRectangle2D shape = new RoundRectangle2D.Float(b.x, b.y, b.width, b.height, 6, 6);
-        if (isSelected) {
-            g.setColor(Color.WHITE);
-            g.fill(shape);
-            g.setColor(BORDER_COLOR);
-            g.draw(shape);
-            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
-            g.setColor(BRAND_ACCENT);
-        } else {
-            g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
-            g.setColor(TEXT_MUTED);
-        }
-        FontMetrics fm = g.getFontMetrics();
-        int lw = fm.stringWidth(label);
-        g.drawString(label, b.x + (b.width - lw) / 2, b.y + 20);
     }
 
     private int paintDangerZoneTab(Graphics2D g, int x, int y, int w) {
@@ -3045,7 +2767,20 @@ public class StudentDashboard {
             return true;
         }
 
-        // 2. Active View's High Z-index overlays take priority (Dropdowns & Profile
+        // 2. Header bar + its popups (search suggestions, avatar menu) come before the page,
+        //    unless a page-level full-screen overlay (task board, profile modal) is open.
+        //    Previously Discover / Find Teammates swallowed clicks on the search box.
+        boolean pageOverlay = (activeNav == NavItem.MY_PROJECTS && myProjectsView.hasOverlay())
+                || (activeNav == NavItem.FIND_TEAMMATES && teammatesView.hasOverlay());
+        if (header != null && !pageOverlay && header.wantsClick(mx, my)) {
+            header.onClick(mx, my, this);
+            return true;
+        }
+        if (header != null) {
+            header.blurSearch(); // clicking the page leaves the header search box
+        }
+
+        // 3. Active View's High Z-index overlays take priority (Dropdowns & Profile
         // Modals)
         if (activeNav == NavItem.MY_PROJECTS) {
             if (myProjectsView.onClick(mx, my, this))
@@ -3056,11 +2791,6 @@ public class StudentDashboard {
         } else if (activeNav == NavItem.DISCOVER_PROJECTS) {
             if (projectsView.onClick(mx, my, this))
                 return true;
-        }
-
-        // 3. Header controls
-        if (header != null && header.onClick(mx, my, this)) {
-            return true;
         }
 
         // 4. Sidebar controls
@@ -3253,72 +2983,6 @@ public class StudentDashboard {
             }
             if (cancelPrivacyBtnBox.contains(mx, my)) {
                 showToast("Privacy changes cancelled.");
-                return true;
-            }
-        }
-
-        if (settingsData.activeTab == SettingsData.SettingsTab.COLLAB_PREFERENCES) {
-            for (int i = 0; i < catRemoveBounds.size(); i++) {
-                if (catRemoveBounds.get(i).contains(mx, my)) {
-                    String rem = settingsData.categories.get(i);
-                    settingsData.removeCategory(i);
-                    showToast("Removed: " + rem);
-                    return true;
-                }
-            }
-            if (addCatBox.contains(mx, my)) {
-                settingsData.addCategory("Mobile Development");
-                showToast("Added 'Mobile Development' category!");
-                return true;
-            }
-            if (checkFrontendBox.contains(mx, my)) {
-                settingsData.roleFrontendDev = !settingsData.roleFrontendDev;
-                showToast("Frontend Dev: " + (settingsData.roleFrontendDev ? "Checked" : "Unchecked"));
-                return true;
-            }
-            if (checkUiBox.contains(mx, my)) {
-                settingsData.roleUiDev = !settingsData.roleUiDev;
-                showToast("UI Dev: " + (settingsData.roleUiDev ? "Checked" : "Unchecked"));
-                return true;
-            }
-            if (checkBackendBox.contains(mx, my)) {
-                settingsData.roleBackendDev = !settingsData.roleBackendDev;
-                showToast("Backend Dev: " + (settingsData.roleBackendDev ? "Checked" : "Unchecked"));
-                return true;
-            }
-            if (checkLeadBox.contains(mx, my)) {
-                settingsData.roleProjectLead = !settingsData.roleProjectLead;
-                showToast("Project Lead: " + (settingsData.roleProjectLead ? "Checked" : "Unchecked"));
-                return true;
-            }
-            if (availDropdown.contains(mx, my)) {
-                settingsData.toggleWeeklyAvailability();
-                showToast("Availability: " + settingsData.weeklyAvailability);
-                return true;
-            }
-            if (commitDropdown.contains(mx, my)) {
-                settingsData.toggleCommitment();
-                showToast("Commitment: " + settingsData.preferredCommitment);
-                return true;
-            }
-            if (modeRemoteBox.contains(mx, my)) {
-                settingsData.collabMode = SettingsData.CollabMode.REMOTE;
-                showToast("Collab: Remote");
-                return true;
-            }
-            if (modeInPersonBox.contains(mx, my)) {
-                settingsData.collabMode = SettingsData.CollabMode.IN_PERSON;
-                showToast("Collab: In person");
-                return true;
-            }
-            if (modeEitherBox.contains(mx, my)) {
-                settingsData.collabMode = SettingsData.CollabMode.EITHER;
-                showToast("Collab: Either works");
-                return true;
-            }
-            if (saveCollabBtnBox.contains(mx, my)) {
-                DashboardSync.savePreferences(this, settingsData);
-                showToast("Collaboration preferences saved!");
                 return true;
             }
         }

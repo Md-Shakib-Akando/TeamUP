@@ -229,4 +229,4 @@ async function computeOverviewStats({ skillCounts } = {}) {
   };
 }
 
-module.exports = { computeOverviewStats, profileSkillCounts, projectCategoryCounts, teamSizeLabel };
+module.exports = { computeOverviewStats, profileSkillCounts, projectCategoryCounts, teamSizeLabel, teamCounts };

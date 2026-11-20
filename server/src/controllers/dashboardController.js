@@ -624,4 +624,4 @@ function buildTeam(p, tasks, candidates, activities, meId, now) {
   };
 }
 
-module.exports = { getDashboard, matchFor };
+module.exports = { getDashboard, matchFor, ratingFor };

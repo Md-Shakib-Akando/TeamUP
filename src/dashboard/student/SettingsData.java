@@ -3,11 +3,11 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Dynamic data model for the Settings page and all 4 sub-views:
+ * Dynamic data model for the Settings page and its 3 sub-views:
  * 1. Account
  * 2. Profile & Privacy
- * 3. Collaboration Preferences
- * 4. Danger Zone
+ * 3. Danger Zone
+ * (Collaboration preference fields are kept so values synced from the backend are preserved.)
  * Compatible with Java 8+.
  */
 public class SettingsData {
@@ -15,7 +15,6 @@ public class SettingsData {
     public enum SettingsTab {
         ACCOUNT("Account"),
         PROFILE_PRIVACY("Profile & Privacy"),
-        COLLAB_PREFERENCES("Collaboration Preferences"),
         DANGER_ZONE("Danger Zone");
 
         public final String label;

@@ -4,8 +4,10 @@ const { protect } = require('../middleware/auth');
 const { getDashboard } = require('../controllers/dashboardController');
 const s = require('../controllers/studentController');
 
-// Public platform stats for landing page numbers strip (no auth required)
-router.get('/platform-stats', s.getPlatformStats);
+// Public landing page data (no auth): numbers strip + "See matching in real time"
+const landing = require('../controllers/landingController');
+router.get('/platform-stats', landing.getPlatformStats);
+router.get('/match-demo', landing.getMatchDemo);
 
 // Every student dashboard endpoint requires a valid JWT (Authorization: Bearer <token>)
 router.get('/dashboard', protect, getDashboard);

@@ -8,6 +8,10 @@ import java.util.List;
 /**
  * Live matching playground: toggle required skills and watch candidates
  * re-rank with spring-animated rows. Also receives queries from the hero search.
+ *
+ * Candidates come from the TeamUp database (GET /api/match-demo: public profiles only,
+ * shortened names) and refresh every minute. If the backend can't be reached the section
+ * falls back to clearly-labelled SAMPLE profiles.
  */
 public class MatchDemo extends LpSection {
 
@@ -19,6 +23,9 @@ public class MatchDemo extends LpSection {
         public final String university, availability, bio;
         public final int projectsDone;
         public final List<String> messages = new ArrayList<>();
+        /** Backend user id (null for sample profiles) and number of peer reviews (-1 = unknown). */
+        public String id = null;
+        public int reviews = -1;
         public float currentMatch = 0.85f, targetMatch = 0.85f;
         public final Elastic rowY = new Elastic(0f, 160f, 17f);
 
@@ -52,10 +59,20 @@ public class MatchDemo extends LpSection {
         SkillChip(String l, boolean on) { label = l; this.on = on; sel.setValue(on ? 1f : 0f); }
     }
 
+    /** Every candidate we know about (database profiles, or the sample set). */
+    private final List<Candidate> pool = new ArrayList<>();
+    /** The ranked rows on screen: the best VISIBLE of the pool. */
     private final List<Candidate> candidates = new ArrayList<>();
     private final List<SkillChip> chips = new ArrayList<>();
     private final Set<String> selected = new LinkedHashSet<>();
-    private static final int ROW_H = 104, ROW_GAP = 10;
+    private final Set<String> defaultSelection = new LinkedHashSet<>(Arrays.asList("Java", "MySQL"));
+    private static final int ROW_H = 104, ROW_GAP = 10, VISIBLE = 4;
+
+    // Live data from the backend (applied on the UI thread in update())
+    private volatile Map<String, Object> pendingLive = null;
+    private boolean live = false;
+    private int totalProfiles = 0;
+    private String demandNote = "";
 
     private int resetX, resetY, resetW, resetH;
     private boolean resetHover;
@@ -76,28 +93,142 @@ public class MatchDemo extends LpSection {
     private float sendStatusT = 0f;
 
     public MatchDemo() {
-        candidates.add(new Candidate("Sarah Lin", "Backend & Systems", "SL", Fx.ORANGE, Fx.PINK, 4.9,
+        pool.add(new Candidate("Sarah Lin", "Backend & Systems", "SL", Fx.ORANGE, Fx.PINK, 4.9,
                 "Stanford CS · Senior", "15 hrs/wk · Evenings", 6,
                 "Architects resilient Java/MySQL APIs and loves clean database schemas and sprint demos.",
                 "Java", "MySQL", "Testing", "Cloud"));
-        candidates.add(new Candidate("David Chen", "Product Designer", "DC", Fx.VIOLET, new Color(0x6E, 0xC1, 0xFF), 5.0,
+        pool.add(new Candidate("David Chen", "Product Designer", "DC", Fx.VIOLET, new Color(0x6E, 0xC1, 0xFF), 5.0,
                 "MIT Media Lab · Junior", "12 hrs/wk · Flexible", 5,
                 "Crafts accessible design systems and rapid React UI prototypes for student product teams.",
                 "Design", "React"));
-        candidates.add(new Candidate("Priya Patel", "Full-Stack Engineer", "PP", Fx.MINT, Fx.CYAN, 4.8,
+        pool.add(new Candidate("Priya Patel", "Full-Stack Engineer", "PP", Fx.MINT, Fx.CYAN, 4.8,
                 "UC Berkeley EECS · Senior", "18 hrs/wk · Weekdays", 7,
                 "Ships end-to-end Python/Java web services with CI testing and cloud deployment.",
                 "Java", "Python", "Cloud", "Testing"));
-        candidates.add(new Candidate("Marcus Vance", "Frontend & Mobile", "MV", Fx.AMBER, Fx.ORANGE, 4.7,
+        pool.add(new Candidate("Marcus Vance", "Frontend & Mobile", "MV", Fx.AMBER, Fx.ORANGE, 4.7,
                 "CMU HCI · Sophomore", "10 hrs/wk · Weekends", 4,
                 "Bridges motion UI polish with Java & React frontends. Fast async communicator.",
                 "Design", "React", "Java"));
 
         String[] all = {"Java", "Design", "MySQL", "Testing", "React", "Python", "Cloud"};
-        selected.add("Java");
-        selected.add("MySQL");
+        selected.addAll(defaultSelection);
         for (String s : all) chips.add(new SkillChip(s, selected.contains(s)));
         recompute(false);
+        startLiveSync();
+    }
+
+    /** Fetches real profiles in the background: retries quickly at first, then refreshes every minute. */
+    private void startLiveSync() {
+        Thread t = new Thread(() -> {
+            int failures = 0;
+            while (true) {
+                boolean ok = false;
+                try {
+                    AuthStore.ensureServerRunning();
+                    ApiClient.Response res = ApiClient.get("/match-demo");
+                    Map<String, Object> data = res != null && res.ok() ? Json.map(res.json, "data") : null;
+                    if (data != null) {
+                        pendingLive = data;
+                        ok = true;
+                    }
+                } catch (Exception ignored) {
+                    // backend offline: keep showing the current (sample or last live) data
+                }
+                failures = ok ? 0 : failures + 1;
+                try {
+                    Thread.sleep(ok ? 60_000L : (failures < 4 ? 2_000L : 60_000L));
+                } catch (InterruptedException e) {
+                    return;
+                }
+            }
+        }, "TeamUp-MatchDemo-Sync");
+        t.setDaemon(true);
+        t.start();
+    }
+
+    /** Replaces the sample profiles with database data (UI thread). Keeps the visitor's chip choices. */
+    private void applyLive(Map<String, Object> data) {
+        List<Candidate> fresh = new ArrayList<>();
+        Color[] accents = {Fx.PINK, Fx.VIOLET, Fx.CYAN, Fx.MINT, Fx.AMBER, Fx.ORANGE};
+        for (Map<String, Object> m : Json.maps(data, "candidates")) {
+            String name = Json.str(m, "name", "");
+            if (name.isEmpty()) continue;
+            String[] sk = Json.strings(m, "skills");
+            String id = Json.str(m, "id", null);
+            Color c1 = parseHex(Json.str(m, "avatarFg", null), Fx.VIOLET);
+            Color c2 = accents[Math.abs((id != null ? id : name).hashCode()) % accents.length];
+            Candidate c = new Candidate(name, Json.str(m, "role", "Student"), Json.str(m, "initials", "TU"), c1, c2,
+                    Json.num(m, "rating", 0), Json.str(m, "university", ""), Json.str(m, "availability", ""),
+                    Json.integer(m, "projectsDone", 0), Json.str(m, "bio", ""), sk);
+            c.id = id;
+            c.reviews = Json.integer(m, "reviews", 0);
+            fresh.add(c);
+        }
+        if (fresh.isEmpty()) return; // nobody public yet: keep the sample set
+
+        String[] skillNames = Json.strings(data, "skills");
+        List<String> demand = new ArrayList<>();
+        for (Map<String, Object> d : Json.maps(data, "demandSkills")) demand.add(Json.str(d, "name", ""));
+        List<Map<String, Object>> demandRows = Json.maps(data, "demandSkills");
+        demandNote = demandRows.isEmpty() ? "" : "Most requested: " + Json.str(demandRows.get(0), "name", "")
+                + " (" + Json.integer(demandRows.get(0), "projects", 0) + " projects)";
+        totalProfiles = Json.integer(data, "totalCandidates", fresh.size());
+
+        // chips + default selection = the two most requested skills that exist as chips
+        boolean firstLive = !live;
+        Set<String> keep = new LinkedHashSet<>(selected);
+        chips.clear();
+        for (String sn : skillNames) chips.add(new SkillChip(sn, false));
+        defaultSelection.clear();
+        for (String d : demand) {
+            for (SkillChip c : chips) if (c.label.equalsIgnoreCase(d) && defaultSelection.size() < 2) defaultSelection.add(c.label);
+        }
+        if (defaultSelection.isEmpty()) for (SkillChip c : chips) if (defaultSelection.size() < 2) defaultSelection.add(c.label);
+        selected.clear();
+        if (!firstLive) for (SkillChip c : chips) if (keep.contains(c.label)) selected.add(c.label);
+        if (selected.isEmpty()) selected.addAll(defaultSelection);
+        for (SkillChip c : chips) {
+            c.on = selected.contains(c.label);
+            c.sel.setValue(c.on ? 1f : 0f);
+        }
+
+        // keep an open drawer on the same person if they're still listed
+        String openId = activeCandidate != null ? activeCandidate.id : null;
+        pool.clear();
+        pool.addAll(fresh);
+        candidates.clear();
+        live = true;
+        recompute(false);
+        if (drawerMode != DrawerMode.NONE) {
+            Candidate same = null;
+            for (Candidate c : candidates) if (openId != null && openId.equals(c.id)) same = c;
+            if (same != null) activeCandidate = same; else closeDrawer();
+        }
+        invalidateHeight();
+    }
+
+    private static Color parseHex(String hex, Color fallback) {
+        try {
+            return hex == null ? fallback : Color.decode(hex.trim());
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
+    }
+
+    /** Shortens text with an ellipsis to fit maxW pixels in the current font. */
+    private static String fit(Graphics2D g, String text, int maxW) {
+        FontMetrics fm = g.getFontMetrics();
+        if (text == null) return "";
+        if (fm.stringWidth(text) <= maxW) return text;
+        String t = text;
+        while (t.length() > 1 && fm.stringWidth(t + "…") > maxW) t = t.substring(0, t.length() - 1);
+        return t.trim() + "…";
+    }
+
+    /** "★ 4.8" or "New member" when nobody has reviewed them yet. */
+    private static String ratingText(Candidate c) {
+        if (c.reviews == 0 || c.rating <= 0) return "New member";
+        return "★ " + String.format(Locale.US, "%.1f", c.rating);
     }
 
     /** True while the inline message composer input has focus. */
@@ -110,6 +241,10 @@ public class MatchDemo extends LpSection {
         if (q == null) return;
         String s = q.toLowerCase(Locale.ROOT);
         Set<String> found = new LinkedHashSet<>();
+        for (SkillChip c : chips) {
+            String l = c.label.toLowerCase(Locale.ROOT);
+            if (l.equals("java") ? (s.contains("java") && !s.contains("javascript")) : s.contains(l)) found.add(c.label);
+        }
         if (s.contains("java") && !s.contains("javascript")) found.add("Java");
         if (s.contains("ui") || s.contains("ux") || s.contains("design") || s.contains("figma")) found.add("Design");
         if (s.contains("sql") || s.contains("database") || s.contains("postgres")) found.add("MySQL");
@@ -117,6 +252,9 @@ public class MatchDemo extends LpSection {
         if (s.contains("react") || s.contains("frontend") || s.contains("javascript")) found.add("React");
         if (s.contains("python") || s.contains("ml") || s.contains("ai") || s.contains("data")) found.add("Python");
         if (s.contains("cloud") || s.contains("aws") || s.contains("devops") || s.contains("docker")) found.add("Cloud");
+        Set<String> labels = new LinkedHashSet<>();
+        for (SkillChip c : chips) labels.add(c.label);
+        found.retainAll(labels); // only skills that exist as chips
         if (found.isEmpty()) return;
         selected.clear();
         selected.addAll(found);
@@ -130,23 +268,46 @@ public class MatchDemo extends LpSection {
         recompute(true);
     }
 
+    private boolean hasSkill(Candidate c, String skill) {
+        for (String s : c.skills) if (s.equalsIgnoreCase(skill)) return true;
+        return false;
+    }
+
+    /**
+     * Match = share of the selected skills the person has (main signal) plus a small bonus
+     * for strong peer ratings. Ranks the whole pool and shows the best VISIBLE rows.
+     */
     private void recompute(boolean animate) {
-        for (Candidate c : candidates) {
+        for (Candidate c : pool) {
+            float bonus = (c.reviews != 0 && c.rating > 0) ? (float) (c.rating - 4.5) * 0.04f : 0f;
             if (selected.isEmpty()) {
-                c.targetMatch = 0.45f;
+                c.targetMatch = Math.max(0.1f, 0.45f + bonus);
             } else {
                 int m = 0;
-                for (String s : selected) if (c.skills.contains(s)) m++;
+                for (String s : selected) if (hasSkill(c, s)) m++;
                 float ratio = m / (float) selected.size();
-                c.targetMatch = Math.min(0.99f, Math.max(0.25f, ratio * 0.82f + 0.15f + (float) (c.rating - 4.7) * 0.05f));
+                c.targetMatch = Math.min(0.99f, Math.max(0.1f, ratio * 0.82f + 0.15f + bonus));
             }
         }
-        candidates.sort((a, b) -> Float.compare(b.targetMatch, a.targetMatch));
+        pool.sort((a, b) -> {
+            int cmp = Float.compare(b.targetMatch, a.targetMatch);
+            if (cmp != 0) return cmp;
+            cmp = Double.compare(b.rating, a.rating);
+            return cmp != 0 ? cmp : Integer.compare(b.projectsDone, a.projectsDone);
+        });
+        Set<Candidate> before = new HashSet<>(candidates);
+        candidates.clear();
+        for (int i = 0; i < Math.min(VISIBLE, pool.size()); i++) candidates.add(pool.get(i));
         for (int i = 0; i < candidates.size(); i++) {
             Candidate c = candidates.get(i);
+            if (animate && !before.contains(c)) {
+                c.rowY.setValue(VISIBLE * (ROW_H + ROW_GAP)); // newcomers slide in from below
+                c.currentMatch = 0f;
+            }
             c.rowY.setTarget(i * (ROW_H + ROW_GAP));
             if (!animate) { c.rowY.setValue(i * (ROW_H + ROW_GAP)); c.currentMatch = c.targetMatch; }
         }
+        if (activeCandidate != null && !candidates.contains(activeCandidate)) closeDrawer();
         if (animate) pulse = 1f;
     }
 
@@ -155,6 +316,11 @@ public class MatchDemo extends LpSection {
     @Override
     public void update(float dt) {
         super.update(dt);
+        Map<String, Object> incoming = pendingLive;
+        if (incoming != null) {
+            pendingLive = null;
+            applyLive(incoming);
+        }
         for (Candidate c : candidates) {
             c.currentMatch = Anim.approach(c.currentMatch, c.targetMatch, dt, 6f);
             c.rowY.update(dt);
@@ -201,10 +367,27 @@ public class MatchDemo extends LpSection {
             sendStatus = "Please type or pick a quick message first.";
             return;
         }
-        activeCandidate.messages.add(txt);
-        msgBox.setText("");
         msgBox.hasError = false;
-        sendStatus = "Message sent to " + activeCandidate.name + " ✓";
+        String first = activeCandidate.name.split(" ")[0];
+        if (activeCandidate.id == null) {
+            sendStatus = "Sample profile — sign up to contact real students.";
+        } else if (!ApiClient.hasSession()) {
+            sendStatus = "Log in or create a free account to contact " + first + ".";
+        } else {
+            final String userId = activeCandidate.id;
+            Thread t = new Thread(() -> {
+                try {
+                    ApiClient.post("/users/" + ApiClient.seg(userId) + "/collab", Json.obj("active", true));
+                } catch (Exception ignored) {
+                    // shown as sent; the dashboard's Find Teammates page reflects the real state
+                }
+            }, "TeamUp-MatchDemo-Collab");
+            t.setDaemon(true);
+            t.start();
+            activeCandidate.messages.add(txt);
+            msgBox.setText("");
+            sendStatus = "Collaboration request sent to " + first + " ✓";
+        }
         sendStatusT = 4.0f;
         invalidateHeight();
     }
@@ -213,9 +396,10 @@ public class MatchDemo extends LpSection {
     protected int render(Graphics2D g, int y, int width, int viewportY, int viewportH) {
         int top = y;
         int cur = y + (width < 700 ? 70 : 110);
-        cur = Fx.header(g, rv, width, cur, "LIVE DEMO", Fx.PINK,
+        cur = Fx.header(g, rv, width, cur, live ? "LIVE MATCHING" : "LIVE DEMO", Fx.PINK,
                 "See matching in ", "real time.",
-                "Pick the skills your project needs - candidates re-rank instantly. Try searching from the top of the page too.");
+                live ? "Real student profiles from TeamUp - pick the skills your project needs and they re-rank instantly."
+                     : "Pick the skills your project needs - candidates re-rank instantly. Try searching from the top of the page too.");
         cur += width < 700 ? 36 : 56;
 
         int[] c = Fx.container(width);
@@ -248,11 +432,11 @@ public class MatchDemo extends LpSection {
         int ly = cur + 28;
         pg.setFont(Fx.label(11));
         pg.setColor(Fx.text3());
-        pg.drawString("PROJECT NEEDS", lx, ly + 10);
+        pg.drawString(live ? "YOUR PROJECT NEEDS" : "PROJECT NEEDS", lx, ly + 10);
         ly += 22;
         pg.setFont(Fx.heading(20));
         pg.setColor(Fx.text());
-        pg.drawString("Campus Connect", lx, ly + 18);
+        pg.drawString(live ? "Your project" : "Sample project", lx, ly + 18);
         ly += 26 + 18;
         layoutChips(pg, lx, ly, leftW - 56, false);
         ly += chipsH + 26;
@@ -272,8 +456,12 @@ public class MatchDemo extends LpSection {
         pg.drawString(selected.size() == 1 ? "skill required" : "skills required", lx + 18 + nw + 10, ly + 40);
         pg.setFont(Fx.body(12.5f));
         pg.setColor(Fx.text3());
-        Candidate best = candidates.get(0);
-        pg.drawString("Best fit: " + best.name + " (" + Math.round(best.targetMatch * 100) + "%)", lx + 18, ly + 70);
+        if (!candidates.isEmpty()) {
+            Candidate best = candidates.get(0);
+            String bestLine = "Best fit: " + best.name + " (" + Math.round(best.targetMatch * 100) + "%)";
+            if (live) bestLine += "  ·  of " + totalProfiles + (totalProfiles == 1 ? " profile" : " profiles");
+            pg.drawString(fit(pg, bestLine, leftW - 56 - 30), lx + 18, ly + 70);
+        }
         // reset link
         pg.setFont(Fx.bold(12.5f));
         String rs = "Reset";
@@ -299,14 +487,23 @@ public class MatchDemo extends LpSection {
         pg.setFont(Fx.label(11));
         pg.setColor(Fx.text3());
         pg.drawString("RANKED CANDIDATES", listX, hy + 10);
-        String live = "LIVE";
-        int lw = pg.getFontMetrics().stringWidth(live);
-        float pz = (Fx.time() % 1.4f) / 1.4f;
-        Fx.glow(pg, listX + listW - lw - 14, hy + 6, 6 + pz * 10, Fx.MINT, 0.7f * (1 - pz));
-        pg.setColor(Fx.MINT);
+        String badge = live ? "LIVE" : "SAMPLE";
+        int lw = pg.getFontMetrics().stringWidth(badge);
+        Color badgeC = live ? Fx.MINT : Fx.text3();
+        if (live) {
+            float pz = (Fx.time() % 1.4f) / 1.4f;
+            Fx.glow(pg, listX + listW - lw - 14, hy + 6, 6 + pz * 10, Fx.MINT, 0.7f * (1 - pz));
+        }
+        pg.setColor(badgeC);
         pg.fill(new Ellipse2D.Float(listX + listW - lw - 18, hy + 2, 8, 8));
-        pg.setColor(Fx.ink(Fx.MINT));
-        pg.drawString(live, listX + listW - lw, hy + 10);
+        pg.setColor(live ? Fx.ink(Fx.MINT) : Fx.text3());
+        pg.drawString(badge, listX + listW - lw, hy + 10);
+        if (live && !demandNote.isEmpty() && listW > 420) {
+            pg.setFont(Fx.body(11.5f));
+            pg.setColor(Fx.text3());
+            int dnw = pg.getFontMetrics().stringWidth(demandNote);
+            pg.drawString(demandNote, listX + listW - lw - 30 - dnw, hy + 10);
+        }
 
         int listTop = hy + 22 + 22;
         // paint lower-ranked first so the leader slides over others
@@ -341,7 +538,7 @@ public class MatchDemo extends LpSection {
         int contentH;
         if (drawerMode == DrawerMode.PROFILE) {
             int metaH = compact ? 52 : 28;
-            int bioH = Fx.paragraphHeight(g, cd.bio, Fx.body(13f), innerW, 1.45f);
+            int bioH = Fx.paragraphHeight(g, cd.bio == null || cd.bio.trim().isEmpty() ? "No bio yet." : cd.bio, Fx.body(13f), innerW, 1.45f);
             int skillsH = 26;
             int footerH = 34;
             contentH = metaH + 10 + bioH + 12 + skillsH + 14 + footerH;
@@ -372,7 +569,7 @@ public class MatchDemo extends LpSection {
         g.setFont(Fx.body(12));
         g.setColor(Fx.text3());
         int pct = Math.round(cd.currentMatch * 100);
-        String sub = compact ? (pct + "% match") : (cd.role + "  ·  ★ " + cd.rating + "  ·  " + pct + "% match");
+        String sub = compact ? (pct + "% match") : (cd.role + "  ·  " + ratingText(cd) + "  ·  " + pct + "% match");
         g.drawString(sub, tx, cy + 34);
 
         // Right-aligned controls: [Profile] [Message] [x]
@@ -406,8 +603,9 @@ public class MatchDemo extends LpSection {
             // Metadata strip
             g.setFont(Fx.bold(12));
             g.setColor(Fx.ink(Fx.VIOLET));
-            String m1 = cd.university;
-            String m2 = cd.availability + "  ·  " + cd.projectsDone + " shipped projects";
+            String m1 = cd.university == null || cd.university.isEmpty() ? "TeamUp member" : cd.university;
+            String done = cd.projectsDone == 1 ? "1 completed project" : cd.projectsDone + " completed projects";
+            String m2 = (cd.availability == null || cd.availability.isEmpty()) ? done : cd.availability + "  ·  " + done;
             if (compact) {
                 g.drawString(m1, cx, bodyY + 14);
                 g.setFont(Fx.body(12));
@@ -424,7 +622,8 @@ public class MatchDemo extends LpSection {
             }
 
             // Bio paragraph
-            bodyY = Fx.paragraph(g, cd.bio, Fx.body(13f), Fx.text2(), cx, bodyY + 4, innerW, 1.45f, false);
+            String bioText = cd.bio == null || cd.bio.trim().isEmpty() ? "No bio yet." : cd.bio;
+            bodyY = Fx.paragraph(g, bioText, Fx.body(13f), Fx.text2(), cx, bodyY + 4, innerW, 1.45f, false);
             bodyY += 10;
 
             // Full skill pills
@@ -695,7 +894,7 @@ public class MatchDemo extends LpSection {
             // Subtle role line under name
             g.setFont(Fx.body(11.5f));
             g.setColor(Fx.text3());
-            g.drawString(c.role + "  ·  ★ " + c.rating, ix, y + 46);
+            g.drawString(fit(g, c.role + "  ·  " + ratingText(c), c.profX - 12 - ix), ix, y + 46);
         }
 
         // Skills (matched highlighted) positioned so they never overlap buttons
@@ -737,8 +936,7 @@ public class MatchDemo extends LpSection {
         }
         if (Fx.inside(mx, my, resetX, resetY, resetW, resetH)) {
             selected.clear();
-            selected.add("Java");
-            selected.add("MySQL");
+            selected.addAll(defaultSelection);
             for (SkillChip c : chips) c.on = selected.contains(c.label);
             recompute(true);
             return true;
@@ -844,9 +1042,9 @@ public class MatchDemo extends LpSection {
                 closeDrawer();
                 return true;
             }
-            if (e.getKeyChar() == KeyEvent.CHAR_UNDEFINED || Character.isISOControl(e.getKeyChar()) || e.isControlDown()) {
-                return msgBox.onKey(e);
-            }
+            // The landing window only dispatches KEY_PRESSED, and TextBox inserts characters from
+            // KEY_PRESSED — so printable keys must reach it here (they used to be swallowed).
+            msgBox.onKey(e);
             return true;
         }
         if (e.getID() == KeyEvent.KEY_TYPED) {
