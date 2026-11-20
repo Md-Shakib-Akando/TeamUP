@@ -1144,6 +1144,8 @@ public class AdminDataStore {
                 matchTab = r.reviewType != null && (r.reviewType.contains("User") || r.reviewType.contains("Rating"));
             } else if (tabIdx == 3) { // Reported Reviews
                 matchTab = "Reported".equalsIgnoreCase(r.status) || "Under review".equalsIgnoreCase(r.status);
+            } else if (tabIdx == 4) { // Pending approval (Community Voice reviews from the landing page)
+                matchTab = "Pending".equalsIgnoreCase(r.status);
             }
 
             boolean matchStar = true;
@@ -1195,10 +1197,13 @@ public class AdminDataStore {
             return false;
         for (ReviewModel r : reviews) {
             if (r.id.equalsIgnoreCase(id.trim())) {
+                boolean wasPending = "Pending".equalsIgnoreCase(r.status);
                 r.status = "Published";
                 r.reportReason = null;
                 r.reportedBy = null;
-                logActivity(getActorName(), getActorInitials(), "Approved reported feedback", r.id + " (" + r.reviewerName + ")", true);
+                logActivity(getActorName(), getActorInitials(),
+                        wasPending ? "Approved community review" : "Approved reported feedback",
+                        r.id + " (" + r.reviewerName + ")", true);
                 AdminSync.syncUpdateReview(r.mongoId != null && !r.mongoId.isEmpty() ? r.mongoId : r.id, "approve", "Published");
                 return true;
             }
@@ -1216,8 +1221,10 @@ public class AdminDataStore {
                     logActivity(getActorName(), getActorInitials(), "Unhid feedback", r.id, true);
                     AdminSync.syncUpdateReview(r.mongoId != null && !r.mongoId.isEmpty() ? r.mongoId : r.id, "unhide", "Published");
                 } else {
+                    boolean wasPending = "Pending".equalsIgnoreCase(r.status);
                     r.status = "Hidden";
-                    logActivity(getActorName(), getActorInitials(), "Hid feedback", r.id, true);
+                    logActivity(getActorName(), getActorInitials(),
+                            wasPending ? "Rejected community review" : "Hid feedback", r.id, true);
                     AdminSync.syncUpdateReview(r.mongoId != null && !r.mongoId.isEmpty() ? r.mongoId : r.id, "hide", "Hidden");
                 }
                 return true;
@@ -1346,6 +1353,11 @@ public class AdminDataStore {
         return (int) reviews.stream()
                 .filter(r -> "Reported".equalsIgnoreCase(r.status) || "Under review".equalsIgnoreCase(r.status))
                 .count();
+    }
+
+    /** Community Voice reviews waiting for an admin to approve or reject them. */
+    public synchronized int getPendingReviewsCount() {
+        return (int) reviews.stream().filter(r -> "Pending".equalsIgnoreCase(r.status)).count();
     }
 
     public synchronized int getPositiveRatingPercentage() {

@@ -70,6 +70,19 @@ public class MatchDemo extends LpSection {
 
     // Live data from the backend (applied on the UI thread in update())
     private volatile Map<String, Object> pendingLive = null;
+    /** Last /api/match-demo payload, so clearing a search restores the full pool. */
+    private Map<String, Object> lastLive = null;
+
+    // Hero search (GET /api/match-demo/search) — results replace the pool until cleared
+    private volatile Map<String, Object> pendingSearch = null;
+    private volatile String pendingFallbackQuery = null;
+    private volatile boolean searching = false;
+    private int searchSeq = 0;
+    private boolean searchActive = false;
+    private String searchQuery = "";
+    private String searchNote = "";
+    private int searchTotal = 0;
+    private java.util.function.Consumer<List<String>> onPopularSkills;
     private boolean live = false;
     private int totalProfiles = 0;
     private String demandNote = "";
@@ -147,7 +160,7 @@ public class MatchDemo extends LpSection {
     }
 
     /** Replaces the sample profiles with database data (UI thread). Keeps the visitor's chip choices. */
-    private void applyLive(Map<String, Object> data) {
+    private List<Candidate> parseCandidates(Map<String, Object> data) {
         List<Candidate> fresh = new ArrayList<>();
         Color[] accents = {Fx.PINK, Fx.VIOLET, Fx.CYAN, Fx.MINT, Fx.AMBER, Fx.ORANGE};
         for (Map<String, Object> m : Json.maps(data, "candidates")) {
@@ -164,6 +177,11 @@ public class MatchDemo extends LpSection {
             c.reviews = Json.integer(m, "reviews", 0);
             fresh.add(c);
         }
+        return fresh;
+    }
+
+    private void applyLive(Map<String, Object> data) {
+        List<Candidate> fresh = parseCandidates(data);
         if (fresh.isEmpty()) return; // nobody public yet: keep the sample set
 
         String[] skillNames = Json.strings(data, "skills");
@@ -191,6 +209,7 @@ public class MatchDemo extends LpSection {
             c.on = selected.contains(c.label);
             c.sel.setValue(c.on ? 1f : 0f);
         }
+        if (onPopularSkills != null && skillNames.length > 0) onPopularSkills.accept(Arrays.asList(skillNames));
 
         // keep an open drawer on the same person if they're still listed
         String openId = activeCandidate != null ? activeCandidate.id : null;
@@ -236,6 +255,97 @@ public class MatchDemo extends LpSection {
         return drawerMode == DrawerMode.MESSAGE && activeCandidate != null && msgBox.focused;
     }
 
+    /** Receives the database's popular skills (used by the hero "Popular:" pills). */
+    public void setOnPopularSkills(java.util.function.Consumer<List<String>> c) { this.onPopularSkills = c; }
+
+    /**
+     * Hero search: asks the database for public profiles matching the query (skills, headline, bio).
+     * Results replace the ranked list until the visitor clears the search. Offline, falls back to
+     * matching the query against the sample skills.
+     */
+    public void search(String q) {
+        final String query = q == null ? "" : q.trim();
+        if (query.isEmpty()) {
+            if (searchActive) clearSearch();
+            return;
+        }
+        searchQuery = query;
+        searchNote = "";
+        searching = true;
+        final int seq = ++searchSeq;
+        invalidateHeight();
+        Thread t = new Thread(() -> {
+            Map<String, Object> data = null;
+            try {
+                ApiClient.Response res = ApiClient.get("/match-demo/search?q=" + ApiClient.seg(query));
+                if (res != null && res.ok()) data = Json.map(res.json, "data");
+            } catch (Exception ignored) {
+                // offline: handled below
+            }
+            if (seq != searchSeq) return; // a newer search started
+            if (data != null) pendingSearch = data;
+            else pendingFallbackQuery = query;
+        }, "TeamUp-MatchDemo-Search");
+        t.setDaemon(true);
+        t.start();
+    }
+
+    /** UI thread: show database search results. */
+    private void applySearch(Map<String, Object> data) {
+        searching = false;
+        String q = Json.str(data, "query", searchQuery);
+        List<Candidate> found = parseCandidates(data);
+        String[] skills = Json.strings(data, "skills");
+        if (found.isEmpty()) {
+            if (searchActive) clearSearch(); // don't leave old results under the new query
+            searchQuery = "";
+            searchNote = "No public profiles match \u201C" + q + "\u201D yet.";
+            invalidateHeight();
+            return;
+        }
+        searchActive = true;
+        searchQuery = q;
+        searchTotal = Json.integer(data, "total", found.size());
+        // chips: the skills the query was understood as come first and are selected
+        List<SkillChip> old = new ArrayList<>(chips);
+        chips.clear();
+        Set<String> seen = new HashSet<>();
+        for (String s : skills) if (seen.add(s.toLowerCase(Locale.ROOT))) chips.add(new SkillChip(s, true));
+        for (SkillChip c : old) {
+            if (chips.size() >= 8) break;
+            if (seen.add(c.label.toLowerCase(Locale.ROOT))) chips.add(new SkillChip(c.label, false));
+        }
+        selected.clear();
+        Collections.addAll(selected, skills);
+        pool.clear();
+        pool.addAll(found);
+        candidates.clear();
+        closeDrawer();
+        recompute(true);
+        invalidateHeight();
+    }
+
+    /** Leaves search mode and restores the full live (or sample) pool. */
+    public void clearSearch() {
+        searchActive = false;
+        searching = false;
+        searchQuery = "";
+        searchNote = "";
+        searchSeq++;
+        if (lastLive != null) {
+            live = false; // re-apply as a first load so the default selection comes back
+            applyLive(lastLive);
+        } else {
+            selected.clear();
+            selected.addAll(defaultSelection);
+            for (SkillChip c : chips) c.on = selected.contains(c.label);
+            recompute(true);
+        }
+        invalidateHeight();
+    }
+
+    public boolean isSearchActive() { return searchActive; }
+
     /** Maps a free-text search to demo skills and re-ranks. */
     public void applyQuery(String q) {
         if (q == null) return;
@@ -263,6 +373,7 @@ public class MatchDemo extends LpSection {
     }
 
     private void toggle(SkillChip c) {
+        searchNote = "";
         c.on = !c.on;
         if (c.on) selected.add(c.label); else selected.remove(c.label);
         recompute(true);
@@ -319,7 +430,22 @@ public class MatchDemo extends LpSection {
         Map<String, Object> incoming = pendingLive;
         if (incoming != null) {
             pendingLive = null;
-            applyLive(incoming);
+            lastLive = incoming;
+            if (!searchActive) applyLive(incoming); // don't replace search results with the minute refresh
+        }
+        Map<String, Object> found = pendingSearch;
+        if (found != null) {
+            pendingSearch = null;
+            applySearch(found);
+        }
+        String offlineQuery = pendingFallbackQuery;
+        if (offlineQuery != null) {
+            pendingFallbackQuery = null;
+            searching = false;
+            applyQuery(offlineQuery);
+            searchNote = live ? "Search is unavailable right now \u2014 try again in a moment."
+                    : "Offline \u2014 matched \u201C" + offlineQuery + "\u201D against sample profiles.";
+            invalidateHeight();
         }
         for (Candidate c : candidates) {
             c.currentMatch = Anim.approach(c.currentMatch, c.targetMatch, dt, 6f);
@@ -432,11 +558,15 @@ public class MatchDemo extends LpSection {
         int ly = cur + 28;
         pg.setFont(Fx.label(11));
         pg.setColor(Fx.text3());
-        pg.drawString(live ? "YOUR PROJECT NEEDS" : "PROJECT NEEDS", lx, ly + 10);
+        String panelLabel = searching ? "SEARCHING THE DATABASE\u2026"
+                : searchActive ? "SEARCH RESULTS" : (live ? "YOUR PROJECT NEEDS" : "PROJECT NEEDS");
+        pg.drawString(panelLabel, lx, ly + 10);
         ly += 22;
         pg.setFont(Fx.heading(20));
         pg.setColor(Fx.text());
-        pg.drawString(live ? "Your project" : "Sample project", lx, ly + 18);
+        String panelTitle = (searchActive || searching) ? "\u201C" + searchQuery + "\u201D"
+                : (live ? "Your project" : "Sample project");
+        pg.drawString(fit(pg, panelTitle, leftW - 56), lx, ly + 18);
         ly += 26 + 18;
         layoutChips(pg, lx, ly, leftW - 56, false);
         ly += chipsH + 26;
@@ -456,15 +586,19 @@ public class MatchDemo extends LpSection {
         pg.drawString(selected.size() == 1 ? "skill required" : "skills required", lx + 18 + nw + 10, ly + 40);
         pg.setFont(Fx.body(12.5f));
         pg.setColor(Fx.text3());
-        if (!candidates.isEmpty()) {
+        if (!searchNote.isEmpty()) {
+            pg.setColor(Fx.ink(Fx.ORANGE));
+            pg.drawString(fit(pg, searchNote, leftW - 56 - 30), lx + 18, ly + 70);
+        } else if (!candidates.isEmpty()) {
             Candidate best = candidates.get(0);
             String bestLine = "Best fit: " + best.name + " (" + Math.round(best.targetMatch * 100) + "%)";
-            if (live) bestLine += "  ·  of " + totalProfiles + (totalProfiles == 1 ? " profile" : " profiles");
+            if (searchActive) bestLine += "  \u00B7  " + searchTotal + (searchTotal == 1 ? " match" : " matches");
+            else if (live) bestLine += "  \u00B7  of " + totalProfiles + (totalProfiles == 1 ? " profile" : " profiles");
             pg.drawString(fit(pg, bestLine, leftW - 56 - 30), lx + 18, ly + 70);
         }
-        // reset link
+        // reset link (clears a search first)
         pg.setFont(Fx.bold(12.5f));
-        String rs = "Reset";
+        String rs = searchActive ? "Clear search" : "Reset";
         resetW = pg.getFontMetrics().stringWidth(rs) + 16;
         resetH = 26;
         resetX = lx + leftW - 56 - resetW - 10;
@@ -935,6 +1069,11 @@ public class MatchDemo extends LpSection {
             if (Fx.inside(mx, my, c.x, c.y, c.w, c.h)) { toggle(c); return true; }
         }
         if (Fx.inside(mx, my, resetX, resetY, resetW, resetH)) {
+            searchNote = "";
+            if (searchActive) {
+                clearSearch();
+                return true;
+            }
             selected.clear();
             selected.addAll(defaultSelection);
             for (SkillChip c : chips) c.on = selected.contains(c.label);

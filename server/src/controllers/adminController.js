@@ -612,14 +612,17 @@ const getAdminBootstrap = async (req, res) => {
 
     // 5. Fetch Reviews
     const rawReviews = await Review.find({}).sort({ createdAt: -1 });
-    const reviews = rawReviews.map((rev, i) => ({
+    const reviews = rawReviews.map((rev, i) => {
+      const community = rev.reviewType === 'Community Voice';
+      return {
       id: rev.reviewId || `REV-${501 + i}`,
       mongoId: String(rev._id),
       reviewerName: rev.reviewerName || 'Anonymous',
       reviewerInitials: rev.reviewerInitials || computeInitials(rev.reviewerName),
-      revieweeName: rev.revieweeName || 'Student',
-      projectName: rev.projectName || 'Community Project',
-      roleOrContext: rev.roleOrContext || 'Contributor',
+      revieweeName: rev.revieweeName || (community ? 'TeamUp' : 'Student'),
+      // Community Voice reviews are about TeamUp itself: no project; roleOrContext = landing tab
+      projectName: community ? '' : (rev.projectName || 'Community Project'),
+      roleOrContext: rev.roleOrContext || (community ? 'Students' : 'Contributor'),
       rating: rev.rating || 5,
       reviewText: rev.reviewText || rev.feedback || '',
       reviewType: rev.reviewType || 'Team Member Review',
@@ -629,7 +632,8 @@ const getAdminBootstrap = async (req, res) => {
       reportedBy: rev.reportedBy || null,
       helpfulVotes: rev.helpfulVotes || 0,
       verifiedCollaboration: rev.verifiedCollaboration !== false,
-    }));
+      };
+    });
 
     // 6. Fetch Audit Logs
     const rawLogs = await AuditLog.find({}).sort({ createdAt: -1 }).limit(50);
@@ -1239,9 +1243,8 @@ const createReview = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Review text is required' });
     }
 
-    const count = await Review.countDocuments();
     const newRev = await Review.create({
-      reviewId: `REV-${500 + count + 1}`,
+      reviewId: await require('./communityController').nextReviewId(),
       reviewerName: revName.trim(),
       reviewerInitials: computeInitials(revName),
       revieweeName: (revieweeName || 'Alex Morgan').trim(),
@@ -1285,13 +1288,16 @@ const updateReview = async (req, res) => {
     }
 
     if (action === 'approve') {
+      const wasPending = review.status === 'Pending';
       review.status = 'Published';
       review.reportReason = null;
       review.reportedBy = null;
-      await logAudit('Jordan Lee', 'JL', 'Approved reported feedback', `${review.reviewId} (${review.reviewerName})`, true);
+      await logAudit('Jordan Lee', 'JL', wasPending ? 'Approved community review' : 'Approved reported feedback',
+        `${review.reviewId} (${review.reviewerName})`, true);
     } else if (action === 'hide' || status === 'Hidden') {
+      const wasPending = review.status === 'Pending';
       review.status = 'Hidden';
-      await logAudit('Jordan Lee', 'JL', 'Hid feedback', review.reviewId || id, true);
+      await logAudit('Jordan Lee', 'JL', wasPending ? 'Rejected community review' : 'Hid feedback', review.reviewId || id, true);
     } else if (action === 'unhide' || status === 'Published') {
       review.status = 'Published';
       await logAudit('Jordan Lee', 'JL', 'Unhid feedback', review.reviewId || id, true);

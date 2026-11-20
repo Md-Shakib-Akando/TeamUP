@@ -72,6 +72,7 @@ public final class DashboardSync {
         if (me != null) {
             // setProfileName also derives the avatar initials from the name (same rule as the server)
             d.setProfileName(Json.str(me, "name", d.getProfileName()));
+            d.setProfileUserId(Json.str(me, "id", ""));
             d.setProfileRole(Json.str(me, "role", "Student"));
             d.setProfileBio(Json.str(me, "bio", ""));
             d.setProfilePortfolio(Json.str(me, "portfolio", ""));

@@ -312,17 +312,10 @@ public class Cta extends LpSection {
                 submitLead();
                 return true;
             }
-            if (e.getKeyChar() == KeyEvent.CHAR_UNDEFINED || Character.isISOControl(e.getKeyChar()) || e.isControlDown()) {
-                boolean handled = emailBox.onKey(e);
-                if (handled) validateWhileEditing();
-                return handled;
-            }
+            // The landing window only dispatches KEY_PRESSED and TextBox inserts characters from
+            // KEY_PRESSED, so printable keys must be passed on (not swallowed).
+            if (emailBox.onKey(e)) validateWhileEditing();
             return true;
-        }
-        if (e.getID() == KeyEvent.KEY_TYPED) {
-            boolean handled = emailBox.onKey(e);
-            if (handled) validateWhileEditing();
-            return handled;
         }
         return false;
     }

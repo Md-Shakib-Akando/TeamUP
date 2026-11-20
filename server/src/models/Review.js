@@ -19,7 +19,8 @@ const reviewSchema = new mongoose.Schema(
     date: { type: String, default: '' },
     status: {
       type: String,
-      enum: ['Published', 'Reported', 'Under review', 'Hidden'],
+      // 'Pending' = community review waiting for admin approval (not shown on the landing page)
+      enum: ['Published', 'Pending', 'Reported', 'Under review', 'Hidden'],
       default: 'Published',
     },
     reportReason: { type: String, default: null },

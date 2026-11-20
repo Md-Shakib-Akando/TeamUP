@@ -4,38 +4,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Production-ready Admin Settings View for TeamUp.
- * Clean, simple, meaningful, and 100% workable:
+ * Admin Settings for TeamUp — a settings-list layout (label + help on the left,
+ * control on the right; stacked on narrow screens) in two cards:
  *
- * 1. General & Contact Information:
- *    - Platform Name (e.g. TeamUp)
- *    - Official Contact Email
- *    - Support & Helpdesk Email
- *    - Authorized University Domains (whitelist)
+ * 1. Access & policies: registration, project approval, notifications, maintenance mode
+ *    (amber warning while on) and the maximum team size stepper.
+ * 2. Admin password: current / new (strength meter) / confirm (match check), show/hide, update.
  *
- * 2. Platform Policies & Team Limits:
- *    - User Registration (Toggle: ON/OFF)
- *    - Project Approval (Toggle: ON/OFF)
- *    - System Notifications (Toggle: ON/OFF)
- *    - Maintenance Mode (Toggle: ON/OFF)
- *    - Maximum Team Size (Interactive Stepper with − / +)
+ * The General card (platform name, emails, domains) was removed from the page by request;
+ * its drafts are still loaded and sent with saveAllSettings() so stored values are kept.
  *
- * 3. Administrator Security & Password:
- *    - Current Password
- *    - New Password (min 6 characters)
- *    - Confirm Password
- *    - Show/Hide Password toggle
- *    - Update Password action
- *
- * 4. Database Backup & Safety:
- *    - Live last backup timestamp and file size
- *    - Working "Create Database Backup" button exporting JSON to backups/
- *
- * 5. Floating Action Bar:
- *    - Real-time unsaved changes detection
- *    - Reset to Defaults action
- *    - Save Platform Settings action
- *
+ * Toggles and the stepper save immediately; text fields save on Enter or when focus leaves.
  * Pure core Java - zero third-party dependencies.
  */
 public class AdminSettings {
@@ -180,344 +159,519 @@ public class AdminSettings {
         return false;
     }
 
+    // =========================================================================
+    // LAYOUT & PAINTING
+    // Settings-list pattern: every card is a list of rows with the label + help
+    // text on the left and the control on the right (stacked on narrow widths).
+    // The same layout pass measures the page height (measuring = true).
+    // =========================================================================
+    private boolean measuring = false;
+    private static final int MAX_CONTENT_W = 1100;
+    private static final Color FIELD_BG = new Color(0xF8, 0xFA, 0xFC);
+    private static final Color LABEL_INK = new Color(0x33, 0x41, 0x55);
+
     public int getComputedHeight(int width) {
-        boolean mobile = (width < 650);
-        int total = 75; // Clean responsive header
-        total += mobile ? 350 : 255; // Card 1: General & Contact Information
-        total += mobile ? 360 : 275; // Card 2: Platform Controls & Governance
-        total += mobile ? 320 : 245; // Card 3: Change Password
-        return total + 40;
+        java.awt.image.BufferedImage scratch = new java.awt.image.BufferedImage(1, 1, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = scratch.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        measuring = true;
+        try {
+            return layout(g, 0, 0, width) + 40;
+        } finally {
+            measuring = false;
+            g.dispose();
+        }
     }
 
     public void paint(Graphics2D g, int x, int y, int width, int height, AdminDashboard dashboard) {
-        int padX = (width < 600) ? 16 : 28;
-        int curY = y + 24;
-        int contentW = width - padX * 2;
-
+        lastActions = new ArrayList<>(actionBtns);
         inputBoxes.clear();
         toggleBtns.clear();
         stepperBtns.clear();
         actionBtns.clear();
+        layout(g, x, y, width);
+    }
 
-        // 1. Header Section
-        curY = paintHeader(g, x + padX, curY, contentW);
-        curY += 22;
+    /** Lays out (and, unless measuring, paints) the whole page. Returns the bottom y. */
+    private int layout(Graphics2D g, int x, int y, int width) {
+        int padX = (width < 600) ? 16 : 28;
+        int contentW = Math.min(MAX_CONTENT_W, width - padX * 2);
+        int cx = x + padX;
+        int curY = y + 24;
 
-        // 2. Card 1: General & Contact Information (Platform Name, Emails, Allowed Domains)
-        curY = paintGeneralAndContactCard(g, x + padX, curY, contentW);
-        curY += 20;
-
-        // 3. Card 2: Platform Policies & Governance (Reg, Approval, Notif, Maintenance, Team Limit)
-        curY = paintControlsAndGovernanceCard(g, x + padX, curY, contentW);
-        curY += 20;
-
-        // 4. Card 3: Administrator Security & Password
-        paintChangePasswordCard(g, x + padX, curY, contentW);
+        curY = paintHeader(g, cx, curY, contentW) + 24;
+        curY = paintAccessCard(g, cx, curY, contentW) + 20;
+        curY = paintSecurityCard(g, cx, curY, contentW);
+        return curY;
     }
 
     private int paintHeader(Graphics2D g, int x, int y, int w) {
         g.setFont(AdminTheme.FONT_HEADING);
         g.setColor(AdminTheme.TEXT_DARK);
-        g.drawString("Platform Settings", x, y + 24);
+        g.drawString("Settings", x, y + 24);
 
-        // Subtitle
         g.setFont(AdminTheme.FONT_REG_13);
         g.setColor(AdminTheme.TEXT_MUTED);
-        String sub = "Configure platform name, institutional domains, user access, and security.";
-        g.drawString(sub, x, y + 48);
+        g.drawString(fit(g, "Who can join, what needs approval, team limits, and your admin security.", w), x, y + 48);
 
-        // Top action buttons and Live Policies badge deleted as requested
-        actionBtns.add(new ActionBtn("RESET_TOP", -9999, -9999, 0, 0));
-        actionBtns.add(new ActionBtn("SAVE_TOP", -9999, -9999, 0, 0));
-
-        return y + 54;
-    }
-
-    // --- CARD 1: General & Contact Information ---
-    private int paintGeneralAndContactCard(Graphics2D g, int x, int y, int w) {
-        boolean mobile = (w < 650);
-        int cardH = mobile ? 340 : 250;
-        paintCardContainer(g, x, y, w, cardH, "General & Contact Information", "Configure platform brand title, official communication channels, and university email whitelist.");
-
-        int cx = x + 24;
-        int cy = y + 68;
-        int innerW = w - 48;
-
-        // 1. Platform Name
-        paintInputField(g, 1, cx, cy, innerW, 36, "Platform Name", platformNameDraft,
-                "Enter platform brand name (e.g. TeamUp)", false);
-
-        cy += 64;
-
-        // 2. Email Settings: Contact Email & Support Email
-        if (!mobile) {
-            int fieldW = (innerW - 16) / 2;
-            paintInputField(g, 2, cx, cy, fieldW, 36, "Contact Email", contactEmailDraft, "e.g. contact@teamup.edu",
-                    false);
-            paintInputField(g, 3, cx + fieldW + 16, cy, fieldW, 36, "Support & Helpdesk Email", supportEmailDraft,
-                    "e.g. support@teamup.edu", false);
-        } else {
-            paintInputField(g, 2, cx, cy, innerW, 34, "Contact Email", contactEmailDraft, "e.g. contact@teamup.edu",
-                    false);
-            cy += 58;
-            paintInputField(g, 3, cx, cy, innerW, 34, "Support Email", supportEmailDraft, "e.g. support@teamup.edu",
-                    false);
-        }
-
-        cy += 64;
-
-        // 3. Authorized University Email Domains (Whitelist)
-        paintInputField(g, 7, cx, cy, innerW, 36, "Authorized University Domains", allowedDomainsDraft, "e.g. @university.edu, @mit.edu, @du.ac.bd", false);
-
-        return y + cardH;
-    }
-
-    // --- CARD 2: Platform Controls & Governance ---
-    private int paintControlsAndGovernanceCard(Graphics2D g, int x, int y, int w) {
-        boolean mobile = (w < 650);
-        int cardH = mobile ? 350 : 270;
-        paintCardContainer(g, x, y, w, cardH, "Platform Controls & Team Capacity", "Manage user registration, project review gates, system notifications, maintenance, and team member limits.");
-
-        int cx = x + 24;
-        int cy = y + 68;
-        int innerW = w - 48;
-
-        if (!mobile) {
-            int colW = (innerW - 20) / 2;
-
-            // Row 1: User Registration & Project Approval
-            paintToggleRow(g, "USER_REG", cx, cy, colW, "User Registration", "Allow new student and member signups", userRegistrationDraft);
-            paintToggleRow(g, "PROJ_APPROV", cx + colW + 20, cy, colW, "Project Approval", "Require admin review before publishing", projectApprovalDraft);
-
-            cy += 56;
-
-            // Row 2: Notifications & Maintenance Mode
-            paintToggleRow(g, "NOTIF", cx, cy, colW, "System Notifications", "Enable platform email and push alerts", notificationsDraft);
-            paintToggleRow(g, "MAINTENANCE", cx + colW + 20, cy, colW, "Maintenance Mode", "Temporarily pause public access for upgrades", maintenanceModeDraft);
-
-            cy += 56;
-
-            // Row 3: Maximum Team Size
-            paintStepperRow(g, "MAX_TEAM", cx, cy, colW, "Maximum Team Size", maxTeamSizeDraft, "members (capacity limit)");
-        } else {
-            paintToggleRow(g, "USER_REG", cx, cy, innerW, "User Registration", "Allow new signups", userRegistrationDraft);
-            cy += 48;
-            paintToggleRow(g, "PROJ_APPROV", cx, cy, innerW, "Project Approval", "Require pre-approval",
-                    projectApprovalDraft);
-            cy += 48;
-            paintToggleRow(g, "NOTIF", cx, cy, innerW, "Notifications", "Enable platform alerts", notificationsDraft);
-            cy += 48;
-            paintToggleRow(g, "MAINTENANCE", cx, cy, innerW, "Maintenance Mode", "Pause public access", maintenanceModeDraft);
-            cy += 48;
-            paintStepperRow(g, "MAX_TEAM", cx, cy, innerW, "Max Team Size", maxTeamSizeDraft, "members");
-        }
-
-        return y + cardH;
-    }
-
-    // --- CARD 3: Change Password ---
-    private int paintChangePasswordCard(Graphics2D g, int x, int y, int w) {
-        boolean mobile = (w < 650);
-        int cardH = mobile ? 310 : 240;
-        paintCardContainer(g, x, y, w, cardH, "Change Administrator Password",
-                "Update credentials for your administrator account (minimum 6 characters).");
-
-        int cx = x + 24;
-        int cy = y + 68;
-        int innerW = w - 48;
-
-        if (!mobile) {
-            int fieldW = (innerW - 24) / 3;
-            paintInputField(g, 4, cx, cy, fieldW, 36, "Current Password", currentPasswordInput,
-                    "Enter current password", !showPasswords);
-            paintInputField(g, 5, cx + fieldW + 12, cy, fieldW, 36, "New Password", newPasswordInput,
-                    "Enter new password (6+ chars)", !showPasswords);
-            paintInputField(g, 6, cx + (fieldW + 12) * 2, cy, fieldW, 36, "Confirm New Password", confirmPasswordInput,
-                    "Re-enter new password", !showPasswords);
-
-            cy += 64;
-
-            // Password Toggle & Update Button
-            int btnW = 160;
-            paintButton(g, "UPDATE_PASSWORD", cx, cy, btnW, 36, "🔒 Update Password", true);
-
-            // Show/Hide Password Link
-            g.setFont(AdminTheme.FONT_REG_12);
-            g.setColor(AdminTheme.BRAND_SECONDARY);
-            String toggleText = showPasswords ? "Hide password text" : "Show password text";
-            g.drawString(toggleText, cx + btnW + 16, cy + 22);
-
-            ActionBtn showHideBtn = new ActionBtn("SHOW_PASSWORD_TOGGLE", cx + btnW + 12, cy, 140, 36);
-            actionBtns.add(showHideBtn);
-        } else {
-            paintInputField(g, 4, cx, cy, innerW, 34, "Current Password", currentPasswordInput, "Current password",
-                    !showPasswords);
-            cy += 56;
-            paintInputField(g, 5, cx, cy, innerW, 34, "New Password", newPasswordInput, "New password (6+ chars)",
-                    !showPasswords);
-            cy += 56;
-            paintInputField(g, 6, cx, cy, innerW, 34, "Confirm Password", confirmPasswordInput, "Confirm new password",
-                    !showPasswords);
-            cy += 56;
-            paintButton(g, "UPDATE_PASSWORD", cx, cy, innerW, 34, "🔒 Update Password", true);
-        }
-
-        return y + cardH;
-    }
-
-    // --- Reusable Component Painters ---
-
-    private void paintCardContainer(Graphics2D g, int x, int y, int w, int h, String title, String subtitle) {
-        RoundRectangle2D card = new RoundRectangle2D.Float(x, y, w, h, 14, 14);
-        g.setColor(Color.WHITE);
-        g.fill(card);
-        g.setColor(AdminTheme.BORDER_COLOR);
-        g.setStroke(new BasicStroke(1.2f));
-        g.draw(card);
-
-        // Header Title
-        g.setFont(AdminTheme.FONT_SECTION);
-        g.setColor(AdminTheme.TEXT_DARK);
-        g.drawString(title, x + 24, y + 28);
-
-        // Subtitle
-        g.setFont(AdminTheme.FONT_REG_12);
-        g.setColor(AdminTheme.TEXT_MUTED);
-        g.drawString(subtitle, x + 24, y + 48);
-    }
-
-    private void paintInputField(Graphics2D g, int inputId, int fx, int fy, int fw, int fh, String label, String value,
-            String placeholder, boolean mask) {
+        // Status pill: changes are applied as you go (toggles instantly, fields on Enter / blur)
+        boolean editing = focusedInput != 0;
+        String status = editing ? "Editing — press Enter to save" : "Changes save automatically";
         g.setFont(AdminTheme.FONT_BOLD_11);
-        g.setColor(AdminTheme.TEXT_DARK);
-        g.drawString(label, fx, fy + 12);
+        int pw = g.getFontMetrics().stringWidth(status) + 34;
+        boolean wide = w >= 760;
+        int px = wide ? x + w - pw : x;
+        int py = wide ? y + 8 : y + 62;
+        if (!measuring) {
+            g.setColor(editing ? AdminTheme.STATUS_PENDING_BG : AdminTheme.STATUS_GREEN_BG);
+            g.fill(new RoundRectangle2D.Float(px, py, pw, 26, 26, 26));
+            g.setColor(editing ? AdminTheme.STATUS_PENDING_TXT : AdminTheme.STATUS_GREEN_TEXT);
+            g.fillOval(px + 12, py + 10, 7, 7);
+            g.drawString(status, px + 24, py + 17);
+        }
 
-        int boxY = fy + 18;
-        RoundRectangle2D box = new RoundRectangle2D.Float(fx, boxY, fw, fh, 8, 8);
-        g.setColor(Color.WHITE);
-        g.fill(box);
+        // Kept as hidden entries (the Save / Reset bar was removed by request)
+        addAction(new ActionBtn("RESET_TOP", -9999, -9999, 0, 0));
+        addAction(new ActionBtn("SAVE_TOP", -9999, -9999, 0, 0));
+        return wide ? y + 54 : y + 90;
+    }
 
+    // ---------------------------------------------------------------- cards
+
+    private interface CardBody {
+        int paint(Graphics2D g, int x, int y, int w); // returns the body's bottom y
+    }
+
+    /** Measures the card body, paints the white card, then the body on top, then the border. */
+    private int card(Graphics2D g, int x, int y, int w, CardBody body) {
+        boolean outer = measuring;
+        measuring = true;
+        int bottom = body.paint(g, x, y, w);
+        measuring = outer;
+        if (!measuring) {
+            RoundRectangle2D shape = new RoundRectangle2D.Float(x, y, w, bottom - y, 16, 16);
+            g.setColor(Color.WHITE);
+            g.fill(shape);
+            body.paint(g, x, y, w);
+            g.setColor(AdminTheme.BORDER_COLOR);
+            g.setStroke(new BasicStroke(1.2f));
+            g.draw(shape);
+        }
+        return bottom;
+    }
+
+    private int paintAccessCard(Graphics2D g, int x, int y, int w) {
+        return card(g, x, y, w, this::accessBody);
+    }
+
+    private int paintSecurityCard(Graphics2D g, int x, int y, int w) {
+        return card(g, x, y, w, this::securityBody);
+    }
+
+    private int accessBody(Graphics2D g, int x, int y, int w) {
+        y = cardHeader(g, x, y, w, "Access & policies", "Control who can join and what needs an admin's approval.", 1,
+                AdminTheme.BRAND_TINT, AdminTheme.BRAND_PRIMARY);
+        y = toggleRow(g, x, y, w, "USER_REG", "User registration", "Allow new students to create accounts.",
+                userRegistrationDraft, false, true);
+        y = toggleRow(g, x, y, w, "PROJ_APPROV", "Project approval", "New projects wait for an admin review before going live.",
+                projectApprovalDraft, false, true);
+        y = toggleRow(g, x, y, w, "NOTIF", "System notifications", "Email and in-app alerts sent by the platform.",
+                notificationsDraft, false, true);
+        y = toggleRow(g, x, y, w, "MAINTENANCE", "Maintenance mode", "Temporarily blocks student access while you upgrade.",
+                maintenanceModeDraft, true, true);
+        y = stepperRow(g, x, y, w);
+        return y + 4;
+    }
+
+    private int securityBody(Graphics2D g, int x, int y, int w) {
+        y = cardHeader(g, x, y, w, "Admin password", "Change the password for your administrator account.", 2,
+                AdminTheme.STATUS_GREEN_BG, AdminTheme.STATUS_GREEN_TEXT);
+        y = inputRow(g, x, y, w, "Current password", "Required to confirm it's you.",
+                4, currentPasswordInput, "Current password", !showPasswords, true);
+        y = newPasswordRow(g, x, y, w);
+        y = confirmRow(g, x, y, w);
+
+        // footer: show/hide + update
+        int pad = 24;
+        int by = y + 18;
+        g.setFont(AdminTheme.FONT_BOLD_12);
+        FontMetrics fm = g.getFontMetrics();
+        String upd = "Update password";
+        int bw = fm.stringWidth(upd) + 40;
+        int bx = x + w - pad - bw;
+        paintButton(g, "UPDATE_PASSWORD", bx, by, bw, 38, upd, true);
+
+        String toggle = showPasswords ? "Hide passwords" : "Show passwords";
+        int tw = fm.stringWidth(toggle);
+        int tx = x + pad;
+        if (!measuring) {
+            g.setColor(AdminTheme.BORDER_COLOR);
+            g.drawRoundRect(tx, by + 11, 16, 16, 5, 5);
+            if (showPasswords) {
+                g.setColor(AdminTheme.BRAND_PRIMARY);
+                g.fillRoundRect(tx, by + 11, 16, 16, 5, 5);
+                g.setColor(Color.WHITE);
+                g.setStroke(new BasicStroke(1.8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                g.drawLine(tx + 4, by + 19, tx + 7, by + 22);
+                g.drawLine(tx + 7, by + 22, tx + 12, by + 15);
+                g.setStroke(new BasicStroke(1f));
+            }
+            g.setFont(AdminTheme.FONT_REG_12);
+            g.setColor(LABEL_INK);
+            g.drawString(toggle, tx + 24, by + 24);
+        }
+        addAction(new ActionBtn("SHOW_PASSWORD_TOGGLE", tx - 4, by + 4, tw + 36, 30));
+        return by + 38 + 20;
+    }
+
+    // ---------------------------------------------------------------- card chrome
+
+    /** Paints the card header (icon, title, subtitle, divider) and returns the y where rows start. */
+    private int cardHeader(Graphics2D g, int x, int y, int w, String title, String sub, int icon, Color tint, Color ink) {
+        int pad = 24;
+        if (!measuring) {
+            g.setColor(tint);
+            g.fill(new RoundRectangle2D.Float(x + pad, y + 22, 38, 38, 12, 12));
+            paintCardIcon(g, icon, x + pad + 11, y + 33, ink);
+            g.setFont(AdminTheme.FONT_SECTION);
+            g.setColor(AdminTheme.TEXT_DARK);
+            g.drawString(title, x + pad + 52, y + 38);
+            g.setFont(AdminTheme.FONT_REG_12);
+            g.setColor(AdminTheme.TEXT_MUTED);
+            g.drawString(fit(g, sub, w - pad * 2 - 52), x + pad + 52, y + 56);
+            g.setColor(new Color(0xF1, 0xF5, 0xF9));
+            g.drawLine(x + 1, y + 80, x + w - 1, y + 80);
+        }
+        return y + 80;
+    }
+
+    private void paintCardIcon(Graphics2D g, int type, int x, int y, Color c) {
+        g.setColor(c);
+        g.setStroke(new BasicStroke(1.7f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        if (type == 0) { // globe
+            g.drawOval(x, y, 16, 16);
+            g.drawLine(x, y + 8, x + 16, y + 8);
+            g.drawArc(x + 4, y, 8, 16, 90, 180);
+            g.drawArc(x + 4, y, 8, 16, 270, 180);
+        } else if (type == 1) { // shield
+            java.awt.geom.Path2D.Float p = new java.awt.geom.Path2D.Float();
+            p.moveTo(x + 8, y);
+            p.lineTo(x + 16, y + 3);
+            p.lineTo(x + 15, y + 10);
+            p.quadTo(x + 13, y + 15, x + 8, y + 17);
+            p.quadTo(x + 3, y + 15, x + 1, y + 10);
+            p.lineTo(x, y + 3);
+            p.closePath();
+            g.draw(p);
+            g.drawLine(x + 5, y + 8, x + 7, y + 11);
+            g.drawLine(x + 7, y + 11, x + 11, y + 6);
+        } else { // lock
+            g.drawRoundRect(x + 1, y + 7, 14, 10, 3, 3);
+            g.drawArc(x + 4, y, 8, 12, 0, 180);
+            g.drawLine(x + 4, y + 6, x + 4, y + 8);
+            g.drawLine(x + 12, y + 6, x + 12, y + 8);
+        }
+        g.setStroke(new BasicStroke(1f));
+    }
+
+    // ---------------------------------------------------------------- rows
+
+    /** Geometry for a settings row: {labelX, labelW, controlX, controlW, wide ? 1 : 0}. */
+    private int[] rowGeometry(int x, int w) {
+        int pad = 24;
+        int inner = w - pad * 2;
+        boolean wide = inner >= 640;
+        int labelW = wide ? Math.min(300, inner * 2 / 5) : inner;
+        int controlX = wide ? x + pad + labelW + 32 : x + pad;
+        int controlW = wide ? Math.min(560, x + w - pad - controlX) : inner;
+        return new int[] { x + pad, labelW, controlX, controlW, wide ? 1 : 0 };
+    }
+
+    /** Paints the label + help text; returns its height. */
+    private int paintRowLabel(Graphics2D g, int lx, int y, int lw, String label, String help) {
+        if (!measuring) {
+            g.setFont(AdminTheme.FONT_BOLD_12);
+            g.setColor(AdminTheme.TEXT_DARK);
+            g.drawString(label, lx, y + 14);
+        }
+        g.setFont(AdminTheme.FONT_REG_12);
+        List<String> lines = wrap(g, help, lw, 2);
+        int ly = y + 32;
+        for (String l : lines) {
+            if (!measuring) {
+                g.setColor(AdminTheme.TEXT_MUTED);
+                g.drawString(l, lx, ly);
+            }
+            ly += 17;
+        }
+        return 18 + lines.size() * 17;
+    }
+
+    private void rowDivider(Graphics2D g, int x, int y, int w) {
+        if (!measuring) {
+            g.setColor(new Color(0xF1, 0xF5, 0xF9));
+            g.drawLine(x + 24, y, x + w - 24, y);
+        }
+    }
+
+    private int inputRow(Graphics2D g, int x, int y, int w, String label, String help, int id, String value,
+            String placeholder, boolean mask, boolean divider) {
+        int[] r = rowGeometry(x, w);
+        int top = y + 20;
+        int labelH = paintRowLabel(g, r[0], top, r[1], label, help);
+        int fieldY = r[4] == 1 ? top : top + labelH + 10;
+        paintInputField(g, id, r[2], fieldY, r[3], 40, value, placeholder, mask);
+        int bottom = Math.max(top + labelH, fieldY + 40) + 20;
+        if (divider) rowDivider(g, x, bottom, w);
+        return bottom;
+    }
+
+    private int toggleRow(Graphics2D g, int x, int y, int w, String id, String label, String help, boolean on,
+            boolean warnWhenOn, boolean divider) {
+        int[] r = rowGeometry(x, w);
+        int top = y + 20;
+        int labelH = paintRowLabel(g, r[0], top, r[1], label, help);
+        int ty = r[4] == 1 ? top + 4 : top + labelH + 8;
+        int togW = 46, togH = 26;
+        Color onColor = warnWhenOn ? new Color(0xD9, 0x77, 0x06) : AdminTheme.BRAND_PRIMARY;
+        if (!measuring) {
+            RoundRectangle2D track = new RoundRectangle2D.Float(r[2], ty, togW, togH, togH, togH);
+            g.setColor(on ? onColor : new Color(0xCB, 0xD5, 0xE1));
+            g.fill(track);
+            int knob = togH - 6;
+            int kx = on ? r[2] + togW - knob - 3 : r[2] + 3;
+            g.setColor(new Color(15, 23, 42, 30));
+            g.fillOval(kx, ty + 4, knob, knob);
+            g.setColor(Color.WHITE);
+            g.fillOval(kx, ty + 3, knob, knob);
+
+            g.setFont(AdminTheme.FONT_BOLD_12);
+            g.setColor(on ? (warnWhenOn ? onColor : AdminTheme.TEXT_DARK) : AdminTheme.TEXT_MUTED);
+            String state = on ? (warnWhenOn ? "On — students can't sign in" : "Enabled") : (warnWhenOn ? "Off — platform is live" : "Disabled");
+            g.drawString(fit(g, state, r[3] - togW - 14), r[2] + togW + 14, ty + 18);
+        }
+        if (!measuring) toggleBtns.add(new ToggleBtn(id, r[2], ty, togW, togH, on));
+        int bottom = Math.max(top + labelH, ty + togH) + 20;
+        if (divider) rowDivider(g, x, bottom, w);
+        return bottom;
+    }
+
+    private int stepperRow(Graphics2D g, int x, int y, int w) {
+        int[] r = rowGeometry(x, w);
+        int top = y + 20;
+        int labelH = paintRowLabel(g, r[0], top, r[1], "Maximum team size", "Largest team a project can recruit (2–16 members).");
+        int sy = r[4] == 1 ? top : top + labelH + 8;
+        int b = 36, valW = 64;
+        int mx = r[2], vx = mx + b, px = vx + valW;
+
+        if (!measuring) {
+            stepperBtns.add(new StepperBtn("MAX_TEAM", mx, sy, b, b, px, sy, b, b));
+            boolean minDisabled = maxTeamSizeDraft <= 2, maxDisabled = maxTeamSizeDraft >= 16;
+            RoundRectangle2D whole = new RoundRectangle2D.Float(mx, sy, b * 2 + valW, b, 10, 10);
+            g.setColor(Color.WHITE);
+            g.fill(whole);
+            g.setColor(AdminTheme.BORDER_COLOR);
+            g.setStroke(new BasicStroke(1.1f));
+            g.draw(whole);
+            g.drawLine(vx, sy, vx, sy + b);
+            g.drawLine(px, sy, px, sy + b);
+            g.setColor(minDisabled ? AdminTheme.TEXT_LIGHT : (lastMinusHover ? AdminTheme.BRAND_PRIMARY : LABEL_INK));
+            g.setStroke(new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g.drawLine(mx + 12, sy + b / 2, mx + b - 12, sy + b / 2);
+            g.setColor(maxDisabled ? AdminTheme.TEXT_LIGHT : (lastPlusHover ? AdminTheme.BRAND_PRIMARY : LABEL_INK));
+            g.drawLine(px + 12, sy + b / 2, px + b - 12, sy + b / 2);
+            g.drawLine(px + b / 2, sy + 12, px + b / 2, sy + b - 12);
+            g.setStroke(new BasicStroke(1f));
+            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 16));
+            g.setColor(AdminTheme.TEXT_DARK);
+            String v = String.valueOf(maxTeamSizeDraft);
+            FontMetrics fm = g.getFontMetrics();
+            g.drawString(v, vx + (valW - fm.stringWidth(v)) / 2, sy + 24);
+            g.setFont(AdminTheme.FONT_REG_12);
+            g.setColor(AdminTheme.TEXT_MUTED);
+            g.drawString("members per team", px + b + 14, sy + 23);
+        }
+        return Math.max(top + labelH, sy + b) + 20;
+    }
+
+    private boolean lastMinusHover = false, lastPlusHover = false;
+
+    private int newPasswordRow(Graphics2D g, int x, int y, int w) {
+        int[] r = rowGeometry(x, w);
+        int top = y + 20;
+        int labelH = paintRowLabel(g, r[0], top, r[1], "New password", "At least 6 characters. Mix letters, numbers and symbols.");
+        int fieldY = r[4] == 1 ? top : top + labelH + 10;
+        paintInputField(g, 5, r[2], fieldY, r[3], 40, newPasswordInput, "New password", !showPasswords);
+
+        // strength meter
+        int my = fieldY + 40 + 10;
+        int score = passwordScore(newPasswordInput);
+        String[] names = { "Too short", "Weak", "Fair", "Good", "Strong" };
+        Color[] cols = { AdminTheme.STATUS_RED_TEXT, AdminTheme.STATUS_RED_TEXT, AdminTheme.STATUS_PENDING_TXT,
+                AdminTheme.BRAND_SECONDARY, AdminTheme.STATUS_GREEN_TEXT };
+        if (!measuring && !newPasswordInput.isEmpty()) {
+            int segW = Math.min(64, (r[3] - 100) / 4);
+            for (int i = 0; i < 4; i++) {
+                g.setColor(i < score ? cols[score] : new Color(0xE2, 0xE8, 0xF0));
+                g.fill(new RoundRectangle2D.Float(r[2] + i * (segW + 4), my + 5, segW, 5, 5, 5));
+            }
+            g.setFont(AdminTheme.FONT_BOLD_11);
+            g.setColor(cols[score]);
+            g.drawString(names[score], r[2] + 4 * (segW + 4) + 8, my + 12);
+        }
+        int bottom = Math.max(top + labelH, newPasswordInput.isEmpty() ? fieldY + 40 : my + 16) + 20;
+        rowDivider(g, x, bottom, w);
+        return bottom;
+    }
+
+    private int confirmRow(Graphics2D g, int x, int y, int w) {
+        int[] r = rowGeometry(x, w);
+        int top = y + 20;
+        int labelH = paintRowLabel(g, r[0], top, r[1], "Confirm new password", "Type the new password again.");
+        int fieldY = r[4] == 1 ? top : top + labelH + 10;
+        paintInputField(g, 6, r[2], fieldY, r[3], 40, confirmPasswordInput, "Repeat new password", !showPasswords);
+        int bottom = fieldY + 40;
+        if (!confirmPasswordInput.isEmpty()) {
+            boolean match = confirmPasswordInput.equals(newPasswordInput);
+            if (!measuring) {
+                g.setFont(AdminTheme.FONT_BOLD_11);
+                g.setColor(match ? AdminTheme.STATUS_GREEN_TEXT : AdminTheme.STATUS_RED_TEXT);
+                g.drawString(match ? "✓ Passwords match" : "✕ Passwords don't match", r[2], fieldY + 40 + 22);
+            }
+            bottom += 28;
+        }
+        bottom = Math.max(top + labelH, bottom) + 4;
+        rowDivider(g, x, bottom + 14, w);
+        return bottom;
+    }
+
+    /** 0 = too short (< 6), then 1–4 by length and character variety. */
+    private static int passwordScore(String p) {
+        if (p == null || p.length() < 6) return 0;
+        int variety = 0;
+        if (p.matches(".*[a-z].*")) variety++;
+        if (p.matches(".*[A-Z].*")) variety++;
+        if (p.matches(".*[0-9].*")) variety++;
+        if (p.matches(".*[^A-Za-z0-9].*")) variety++;
+        int score = 1;
+        if (p.length() >= 8 && variety >= 2) score = 2;
+        if (p.length() >= 10 && variety >= 3) score = 3;
+        if (p.length() >= 12 && variety >= 4) score = 4;
+        return score;
+    }
+
+    // ---------------------------------------------------------------- controls
+
+    private void paintInputField(Graphics2D g, int inputId, int fx, int fy, int fw, int fh, String value,
+            String placeholder, boolean mask) {
+        if (measuring) return;
         boolean focused = (focusedInput == inputId);
-        g.setColor(focused ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.BORDER_COLOR);
-        g.setStroke(new BasicStroke(focused ? 1.8f : 1.1f));
+        if (focused) {
+            g.setColor(new Color(0xEA, 0x4C, 0x89, 28));
+            g.setStroke(new BasicStroke(4f));
+            g.draw(new RoundRectangle2D.Float(fx - 1, fy - 1, fw + 2, fh + 2, 12, 12));
+        }
+        RoundRectangle2D box = new RoundRectangle2D.Float(fx, fy, fw, fh, 10, 10);
+        g.setColor(focused ? Color.WHITE : FIELD_BG);
+        g.fill(box);
+        g.setColor(focused ? AdminTheme.BRAND_PRIMARY : AdminTheme.BORDER_COLOR);
+        g.setStroke(new BasicStroke(focused ? 1.6f : 1.1f));
         g.draw(box);
-
-        inputBoxes.add(new InputBox(inputId, fx, boxY, fw, fh, mask));
+        g.setStroke(new BasicStroke(1f));
+        inputBoxes.add(new InputBox(inputId, fx, fy, fw, fh, mask));
 
         g.setFont(AdminTheme.FONT_REG_13);
         FontMetrics fm = g.getFontMetrics();
-
+        int tx = fx + 14;
+        int maxW = fw - 28;
+        int base = fy + (fh + fm.getAscent() - fm.getDescent()) / 2;
+        boolean caret = focused && (System.currentTimeMillis() % 1000 < 550);
         if (value != null && !value.isEmpty()) {
+            String shown = mask ? value.replaceAll(".", "•") : value;
+            while (shown.length() > 1 && fm.stringWidth(shown) > maxW) shown = shown.substring(1); // keep the caret end visible
             g.setColor(AdminTheme.TEXT_DARK);
-            String displayVal = mask ? value.replaceAll(".", "•") : value;
-            g.drawString(displayVal, fx + 12, boxY + 22);
-
-            // Blinking cursor
-            if (focused && (System.currentTimeMillis() % 1000 < 500)) {
-                int cursorX = fx + 12 + fm.stringWidth(displayVal);
-                g.setColor(AdminTheme.BRAND_GREEN_DARK);
-                g.drawLine(cursorX, boxY + 8, cursorX, boxY + fh - 8);
+            g.drawString(shown, tx, base);
+            if (caret) {
+                g.setColor(AdminTheme.BRAND_PRIMARY);
+                int cx = tx + fm.stringWidth(shown) + 1;
+                g.drawLine(cx, fy + 11, cx, fy + fh - 11);
             }
         } else {
             g.setColor(AdminTheme.TEXT_LIGHT);
-            g.drawString(placeholder, fx + 12, boxY + 22);
-
-            // Blinking cursor at start if focused & empty
-            if (focused && (System.currentTimeMillis() % 1000 < 500)) {
-                g.setColor(AdminTheme.BRAND_GREEN_DARK);
-                g.drawLine(fx + 12, boxY + 8, fx + 12, boxY + fh - 8);
+            g.drawString(fit(g, placeholder, maxW), tx, base);
+            if (caret) {
+                g.setColor(AdminTheme.BRAND_PRIMARY);
+                g.drawLine(tx, fy + 11, tx, fy + fh - 11);
             }
         }
-    }
-
-    private void paintToggleRow(Graphics2D g, String id, int rx, int ry, int rw, String title, String sub, boolean on) {
-        int togW = 44, togH = 22;
-        int togX = rx + rw - togW;
-        int togY = ry + 2;
-
-        RoundRectangle2D bg = new RoundRectangle2D.Float(togX, togY, togW, togH, togH / 2, togH / 2);
-        g.setColor(on ? AdminTheme.BRAND_GREEN_DARK : new Color(0xCB, 0xD5, 0xE1));
-        g.fill(bg);
-
-        int knobSize = togH - 4;
-        int knobX = on ? togX + togW - knobSize - 2 : togX + 2;
-        g.setColor(Color.WHITE);
-        g.fillOval(knobX, togY + 2, knobSize, knobSize);
-
-        toggleBtns.add(new ToggleBtn(id, togX, togY, togW, togH, on));
-
-        g.setFont(AdminTheme.FONT_BOLD_12);
-        g.setColor(AdminTheme.TEXT_DARK);
-        g.drawString(title, rx, ry + 14);
-
-        g.setFont(AdminTheme.FONT_REG_11);
-        g.setColor(AdminTheme.TEXT_MUTED);
-        String drawSub = sub;
-        int maxW = togX - rx - 14;
-        FontMetrics fm = g.getFontMetrics();
-        if (fm.stringWidth(drawSub) > maxW && drawSub.length() > 6) {
-            while (drawSub.length() > 4 && fm.stringWidth(drawSub + "…") > maxW) {
-                drawSub = drawSub.substring(0, drawSub.length() - 1);
-            }
-            drawSub += "…";
-        }
-        g.drawString(drawSub, rx, ry + 28);
-    }
-
-    private void paintStepperRow(Graphics2D g, String id, int rx, int ry, int rw, String title, int value, String unit) {
-        g.setFont(AdminTheme.FONT_BOLD_12);
-        g.setColor(AdminTheme.TEXT_DARK);
-        g.drawString(title, rx, ry + 14);
-
-        g.setFont(AdminTheme.FONT_REG_11);
-        g.setColor(AdminTheme.TEXT_MUTED);
-        g.drawString(value + " " + unit, rx, ry + 28);
-
-        int btnSize = 24;
-        int px = rx + rw - btnSize;
-        int py = ry + 4;
-        int mx = px - btnSize - 6;
-        int my = py;
-
-        StepperBtn sb = new StepperBtn(id, mx, my, btnSize, btnSize, px, py, btnSize, btnSize);
-        stepperBtns.add(sb);
-
-        // Minus button
-        g.setColor(sb.minusHovered ? new Color(0xE2, 0xE8, 0xF0) : new Color(0xF1, 0xF5, 0xF9));
-        g.fillRoundRect(mx, my, btnSize, btnSize, 4, 4);
-        g.setColor(AdminTheme.TEXT_DARK);
-        g.setFont(AdminTheme.FONT_BOLD_13);
-        g.drawString("−", mx + 7, my + 17);
-
-        // Plus button
-        g.setColor(sb.plusHovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.BRAND_GREEN_DARK);
-        g.fillRoundRect(px, py, btnSize, btnSize, 4, 4);
-        g.setColor(Color.WHITE);
-        g.setFont(AdminTheme.FONT_BOLD_12);
-        g.drawString("+", px + 6, py + 16);
     }
 
     private void paintButton(Graphics2D g, String id, int bx, int by, int bw, int bh, String label, boolean primary) {
         ActionBtn ab = new ActionBtn(id, bx, by, bw, bh);
-        actionBtns.add(ab);
-
-        RoundRectangle2D btn = new RoundRectangle2D.Float(bx, by, bw, bh, 8, 8);
+        for (ActionBtn old : lastActions) if (old.id.equals(id)) ab.hovered = old.hovered;
+        addAction(ab);
+        if (measuring) return;
+        RoundRectangle2D btn = new RoundRectangle2D.Float(bx, by, bw, bh, 10, 10);
         if (primary) {
-            g.setColor(ab.hovered ? AdminTheme.BRAND_GREEN_MID : AdminTheme.BRAND_GREEN_DARK);
+            g.setColor(ab.hovered ? AdminTheme.BRAND_HOVER : AdminTheme.BRAND_PRIMARY);
             g.fill(btn);
             g.setColor(Color.WHITE);
         } else {
-            g.setColor(ab.hovered ? new Color(0xF1, 0xF5, 0xF9) : Color.WHITE);
+            g.setColor(ab.hovered ? FIELD_BG : Color.WHITE);
             g.fill(btn);
-            g.setColor(ab.hovered ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.BORDER_COLOR);
+            g.setColor(AdminTheme.BORDER_COLOR);
             g.setStroke(new BasicStroke(1.2f));
             g.draw(btn);
-            g.setColor(ab.hovered ? AdminTheme.BRAND_GREEN_DARK : AdminTheme.TEXT_DARK);
+            g.setColor(AdminTheme.TEXT_DARK);
         }
-
-        g.setFont(AdminTheme.FONT_BOLD_11);
+        g.setFont(AdminTheme.FONT_BOLD_12);
         FontMetrics fm = g.getFontMetrics();
-        g.drawString(label, bx + (bw - fm.stringWidth(label)) / 2, by + bh / 2 + 5);
+        g.drawString(label, bx + (bw - fm.stringWidth(label)) / 2, by + (bh + fm.getAscent() - fm.getDescent()) / 2);
+    }
+
+    /** Previous frame's buttons, so hover state survives the per-frame rebuild. */
+    private List<ActionBtn> lastActions = new ArrayList<>();
+
+    private void addAction(ActionBtn ab) {
+        if (!measuring) actionBtns.add(ab);
+    }
+
+    // ---------------------------------------------------------------- text helpers
+
+    private static String fit(Graphics2D g, String s, int maxW) {
+        if (s == null) return "";
+        FontMetrics fm = g.getFontMetrics();
+        if (fm.stringWidth(s) <= maxW) return s;
+        String t = s;
+        while (t.length() > 1 && fm.stringWidth(t + "…") > maxW) t = t.substring(0, t.length() - 1);
+        return t.trim() + "…";
+    }
+
+    private static List<String> wrap(Graphics2D g, String text, int maxW, int maxLines) {
+        List<String> out = new ArrayList<>();
+        if (text == null || text.isEmpty()) return out;
+        FontMetrics fm = g.getFontMetrics();
+        StringBuilder line = new StringBuilder();
+        String[] words = text.split(" ");
+        for (int i = 0; i < words.length; i++) {
+            String cand = line.length() == 0 ? words[i] : line + " " + words[i];
+            if (fm.stringWidth(cand) <= maxW || line.length() == 0) {
+                line.setLength(0);
+                line.append(cand);
+            } else {
+                out.add(line.toString());
+                line.setLength(0);
+                line.append(words[i]);
+                if (out.size() == maxLines - 1) {
+                    StringBuilder rest = new StringBuilder(line);
+                    for (int k = i + 1; k < words.length; k++) rest.append(' ').append(words[k]);
+                    out.add(fit(g, rest.toString(), maxW));
+                    return out;
+                }
+            }
+        }
+        if (line.length() > 0) out.add(line.toString());
+        return out;
     }
 
     // --- Interactive Mouse & Keyboard Handlers ---
@@ -736,6 +890,8 @@ public class AdminSettings {
             sb.plusHovered = (mx >= sb.px && mx <= sb.px + sb.pw && my >= sb.py && my <= sb.py + sb.ph);
             if (sb.minusHovered != wasM || sb.plusHovered != wasP)
                 changed = true;
+            lastMinusHover = sb.minusHovered;
+            lastPlusHover = sb.plusHovered;
         }
 
         for (ActionBtn ab : actionBtns) {

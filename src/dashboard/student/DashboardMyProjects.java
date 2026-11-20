@@ -1130,9 +1130,16 @@ public class DashboardMyProjects {
             g.drawString(m.initials, mx + 43, curY + 31);
 
             // Name & Role
+            boolean self = isSelf(m);
             g.setFont(DashboardTheme.FONT_BOLD_12);
             g.setColor(DashboardTheme.TEXT_DARK);
             g.drawString(m.name, mx + 78, curY + 20);
+            if (self) {
+                int nw = g.getFontMetrics().stringWidth(m.name);
+                g.setFont(DashboardTheme.FONT_REG_11);
+                g.setColor(DashboardTheme.TEXT_MUTED);
+                g.drawString("(you)", mx + 78 + nw + 6, curY + 20);
+            }
 
             g.setFont(DashboardTheme.FONT_REG_11);
             g.setColor(DashboardTheme.TEXT_MUTED);
@@ -1156,9 +1163,22 @@ public class DashboardMyProjects {
             g.setColor(DashboardTheme.TEXT_DARK);
             g.drawString("Progress: " + m.progress + "%", pTrackX + pTrackW + 8, pTrackY + 6);
 
-            // Action Buttons: [★ Review]  [⚑ Report]  [✕ Remove]
+            // Action Buttons: [★ Review]  [⚑ Report]  [✕ Remove] — never on your own row
             int btnRight = mx + mw - 36;
             int btnY = curY + 14;
+            if (self) {
+                m.revBtnX = m.repBtnX = m.delBtnX = -9999; // no stale hitboxes
+                String you = "You";
+                g.setFont(DashboardTheme.FONT_BOLD_11);
+                int yw = g.getFontMetrics().stringWidth(you) + 24;
+                RoundRectangle2D pill = new RoundRectangle2D.Float(btnRight - yw, btnY, yw, 26, 26, 26);
+                g.setColor(DashboardTheme.PURPLE_TINT_BG);
+                g.fill(pill);
+                g.setColor(DashboardTheme.BRAND_PURPLE);
+                g.drawString(you, btnRight - yw + 12, btnY + 17);
+                curY += 62;
+                continue;
+            }
 
             // Remove Button (Not shown for Project Lead / Owner)
             boolean isLeadMember = (i == 0 || "Project Lead".equalsIgnoreCase(m.role));
@@ -1689,6 +1709,7 @@ public class DashboardMyProjects {
                 for (int i = 0; i < modalProject.members.size(); i++) {
                     MemberAvatar m = modalProject.members.get(i);
                     boolean isLead = (i == 0 || "Project Lead".equalsIgnoreCase(m.role));
+                    if (isSelf(m)) continue; // you can't review, report or remove yourself
 
                     // Review button (★ Review)
                     if (mx >= m.revBtnX && mx <= m.revBtnX + m.revBtnW && my >= m.revBtnY && my <= m.revBtnY + m.revBtnH) {
@@ -1870,7 +1891,21 @@ public class DashboardMyProjects {
         return false;
     }
 
+    /** True when this member row is the logged-in user (matched by id, or by name when offline). */
+    private boolean isSelf(MemberAvatar m) {
+        if (m == null || dashboardRef == null) return false;
+        String myId = dashboardRef.getProfileUserId();
+        if (m.id != null && !m.id.isEmpty() && myId != null && !myId.isEmpty()) return m.id.equals(myId);
+        String myName = dashboardRef.getProfileName();
+        return (m.id == null || m.id.isEmpty()) && myName != null && m.name != null
+                && m.name.trim().equalsIgnoreCase(myName.trim());
+    }
+
     private void handleReviewClick(StudentDashboard dashboard, MemberAvatar m, MyProjectCard proj) {
+        if (isSelf(m)) {
+            dashboard.showToast("You can't review yourself.");
+            return;
+        }
         JPanel panel = new JPanel(new GridLayout(4, 1, 6, 6));
         panel.add(new JLabel("Leave a Peer Review for " + m.name + ":"));
 
@@ -1893,6 +1928,10 @@ public class DashboardMyProjects {
     }
 
     private void handleReportClick(StudentDashboard dashboard, MemberAvatar m) {
+        if (isSelf(m)) {
+            dashboard.showToast("You can't report yourself.");
+            return;
+        }
         JPanel panel = new JPanel(new GridLayout(4, 1, 6, 6));
         panel.add(new JLabel("Report Conduct Issue for " + m.name + ":"));
 

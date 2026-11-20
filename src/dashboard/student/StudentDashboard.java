@@ -97,6 +97,8 @@ public class StudentDashboard {
     private String profilePortfolio = "https://alexmorgan.dev";
     private String profileInitials = "AM";
     private String profileRole = "Student";
+    /** Backend id of the logged-in user ("" when offline) — used to recognise "you" in team lists. */
+    private String profileUserId = "";
 
     // Backend sync: stat card subtitles from the API, and work queued for the render thread
     private String[] statSubtitles = null;
@@ -3447,6 +3449,14 @@ public class StudentDashboard {
 
     public void setProfileInitials(String i) {
         this.profileInitials = i;
+    }
+
+    public String getProfileUserId() {
+        return profileUserId;
+    }
+
+    public void setProfileUserId(String id) {
+        this.profileUserId = id == null ? "" : id;
     }
 
     public String getProfileRole() {
