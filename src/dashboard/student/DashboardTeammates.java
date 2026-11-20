@@ -549,7 +549,7 @@ public class DashboardTeammates {
         } else {
             int gap = 20;
             int cardW = (contentW - gap * 2) / 3;
-            int cardH = 265;
+            int cardH = 285;
 
             int rowCount = 0;
             for (int i = startIndex; i < endIndex; i++) {
@@ -591,138 +591,189 @@ public class DashboardTeammates {
     private void paintSingleTeammateCard(Graphics2D g, int cx, int cy, int cw, int ch, TeammateCard tm, StudentDashboard dashboard) {
         tm.hitX = cx; tm.hitY = cy; tm.hitW = cw; tm.hitH = ch;
         tm.skillHits.clear();
+        int pad = 18;
+        int innerW = cw - pad * 2;
 
-        RoundRectangle2D cShape = new RoundRectangle2D.Float(cx, cy, cw, ch, 14, 14);
+        RoundRectangle2D cShape = new RoundRectangle2D.Float(cx, cy, cw, ch, 16, 16);
         g.setColor(Color.WHITE);
         g.fill(cShape);
         g.setColor(DashboardTheme.BORDER_COLOR);
         g.setStroke(new BasicStroke(1.2f));
         g.draw(cShape);
 
-        // Avatar Circle
-        int avSize = 42;
-        int avX = cx + 18;
+        // Avatar + name + role · university (all ellipsized to the card width)
+        int avSize = 44;
+        int avX = cx + pad;
         int avY = cy + 18;
-        g.setColor(tm.avatarBg);
-        g.fillOval(avX, avY, avSize, avSize);
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
-        g.setColor(tm.avatarText);
-        g.drawString(tm.initials, avX + 11, avY + 26);
-
-        // Name
+        paintAvatar(g, avX, avY, avSize, tm, 15);
         int infoX = avX + avSize + 12;
+        int infoW = cx + cw - pad - infoX;
         g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 15));
         g.setColor(DashboardTheme.TEXT_DARK);
-        g.drawString(tm.name, infoX, cy + 30);
-
-        // Role · University
+        g.drawString(fitText(tm.name, g.getFontMetrics(), infoW), infoX, cy + 36);
         g.setFont(DashboardTheme.FONT_REG_11);
         g.setColor(DashboardTheme.TEXT_MUTED);
-        String sub = tm.role + " · " + tm.university;
-        if (sub.length() > 28) sub = sub.substring(0, 26) + "...";
-        g.drawString(sub, infoX, cy + 46);
+        g.drawString(fitText(joinNonEmpty(" · ", tm.role, tm.university), g.getFontMetrics(), infoW), infoX, cy + 53);
 
-        // Availability Badge + Rating
-        int statY = cy + 74;
+        // Availability (left) + rating (right): rating keeps its width, availability takes the rest
+        int statY = cy + 82;
         g.setFont(DashboardTheme.FONT_BOLD_11);
-        g.setColor(new Color(0x15, 0x80, 0x3D)); // Green
-        g.drawString(tm.availability, cx + 18, statY);
+        FontMetrics bfm = g.getFontMetrics();
+        String ratStr = tm.reviews > 0 ? "★ " + String.format(java.util.Locale.US, "%.1f", tm.rating) + "  (" + tm.reviews + ")" : "No reviews yet";
+        int ratW = bfm.stringWidth(ratStr);
+        g.setColor(tm.reviews > 0 ? new Color(0xB4, 0x53, 0x09) : DashboardTheme.TEXT_LIGHT);
+        g.drawString(ratStr, cx + cw - pad - ratW, statY);
+        boolean available = tm.availability != null && tm.availability.toLowerCase().startsWith("available");
+        g.setColor(available ? new Color(0x10, 0xB9, 0x81) : DashboardTheme.TEXT_LIGHT);
+        g.fillOval(cx + pad, statY - 8, 7, 7);
+        g.setColor(available ? new Color(0x15, 0x80, 0x3D) : DashboardTheme.TEXT_MUTED);
+        g.drawString(fitText(tm.availability, bfm, innerW - ratW - 24), cx + pad + 12, statY);
 
-        // Rating
-        String ratStr = "★ " + String.format(java.util.Locale.US, "%.1f", tm.rating) + " (" + tm.reviews + " reviews)";
-        int ratW = g.getFontMetrics().stringWidth(ratStr);
-        g.setColor(new Color(0xB4, 0x53, 0x09));
-        g.drawString(ratStr, cx + cw - 18 - ratW, statY);
-
-        // Skills Tags Row
-        int skX = cx + 18;
-        int skY = cy + 86;
+        // Skills: one row, the rest collapse into "+N" (fixes the overflow past the card edge)
+        int skY = cy + 96;
         g.setFont(DashboardTheme.FONT_REG_11);
         FontMetrics sfm = g.getFontMetrics();
-
-        for (String s : tm.skills) {
-            int sw = sfm.stringWidth(s) + 14;
-            RoundRectangle2D skShape = new RoundRectangle2D.Float(skX, skY, sw, 22, 6, 6);
-            g.setColor(new Color(0xF4, 0xF2, 0xEE));
+        int skX = cx + pad;
+        int limit = cx + cw - pad;
+        for (int i = 0; i < tm.skills.size(); i++) {
+            String s = tm.skills.get(i);
+            int sw = sfm.stringWidth(s) + 16;
+            int remaining = tm.skills.size() - i - 1;
+            int moreW = remaining > 0 ? sfm.stringWidth("+" + remaining) + 16 + 6 : 0;
+            if (skX + sw + moreW > limit) {
+                String more = "+" + (tm.skills.size() - i);
+                int mw = sfm.stringWidth(more) + 16;
+                g.setColor(Color.WHITE);
+                g.fill(new RoundRectangle2D.Float(skX, skY, mw, 24, 8, 8));
+                g.setColor(DashboardTheme.BORDER_COLOR);
+                g.draw(new RoundRectangle2D.Float(skX, skY, mw, 24, 8, 8));
+                g.setColor(DashboardTheme.TEXT_MUTED);
+                g.drawString(more, skX + 8, skY + 16);
+                break;
+            }
+            RoundRectangle2D skShape = new RoundRectangle2D.Float(skX, skY, sw, 24, 8, 8);
+            g.setColor(new Color(0xF8, 0xF7, 0xF4));
             g.fill(skShape);
+            g.setColor(DashboardTheme.BORDER_COLOR);
+            g.draw(skShape);
             g.setColor(DashboardTheme.TEXT_MUTED);
-            g.drawString(s, skX + 7, skY + 15);
-            tm.skillHits.add(new TeammateCard.SkillHitbox(s, skX, skY, sw, 22));
+            g.drawString(s, skX + 8, skY + 16);
+            tm.skillHits.add(new TeammateCard.SkillHitbox(s, skX, skY, sw, 24));
             skX += sw + 6;
         }
 
-        // Match Highlight Box (neutral inset)
-        int matchBoxY = cy + 116;
+        // Match box: percentage + 2-line reason
+        int matchBoxY = cy + 132;
         int matchBoxH = 58;
-        int matchBoxW = cw - 36;
-        RoundRectangle2D mBox = new RoundRectangle2D.Float(cx + 18, matchBoxY, matchBoxW, matchBoxH, 8, 8);
-        g.setColor(new Color(0xF1, 0xF5, 0xF9)); // Neutral inset (no extra hue inside the card)
+        RoundRectangle2D mBox = new RoundRectangle2D.Float(cx + pad, matchBoxY, innerW, matchBoxH, 10, 10);
+        g.setColor(new Color(0xF8, 0xFA, 0xFC));
         g.fill(mBox);
-
+        g.setColor(new Color(0xE2, 0xE8, 0xF0));
+        g.draw(mBox);
         g.setFont(DashboardTheme.FONT_BOLD_11);
-        g.setColor(DashboardTheme.TEXT_DARK);
-        g.drawString(tm.matchPct, cx + 28, matchBoxY + 18);
-
+        g.setColor(DashboardTheme.BRAND_PURPLE);
+        g.drawString(fitText(tm.matchPct, g.getFontMetrics(), innerW - 24), cx + pad + 12, matchBoxY + 19);
         g.setFont(DashboardTheme.FONT_REG_11);
         g.setColor(DashboardTheme.TEXT_MUTED);
-        FontMetrics mfm = g.getFontMetrics();
-        List<String> matchLines = Draw.wrapText(tm.matchDesc, mfm, matchBoxW - 20);
-        int mLineY = matchBoxY + 34;
-        for (int i = 0; i < Math.min(2, matchLines.size()); i++) {
-            g.drawString(matchLines.get(i), cx + 28, mLineY);
+        int mLineY = matchBoxY + 35;
+        for (String line : wrapLimited(tm.matchDesc, g.getFontMetrics(), innerW - 24, 2)) {
+            g.drawString(line, cx + pad + 12, mLineY);
             mLineY += 15;
         }
 
-        // Portfolio Link
-        int linkY = matchBoxY + matchBoxH + 18;
-        drawLinkIcon(g, cx + 18, linkY - 10, 12, DashboardTheme.TEXT_MUTED);
-        g.setFont(DashboardTheme.FONT_REG_11);
-        g.setColor(DashboardTheme.TEXT_MUTED);
-        g.drawString(tm.portfolio, cx + 34, linkY);
-        tm.linkX = cx + 18;
-        tm.linkY = linkY - 12;
-        tm.linkW = g.getFontMetrics().stringWidth(tm.portfolio) + 20;
-        tm.linkH = 16;
+        // Portfolio link (ellipsized)
+        int linkY = matchBoxY + matchBoxH + 22;
+        if (tm.portfolio != null && !tm.portfolio.trim().isEmpty()) {
+            drawLinkIcon(g, cx + pad, linkY - 10, 12, DashboardTheme.TEXT_MUTED);
+            g.setFont(DashboardTheme.FONT_REG_11);
+            g.setColor(DashboardTheme.TEXT_MUTED);
+            String link = fitText(tm.portfolio.trim(), g.getFontMetrics(), innerW - 18);
+            g.drawString(link, cx + pad + 18, linkY);
+            tm.linkX = cx + pad;
+            tm.linkY = linkY - 12;
+            tm.linkW = g.getFontMetrics().stringWidth(link) + 20;
+            tm.linkH = 16;
+        } else {
+            tm.linkW = 0;
+            tm.linkH = 0;
+        }
 
-        // Bottom Action Buttons: [View Profile]  [+ Invite]  [Request]
-        int btnY = cy + ch - 42;
-        int btnH = 30;
-
-        // View Profile Button
-        tm.viewProfW = 105;
-        tm.viewProfH = btnH;
-        tm.viewProfX = cx + 18;
+        // Buttons share the full width: [View profile] [+ Invite]
+        int btnH = 34;
+        int btnY = cy + ch - pad - btnH;
+        int gap = 10;
+        int half = (innerW - gap) / 2;
+        tm.viewProfX = cx + pad;
         tm.viewProfY = btnY;
-        RoundRectangle2D vpShape = new RoundRectangle2D.Float(tm.viewProfX, tm.viewProfY, tm.viewProfW, tm.viewProfH, 6, 6);
+        tm.viewProfW = half;
+        tm.viewProfH = btnH;
+        RoundRectangle2D vpShape = new RoundRectangle2D.Float(tm.viewProfX, btnY, half, btnH, 10, 10);
         g.setColor(Color.WHITE);
         g.fill(vpShape);
         g.setColor(DashboardTheme.BORDER_COLOR);
         g.setStroke(new BasicStroke(1f));
         g.draw(vpShape);
-        g.setFont(DashboardTheme.FONT_BOLD_11);
+        g.setFont(DashboardTheme.FONT_BOLD_12);
+        FontMetrics btf = g.getFontMetrics();
         g.setColor(DashboardTheme.TEXT_DARK);
-        int vpw = g.getFontMetrics().stringWidth("View Profile");
-        g.drawString("View Profile", tm.viewProfX + (tm.viewProfW - vpw) / 2, tm.viewProfY + 19);
+        g.drawString("View profile", tm.viewProfX + (half - btf.stringWidth("View profile")) / 2, btnY + 22);
 
-        // + Invite Button (Primary purple)
-        tm.inviteBtnW = 95;
-        tm.inviteBtnH = btnH;
-        tm.inviteBtnX = tm.viewProfX + tm.viewProfW + 10;
+        tm.inviteBtnX = tm.viewProfX + half + gap;
         tm.inviteBtnY = btnY;
-        RoundRectangle2D invShape = new RoundRectangle2D.Float(tm.inviteBtnX, tm.inviteBtnY, tm.inviteBtnW, tm.inviteBtnH, 6, 6);
+        tm.inviteBtnW = innerW - half - gap;
+        tm.inviteBtnH = btnH;
+        RoundRectangle2D invShape = new RoundRectangle2D.Float(tm.inviteBtnX, btnY, tm.inviteBtnW, btnH, 10, 10);
         g.setColor(tm.invited ? new Color(0xDC, 0xFC, 0xE7) : DashboardTheme.BRAND_PURPLE);
         g.fill(invShape);
-        g.setFont(DashboardTheme.FONT_BOLD_11);
         g.setColor(tm.invited ? new Color(0x15, 0x80, 0x3D) : Color.WHITE);
         String invTxt = tm.invited ? "✓ Invited" : "+ Invite";
-        int itw = g.getFontMetrics().stringWidth(invTxt);
-        g.drawString(invTxt, tm.inviteBtnX + (tm.inviteBtnW - itw) / 2, tm.inviteBtnY + 19);
+        g.drawString(invTxt, tm.inviteBtnX + (tm.inviteBtnW - btf.stringWidth(invTxt)) / 2, btnY + 22);
 
-        // Request button removed
         tm.requestBtnW = 0;
         tm.requestBtnH = 0;
         tm.requestBtnX = -9999;
         tm.requestBtnY = -9999;
+    }
+
+    private void paintAvatar(Graphics2D g, int x, int y, int size, TeammateCard tm, int fontSize) {
+        g.setColor(tm.avatarBg != null ? tm.avatarBg : DashboardTheme.PURPLE_TINT_BG);
+        g.fillOval(x, y, size, size);
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, fontSize));
+        g.setColor(tm.avatarText != null ? tm.avatarText : DashboardTheme.BRAND_PURPLE);
+        FontMetrics fm = g.getFontMetrics();
+        String ini = tm.initials == null ? "" : tm.initials;
+        g.drawString(ini, x + (size - fm.stringWidth(ini)) / 2, y + (size + fm.getAscent() - fm.getDescent()) / 2);
+    }
+
+    private static String joinNonEmpty(String sep, String... parts) {
+        StringBuilder sb = new StringBuilder();
+        for (String p : parts) {
+            if (p == null || p.trim().isEmpty()) continue;
+            if (sb.length() > 0) sb.append(sep);
+            sb.append(p.trim());
+        }
+        return sb.toString();
+    }
+
+    private static String fitText(String s, FontMetrics fm, int maxW) {
+        if (s == null) return "";
+        if (maxW <= 0) return "";
+        if (fm.stringWidth(s) <= maxW) return s;
+        String t = s;
+        while (t.length() > 1 && fm.stringWidth(t + "…") > maxW) t = t.substring(0, t.length() - 1);
+        return t.trim() + "…";
+    }
+
+    private static List<String> wrapLimited(String text, FontMetrics fm, int maxW, int maxLines) {
+        List<String> lines = new ArrayList<>();
+        if (text == null || text.trim().isEmpty()) return lines;
+        List<String> all = Draw.wrapText(text.trim(), fm, maxW);
+        for (int i = 0; i < all.size() && i < maxLines; i++) {
+            String line = all.get(i);
+            if (i == maxLines - 1 && all.size() > maxLines) line = line + " " + all.get(i + 1);
+            lines.add(fitText(line, fm, maxW));
+        }
+        return lines;
     }
 
     private void drawLinkIcon(Graphics2D g, int x, int y, int size, Color c) {
@@ -871,124 +922,245 @@ public class DashboardTeammates {
         }
     }
 
+    // Profile modal geometry (for outside-click + footer close)
+    private int profModalX, profModalY, profModalW, profModalH;
+    private int modalCancelBtnX, modalCancelBtnY, modalCancelBtnW, modalCancelBtnH;
+
     private void paintTeammateProfileModal(Graphics2D g, int sw, int sh) {
         TeammateCard tm = activeProfileTeammate;
         if (tm == null) return;
 
-        // Scrim
-        g.setColor(new Color(0, 0, 0, 130));
+        g.setColor(new Color(15, 23, 42, 150));
         g.fillRect(0, 0, sw, sh);
 
-        int mw = 520;
-        int mh = 480;
+        int mw = Math.min(620, sw - 48);
+        // measure on a scratch canvas, shrinking the bio until the modal fits the screen
+        int bioLines = 10;
+        int mh;
+        while (true) {
+            java.awt.image.BufferedImage scratch = new java.awt.image.BufferedImage(1, 1, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+            Graphics2D mg = scratch.createGraphics();
+            mg.setRenderingHints(g.getRenderingHints());
+            mh = layoutProfileBody(mg, 0, 0, mw, tm, bioLines) + 8 + 80;
+            mg.dispose();
+            if (mh <= sh - 48 || bioLines <= 2) break;
+            bioLines--;
+        }
+        mh = Math.min(mh, sh - 24);
         int mx = (sw - mw) / 2;
-        int my = (sh - mh) / 2;
+        int my = Math.max(12, (sh - mh) / 2);
+        profModalX = mx; profModalY = my; profModalW = mw; profModalH = mh;
 
-        RoundRectangle2D mShape = new RoundRectangle2D.Float(mx, my, mw, mh, 16, 16);
+        for (int i = 0; i < 4; i++) {
+            int off = (i + 1) * 3;
+            g.setColor(new Color(15, 23, 42, Math.max(4, 18 - i * 4)));
+            g.fill(new RoundRectangle2D.Float(mx - off / 2f, my + off, mw + off, mh + off / 2f, 24, 24));
+        }
+        RoundRectangle2D mShape = new RoundRectangle2D.Float(mx, my, mw, mh, 20, 20);
         g.setColor(Color.WHITE);
         g.fill(mShape);
         g.setColor(DashboardTheme.BORDER_COLOR);
         g.setStroke(new BasicStroke(1.2f));
         g.draw(mShape);
 
-        // Close (X)
-        modalCloseX = mx + mw - 38;
-        modalCloseY = my + 18;
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 18));
+        // cover band
+        Shape oldClip = g.getClip();
+        g.clip(mShape);
+        g.setColor(new Color(0xF3, 0xF0, 0xFF));
+        g.fillRect(mx, my, mw, 72);
+        g.setClip(oldClip);
+
+        // close (vector ✕)
+        modalCloseSize = 32;
+        modalCloseX = mx + mw - modalCloseSize - 16;
+        modalCloseY = my + 16;
+        g.setColor(Color.WHITE);
+        g.fill(new RoundRectangle2D.Float(modalCloseX, modalCloseY, modalCloseSize, modalCloseSize, 10, 10));
+        g.setColor(new Color(0xE2, 0xE8, 0xF0));
+        g.setStroke(new BasicStroke(1f));
+        g.draw(new RoundRectangle2D.Float(modalCloseX, modalCloseY, modalCloseSize, modalCloseSize, 10, 10));
         g.setColor(DashboardTheme.TEXT_MUTED);
-        g.drawString("✕", modalCloseX, modalCloseY + 16);
+        g.setStroke(new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.drawLine(modalCloseX + 11, modalCloseY + 11, modalCloseX + 21, modalCloseY + 21);
+        g.drawLine(modalCloseX + 21, modalCloseY + 11, modalCloseX + 11, modalCloseY + 21);
 
-        // Avatar
-        int avSize = 56;
-        int avX = mx + 28;
-        int avY = my + 28;
-        g.setColor(tm.avatarBg);
-        g.fillOval(avX, avY, avSize, avSize);
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 18));
-        g.setColor(tm.avatarText);
-        g.drawString(tm.initials, avX + 16, avY + 36);
+        layoutProfileBody(g, mx, my, mw, tm, bioLines);
 
-        // Name & Role
-        int infoX = avX + avSize + 16;
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 20));
-        g.setColor(DashboardTheme.TEXT_DARK);
-        g.drawString(tm.name, infoX, my + 44);
-
-        g.setFont(DashboardTheme.FONT_REG_13);
-        g.setColor(DashboardTheme.TEXT_MUTED);
-        g.drawString(tm.role + " · " + tm.university, infoX, my + 66);
-
-        // Availability + Rating row
-        g.setFont(DashboardTheme.FONT_BOLD_12);
-        g.setColor(new Color(0x15, 0x80, 0x3D));
-        g.drawString(tm.availability, infoX, my + 88);
-
-        g.setColor(new Color(0xB4, 0x53, 0x09));
-        g.drawString("★ " + tm.rating + " (" + tm.reviews + " peer reviews)", infoX + 175, my + 88);
-
-        // Divider
-        int curY = my + 110;
-        g.setColor(DashboardTheme.BORDER_COLOR);
-        g.drawLine(mx + 28, curY, mx + mw - 28, curY);
-
-        // Bio section
-        curY += 24;
-        g.setFont(DashboardTheme.FONT_BOLD_12);
-        g.setColor(DashboardTheme.TEXT_DARK);
-        g.drawString("ABOUT & BACKGROUND", mx + 28, curY);
-
-        curY += 18;
-        g.setFont(DashboardTheme.FONT_REG_13);
-        g.setColor(new Color(0x33, 0x41, 0x55));
-        FontMetrics fm = g.getFontMetrics();
-        List<String> bioLines = Draw.wrapText(tm.bio, fm, mw - 56);
-        for (String bl : bioLines) {
-            g.drawString(bl, mx + 28, curY);
-            curY += 20;
-        }
-
-        // Skills section
-        curY += 10;
-        g.setFont(DashboardTheme.FONT_BOLD_12);
-        g.setColor(DashboardTheme.TEXT_DARK);
-        g.drawString("CORE STRENGTHS & SKILLS", mx + 28, curY);
-
-        curY += 14;
-        int skX = mx + 28;
-        for (String s : tm.skills) {
-            int skW = fm.stringWidth(s) + 16;
-            RoundRectangle2D sk = new RoundRectangle2D.Float(skX, curY, skW, 26, 6, 6);
-            g.setColor(new Color(0xF1, 0xF5, 0xF9));
-            g.fill(sk);
-            g.setColor(new Color(0x33, 0x41, 0x55));
-            g.drawString(s, skX + 8, curY + 18);
-            skX += skW + 8;
-        }
-
-        // Match description box
-        curY += 42;
-        RoundRectangle2D mBox = new RoundRectangle2D.Float(mx + 28, curY, mw - 56, 50, 8, 8);
+        // footer
+        int footY = my + mh - 80;
+        g.setColor(new Color(0xF8, 0xFA, 0xFC));
+        g.fill(new RoundRectangle2D.Float(mx + 1, footY, mw - 2, 79, 20, 20));
+        g.fillRect(mx + 1, footY, mw - 2, 30);
         g.setColor(new Color(0xF1, 0xF5, 0xF9));
-        g.fill(mBox);
-        g.setColor(DashboardTheme.TEXT_DARK);
-        g.setFont(DashboardTheme.FONT_BOLD_11);
-        g.drawString("✓ " + tm.matchPct, mx + 40, curY + 20);
-        g.setFont(DashboardTheme.FONT_REG_11);
-        g.drawString(tm.matchDesc, mx + 40, curY + 36);
+        g.setStroke(new BasicStroke(1f));
+        g.drawLine(mx, footY, mx + mw, footY);
 
-        // Actions: [Close]  [Send Message]  [+ Invite to Team]
-        int btnRowY = my + mh - 58;
-        modalInviteBtnX = mx + mw - 28 - modalInviteBtnW;
-        modalInviteBtnY = btnRowY;
-
-        RoundRectangle2D invB = new RoundRectangle2D.Float(modalInviteBtnX, modalInviteBtnY, modalInviteBtnW, modalInviteBtnH, 8, 8);
+        int btnH = 42;
+        int btnY = footY + 19;
+        g.setFont(DashboardTheme.FONT_BOLD_13);
+        FontMetrics bfm = g.getFontMetrics();
+        String inv = tm.invited ? "✓  Invited to a project" : "+  Invite to a project";
+        modalInviteBtnW = bfm.stringWidth(inv) + 40;
+        modalInviteBtnH = btnH;
+        modalInviteBtnX = mx + mw - 30 - modalInviteBtnW;
+        modalInviteBtnY = btnY;
+        RoundRectangle2D invB = new RoundRectangle2D.Float(modalInviteBtnX, btnY, modalInviteBtnW, btnH, 10, 10);
         g.setColor(tm.invited ? new Color(0xDC, 0xFC, 0xE7) : DashboardTheme.BRAND_PURPLE);
         g.fill(invB);
-        g.setFont(DashboardTheme.FONT_BOLD_12);
         g.setColor(tm.invited ? new Color(0x15, 0x80, 0x3D) : Color.WHITE);
-        String invText = tm.invited ? "✓ Invited to Team" : "+ Invite to Team";
-        int itw = g.getFontMetrics().stringWidth(invText);
-        g.drawString(invText, modalInviteBtnX + (modalInviteBtnW - itw) / 2, modalInviteBtnY + 24);
+        g.drawString(inv, modalInviteBtnX + (modalInviteBtnW - bfm.stringWidth(inv)) / 2, btnY + 26);
+
+        modalCancelBtnW = bfm.stringWidth("Close") + 48;
+        modalCancelBtnH = btnH;
+        modalCancelBtnX = modalInviteBtnX - 10 - modalCancelBtnW;
+        modalCancelBtnY = btnY;
+        RoundRectangle2D cl = new RoundRectangle2D.Float(modalCancelBtnX, btnY, modalCancelBtnW, btnH, 10, 10);
+        g.setColor(Color.WHITE);
+        g.fill(cl);
+        g.setColor(new Color(0xCB, 0xD5, 0xE1));
+        g.draw(cl);
+        g.setColor(new Color(0x33, 0x41, 0x55));
+        g.drawString("Close", modalCancelBtnX + (modalCancelBtnW - bfm.stringWidth("Close")) / 2, btnY + 26);
+
+        if (tm.invited) {
+            g.setFont(DashboardTheme.FONT_REG_11);
+            g.setColor(DashboardTheme.TEXT_LIGHT);
+            String hint = fitText("Click again to cancel the invite.", g.getFontMetrics(), modalCancelBtnX - 12 - (mx + 30));
+            g.drawString(hint, mx + 30, btnY + 26);
+        }
+    }
+
+    /** Profile modal body (header, match, about, skills, links); returns its bottom y. */
+    private int layoutProfileBody(Graphics2D g, int mx, int my, int mw, TeammateCard tm, int bioLines) {
+        int pad = 30;
+        int innerW = mw - pad * 2;
+
+        // avatar overlapping the cover band
+        int av = 84;
+        int avX = mx + pad;
+        int avY = my + 30;
+        g.setColor(Color.WHITE);
+        g.fillOval(avX - 4, avY - 4, av + 8, av + 8);
+        paintAvatar(g, avX, avY, av, tm, 26);
+
+        int textX = avX + av + 18;
+        int textW = mx + mw - pad - textX;
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 20));
+        g.setColor(DashboardTheme.TEXT_DARK);
+        g.drawString(fitText(tm.name, g.getFontMetrics(), textW - 40), textX, my + 102);
+        g.setFont(DashboardTheme.FONT_REG_13);
+        g.setColor(DashboardTheme.TEXT_MUTED);
+        int ty = my + 122;
+        for (String line : wrapLimited(joinNonEmpty("  ·  ", tm.role, tm.university), g.getFontMetrics(), textW, 2)) {
+            g.drawString(line, textX, ty);
+            ty += 18;
+        }
+
+        // pills: availability, rating, experience
+        int py = Math.max(avY + av, ty - 4) + 16;
+        int px = mx + pad;
+        boolean available = tm.availability != null && tm.availability.toLowerCase().startsWith("available");
+        px = pill(g, px, py, "● " + tm.availability, available ? new Color(0xDC, 0xFC, 0xE7) : new Color(0xF1, 0xF5, 0xF9),
+                available ? new Color(0x15, 0x80, 0x3D) : new Color(0x64, 0x74, 0x8B), mx + mw - pad) + 8;
+        String rating = tm.reviews > 0 ? "★ " + String.format(java.util.Locale.US, "%.1f", tm.rating) + "  ·  " + tm.reviews
+                + (tm.reviews == 1 ? " review" : " reviews") : "No reviews yet";
+        px = pill(g, px, py, rating, new Color(0xFF, 0xFA, 0xEC), new Color(0xB4, 0x53, 0x09), mx + mw - pad) + 8;
+        if (tm.experience != null && !tm.experience.isEmpty())
+            pill(g, px, py, tm.experience, new Color(0xF3, 0xF0, 0xFF), new Color(0x7C, 0x5C, 0xFF), mx + mw - pad);
+        int curY = py + 26 + 22;
+
+        // match card
+        if (tm.matchPct != null && !tm.matchPct.isEmpty()) {
+            g.setFont(DashboardTheme.FONT_REG_12);
+            List<String> why = wrapLimited(tm.matchDesc, g.getFontMetrics(), innerW - 28, 3);
+            int boxH = 36 + why.size() * 17 + 6;
+            RoundRectangle2D box = new RoundRectangle2D.Float(mx + pad, curY, innerW, boxH, 12, 12);
+            g.setColor(DashboardTheme.PURPLE_TINT_BG);
+            g.fill(box);
+            g.setColor(new Color(0xF8, 0xBC, 0xD4));
+            g.setStroke(new BasicStroke(1f));
+            g.draw(box);
+            g.setFont(DashboardTheme.FONT_BOLD_13);
+            g.setColor(DashboardTheme.BRAND_PURPLE);
+            g.drawString(tm.matchPct, mx + pad + 14, curY + 24);
+            g.setFont(DashboardTheme.FONT_REG_12);
+            g.setColor(new Color(0x33, 0x41, 0x55));
+            int ly = curY + 42;
+            for (String line : why) {
+                g.drawString(line, mx + pad + 14, ly);
+                ly += 17;
+            }
+            curY += boxH + 22;
+        }
+
+        // about
+        curY = sectionLabel(g, mx + pad, curY, "About");
+        boolean hasBio = tm.bio != null && !tm.bio.trim().isEmpty();
+        g.setFont(DashboardTheme.FONT_REG_13);
+        g.setColor(hasBio ? new Color(0x33, 0x41, 0x55) : DashboardTheme.TEXT_LIGHT);
+        for (String line : wrapLimited(hasBio ? tm.bio : "This student hasn't written a bio yet.", g.getFontMetrics(), innerW, bioLines)) {
+            g.drawString(line, mx + pad, curY + 14);
+            curY += 21;
+        }
+        curY += 20;
+
+        // skills (wrapping chips)
+        if (!tm.skills.isEmpty()) {
+            curY = sectionLabel(g, mx + pad, curY, "Skills");
+            g.setFont(DashboardTheme.FONT_BOLD_11);
+            FontMetrics fm = g.getFontMetrics();
+            int cx = mx + pad;
+            int cy = curY;
+            for (String s : tm.skills) {
+                String label = fitText(s, fm, innerW - 24);
+                int cw = fm.stringWidth(label) + 24;
+                if (cx > mx + pad && cx + cw > mx + pad + innerW) {
+                    cx = mx + pad;
+                    cy += 36;
+                }
+                RoundRectangle2D chip = new RoundRectangle2D.Float(cx, cy, cw, 28, 10, 10);
+                g.setColor(new Color(0xF8, 0xFA, 0xFC));
+                g.fill(chip);
+                g.setColor(new Color(0xE2, 0xE8, 0xF0));
+                g.draw(chip);
+                g.setColor(new Color(0x33, 0x41, 0x55));
+                g.drawString(label, cx + 12, cy + 18);
+                cx += cw + 8;
+            }
+            curY = cy + 28 + 20;
+        }
+
+        // portfolio
+        if (tm.portfolio != null && !tm.portfolio.trim().isEmpty()) {
+            curY = sectionLabel(g, mx + pad, curY, "Portfolio");
+            drawLinkIcon(g, mx + pad, curY + 3, 12, DashboardTheme.BRAND_PURPLE);
+            g.setFont(DashboardTheme.FONT_REG_13);
+            g.setColor(DashboardTheme.BRAND_PURPLE);
+            g.drawString(fitText(tm.portfolio.trim(), g.getFontMetrics(), innerW - 20), mx + pad + 20, curY + 14);
+            curY += 22;
+        }
+        return curY;
+    }
+
+    private int sectionLabel(Graphics2D g, int x, int y, String label) {
+        g.setFont(DashboardTheme.FONT_BOLD_12);
+        g.setColor(new Color(0x33, 0x41, 0x55));
+        g.drawString(label, x, y + 12);
+        return y + 24;
+    }
+
+    /** Rounded pill clipped to maxX; returns its right edge. */
+    private int pill(Graphics2D g, int x, int y, String text, Color bg, Color fg, int maxX) {
+        g.setFont(DashboardTheme.FONT_BOLD_11);
+        FontMetrics fm = g.getFontMetrics();
+        String t = fitText(text, fm, maxX - x - 20);
+        if (t.isEmpty()) return x;
+        int w = fm.stringWidth(t) + 20;
+        g.setColor(bg);
+        g.fill(new RoundRectangle2D.Float(x, y, w, 26, 26, 26));
+        g.setColor(fg);
+        g.drawString(t, x + 10, y + 17);
+        return x + w;
     }
 
     // =========================================================================
@@ -1008,10 +1180,13 @@ public class DashboardTeammates {
                 handleInviteTeammate(dashboard, activeProfileTeammate);
                 return true;
             }
-            // Outside click closes modal
-            int mw = 520; int mh = 480;
-            // if clicked outside modal bounds
-            // let's close
+            // Footer "Close" button, or a click outside the modal, closes it
+            boolean onClose = mx >= modalCancelBtnX && mx <= modalCancelBtnX + modalCancelBtnW
+                    && my >= modalCancelBtnY && my <= modalCancelBtnY + modalCancelBtnH;
+            boolean outside = mx < profModalX || mx > profModalX + profModalW || my < profModalY || my > profModalY + profModalH;
+            if (onClose || outside) {
+                activeProfileTeammate = null;
+            }
             return true;
         }
 
@@ -1206,7 +1381,24 @@ public class DashboardTeammates {
 
     public void setSearchKeyword(String kw) {
         this.searchKeyword = kw;
+        this.currentPage = 1;
         applyFilters();
+    }
+
+    /** Every teammate loaded on Find Teammates (read-only) — used by the header search. */
+    public List<TeammateCard> getAllTeammates() {
+        return Collections.unmodifiableList(allTeammates);
+    }
+
+    /** Opens the profile modal for a teammate (same as clicking "View profile"). */
+    public void openProfile(TeammateCard tm) {
+        activeDropdown = DropdownType.NONE;
+        activeProfileTeammate = tm;
+    }
+
+    /** True while a full-screen overlay (the profile modal) covers the page. */
+    public boolean hasOverlay() {
+        return activeProfileTeammate != null;
     }
 
     private void handleInviteTeammate(StudentDashboard dashboard, TeammateCard tm) {

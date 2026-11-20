@@ -142,7 +142,7 @@ public class TestLandingPageResponsiveness {
         gFoot.dispose();
         System.out.println("  ✓ Footer 4-column responsive grid and newsletter subscription rendered.");
 
-        System.out.println("\n[Test 5] Testing Audience Share Feeling & Benefits Form + Role Dropdown...");
+        System.out.println("\n[Test 5] Testing Audience (Who it's for) with approved community reviews...");
         Audience audience = new Audience();
         int audW = 1024;
         int audBaseH = audience.getHeight(audW);
@@ -152,51 +152,27 @@ public class TestLandingPageResponsiveness {
         audience.paint(gAud, 0, audW, 0, Math.max(900, audBaseH));
         gAud.dispose();
 
-        // Click role dropdown (top-right of form card: x ~ 750..900, y in form region) and select "Developers"
-        boolean dropClicked = false;
-        int dropY = -1;
-        for (int yy = audBaseH - 280; yy < audBaseH - 80; yy += 8) {
-            if (audience.onClick(860, yy)) {
-                dropClicked = true;
-                dropY = yy;
-                break;
-            }
-        }
-        if (!dropClicked) throw new AssertionError("Role dropdown did not open on click");
-        // Second option ("Developers") is right below header: menuY = y + 46 + 6, item 1 top = menuY + 4 + 34
-        audience.paint(audImg.createGraphics(), 0, audW, 0, Math.max(900, audBaseH));
-        audience.onClick(860, dropY + 46 + 6 + 4 + 45);
-
-        // Focus review input box on row 2 (right below dropY: dropY + 46 + 12 + 20)
-        int revRowY = dropY + 46 + 22;
-        if (!audience.onClick(350, revRowY) || !audience.hasFocus()) {
-            throw new AssertionError("Review TextBox did not gain focus on click");
-        }
-        java.awt.Component audSrc = new javax.swing.JPanel();
-        String sample = "Found great Devs!";
-        for (char ch : sample.toCharArray()) {
-            audience.onKey(new java.awt.event.KeyEvent(audSrc, java.awt.event.KeyEvent.KEY_TYPED,
-                    System.currentTimeMillis(), 0, java.awt.event.KeyEvent.VK_UNDEFINED, ch));
-        }
-        audience.onKey(new java.awt.event.KeyEvent(audSrc, java.awt.event.KeyEvent.KEY_PRESSED,
-                System.currentTimeMillis(), 0, java.awt.event.KeyEvent.VK_ENTER, '\n'));
-
+        // Only approved reviews (from the server) are listed; they grow the section
+        List<java.util.Map<String, Object>> rows = new ArrayList<>();
+        rows.add(Json.obj("author", "Sadia R.", "initials", "SR", "tab", "Students",
+                "text", "Found a reliable backend partner for our capstone in one evening.", "rating", 5, "date", "Nov 20, 2026"));
+        audience.applyPublished(rows);
         int audAfterH = audience.getHeight(audW);
         if (audAfterH <= audBaseH) {
-            throw new AssertionError("Audience height did not grow after review submission (base=" + audBaseH + ", after=" + audAfterH + ")");
+            throw new AssertionError("Audience height did not grow after approved reviews loaded (base=" + audBaseH + ", after=" + audAfterH + ")");
         }
         BufferedImage audAfterImg = new BufferedImage(audW, audAfterH, BufferedImage.TYPE_INT_ARGB);
         Graphics2D gAudAfter = audAfterImg.createGraphics();
         audience.paint(gAudAfter, 0, audW, 0, audAfterH);
         gAudAfter.dispose();
 
-        // Also test mobile 375px render with shared review present
+        // Also test mobile 375px render with an approved review present
         int audMobH = audience.getHeight(375);
         BufferedImage audMobImg = new BufferedImage(375, audMobH, BufferedImage.TYPE_INT_ARGB);
         Graphics2D gAudMob = audMobImg.createGraphics();
         audience.paint(gAudMob, 0, 375, 0, audMobH);
         gAudMob.dispose();
-        System.out.println("  ✓ Audience review submitted for Developers (desktop h=" + audBaseH + "->" + audAfterH + "px, mobile=" + audMobH + "px).");
+        System.out.println("  \u2713 Who it's for: approved community reviews shown (desktop h=" + audBaseH + "->" + audAfterH + "px, mobile=" + audMobH + "px).");
 
         System.out.println("\n==================================================");
         System.out.println("  ALL LANDING PAGE RESPONSIVENESS TESTS PASSED 100%!");

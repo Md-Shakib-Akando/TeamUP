@@ -410,6 +410,9 @@ const createReport = async (req, res) => {
   try {
     const { title, category, description, severity, reportedUserId } = req.body || {};
     if (!title || !title.trim()) return bad(res, 'Report title / reason is required.');
+    if (reportedUserId && idStr(reportedUserId) === idStr(req.user._id)) {
+      return bad(res, 'You cannot report yourself.');
+    }
     let flaggedAuthor = 'Platform User';
     if (reportedUserId && f.isId(reportedUserId)) {
       const flagged = await User.findById(reportedUserId).select('name');
@@ -456,8 +459,7 @@ const createReview = async (req, res) => {
       project = await Project.findById(req.body.projectId).select('title');
     }
 
-    const revCount = await Review.countDocuments();
-    const reviewId = `REV-${501 + revCount}`;
+    const reviewId = await require('./communityController').nextReviewId();
     const now = new Date();
     const review = await Review.create({
       reviewId,
@@ -526,75 +528,6 @@ const markNotificationsRead = async (req, res) => {
   }
 };
 
-/** GET /api/platform-stats (Public) */
-const getPlatformStats = async (req, res) => {
-  try {
-    const userCount = await User.countDocuments();
-    const activeTeams = await Project.countDocuments({
-      status: { $in: ['Active', 'Recruiting'] },
-      archived: { $ne: true },
-    });
-    const universities = (await User.distinct('university')).filter(Boolean);
-    const universitiesCount = universities.length;
-
-    // Calculate real match accuracy from reviews and join requests
-    const reviews = await Review.find().select('rating').lean();
-    let matchAccuracy = 98;
-    if (reviews.length > 0) {
-      const avgRating = reviews.reduce((sum, r) => sum + (r.rating || 5), 0) / reviews.length;
-      matchAccuracy = Math.round((avgRating / 5) * 100);
-    } else {
-      const joinRequests = await JoinRequest.find({ matchPct: { $gt: 0 } }).select('matchPct').lean();
-      if (joinRequests.length > 0) {
-        matchAccuracy = Math.round(joinRequests.reduce((sum, j) => sum + j.matchPct, 0) / joinRequests.length);
-      }
-    }
-    matchAccuracy = Math.max(80, Math.min(99, matchAccuracy));
-
-    // Calculate real ghosting rate from reports
-    const totalReports = await Report.countDocuments();
-    let ghostingRate = 2;
-    if (userCount > 0 && totalReports > 0) {
-      const ghostReports = await Report.countDocuments({
-        $or: [
-          { category: /ghost|inactiv|drop|absent/i },
-          { reason: /ghost|inactiv|drop|absent/i },
-          { reportType: /ghost|inactiv|drop|absent/i },
-        ],
-      });
-      ghostingRate = Math.max(1, Math.min(5, Math.round((ghostReports / userCount) * 100)));
-    }
-
-    const subUniversities = universitiesCount > 0 ? `Across ${universitiesCount}+ universities` : 'Across 150+ universities';
-
-    return res.json({
-      success: true,
-      data: {
-        verifiedMembers: userCount,
-        activeTeams,
-        matchAccuracy,
-        ghostingRate,
-        universitiesCount,
-        subUniversities,
-      },
-    });
-  } catch (error) {
-    console.error('[Platform Stats Error]:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to fetch platform stats',
-      data: {
-        verifiedMembers: 12480,
-        activeTeams: 482,
-        matchAccuracy: 98,
-        ghostingRate: 2,
-        universitiesCount: 150,
-        subUniversities: 'Across 150+ universities',
-      },
-    });
-  }
-};
-
 module.exports = {
   createProject,
   toggleBookmark,
@@ -614,5 +547,4 @@ module.exports = {
   createReview,
   acceptInvitation: decideInvitation(true),
   declineInvitation: decideInvitation(false),
-  getPlatformStats,
 };

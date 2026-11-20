@@ -30,11 +30,9 @@ public class TestProfileManagement {
 
         // 2. Click "✎ Edit profile" button in My Profile view
         System.out.println("\n--- Test 2: Click 'Edit Profile' Button ---");
-        // In paintProfileContent at 1280x800:
-        // contentW = 1280 - 72 = 1208.
-        // shareProfileBtnBox: x = 36 + 1208 - 104 - 20 = 1120, y = curY + 76 = 124 + 76 = 200, w = 104, h = 32
-        // editProfileBtnBox: x = 1120 - 98 - 10 = 1012, y = 200, w = 98, h = 32
-        boolean editClicked = dashboard.onClick(1050, 215);
+        // Click the centre of wherever the hero painted the "Edit profile" button
+        Rectangle editBtn = dashboard.getEditProfileButtonBounds();
+        boolean editClicked = dashboard.onClick((int) editBtn.getCenterX(), (int) editBtn.getCenterY());
         dashboard.paint(g, 1280, 800);
         System.out.println("Edit Profile clicked handled: " + editClicked);
         System.out.println("Active Modal: " + dashboard.getActiveModal());
@@ -63,10 +61,10 @@ public class TestProfileManagement {
 
         // 4. Save form by clicking Save button
         System.out.println("\n--- Test 4: Saving Profile ---");
-        // Save button in COMPLETE_PROFILE modal
-        // modalW = 580, modalH = 580 -> modalX = (1280 - 580)/2 = 350, modalY = (800 - 580)/2 = 110
-        // Save button is around x = 350 + 26 + 95 + 12 + 50 = 483, y = 110 + 580 - 56 + 10 + 15 = 659
-        boolean saveClicked = dashboard.onClick(500, 660);
+        // Click the centre of wherever the modal painted "Save changes"
+        dashboard.paint(g, 1280, 800);
+        Rectangle saveBtn = dashboard.getProfileSaveButtonBounds();
+        boolean saveClicked = dashboard.onClick((int) saveBtn.getCenterX(), (int) saveBtn.getCenterY());
         dashboard.paint(g, 1280, 800);
         System.out.println("Save button clicked handled: " + saveClicked);
         System.out.println("Active Modal after save: " + dashboard.getActiveModal());
@@ -83,8 +81,9 @@ public class TestProfileManagement {
         if (!dashboard.getProfileName().equals("Alex Test Rivera")) {
             throw new RuntimeException("Expected name to be 'Alex Test Rivera' but got '" + dashboard.getProfileName() + "'");
         }
-        if (!dashboard.getProfileInitials().equals("AT")) {
-            throw new RuntimeException("Expected initials 'AT' but got '" + dashboard.getProfileInitials() + "'");
+        // Initials = first + last word, the same rule the server uses ("Alex Test Rivera" -> "AR")
+        if (!dashboard.getProfileInitials().equals("AR")) {
+            throw new RuntimeException("Expected initials 'AR' but got '" + dashboard.getProfileInitials() + "'");
         }
         if (!pd.headline.equals("Senior Full-Stack Engineer")) {
             throw new RuntimeException("Expected headline 'Senior Full-Stack Engineer' but got '" + pd.headline + "'");
@@ -92,8 +91,13 @@ public class TestProfileManagement {
 
         // 5. Test Share Profile Click
         System.out.println("\n--- Test 5: Click 'Share profile' Button ---");
-        boolean shareClicked = dashboard.onClick(1150, 215);
+        dashboard.paint(g, 1280, 800);
+        Rectangle shareBtn = dashboard.getShareProfileButtonBounds();
+        boolean shareClicked = dashboard.onClick((int) shareBtn.getCenterX(), (int) shareBtn.getCenterY());
         System.out.println("Share Profile clicked handled: " + shareClicked);
+        if (!shareClicked) {
+            throw new RuntimeException("Expected the Share button click to be handled!");
+        }
 
         // 6. Test Settings Account sync
         System.out.println("\n--- Test 6: Settings Account Sync ---");
@@ -118,6 +122,16 @@ public class TestProfileManagement {
         if (!dashboard.getProfileName().equals("Alex Settings Rivera")) {
             throw new RuntimeException("Settings sync failed!");
         }
+        if (!dashboard.getProfileInitials().equals("AR")) {
+            throw new RuntimeException("Initials should follow the renamed account, got '" + dashboard.getProfileInitials() + "'");
+        }
+
+        // 7. Single-word / camelCase names (e.g. "testPro") get meaningful initials
+        dashboard.setProfileName("testPro");
+        if (!dashboard.getProfileInitials().equals("TP")) {
+            throw new RuntimeException("Expected 'TP' for testPro but got '" + dashboard.getProfileInitials() + "'");
+        }
+        System.out.println("testPro -> " + dashboard.getProfileInitials());
 
         System.out.println("\n========================================================");
         System.out.println("ALL PROFILE MANAGEMENT TESTS PASSED PERFECTLY (100%)!");

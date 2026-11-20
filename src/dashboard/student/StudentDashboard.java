@@ -97,6 +97,8 @@ public class StudentDashboard {
     private String profilePortfolio = "https://alexmorgan.dev";
     private String profileInitials = "AM";
     private String profileRole = "Student";
+    /** Backend id of the logged-in user ("" when offline) — used to recognise "you" in team lists. */
+    private String profileUserId = "";
 
     // Backend sync: stat card subtitles from the API, and work queued for the render thread
     private String[] statSubtitles = null;
@@ -121,6 +123,14 @@ public class StudentDashboard {
         public int type;
         public int hitX, hitY, hitW, hitH;
         public int bmX, bmY;
+
+        // Optional detail fields (filled when opened from Discover Projects; unknown = null / -1)
+        public String category, experience, creatorName, creatorInitials, openRoles;
+        public Color creatorColor, iconBg, iconColor;
+        public int currentMembers = -1, maxMembers = -1;
+        public boolean isMember;
+        /** The Discover card this was opened from, so a join request updates the card too. */
+        public DashboardProjects.ProjectCard sourceCard;
 
         public ProjectItem(String title, String author, String desc, String[] skills, String footer, boolean isGreen,
                 int type) {
@@ -226,7 +236,7 @@ public class StudentDashboard {
     // =========================================================================
     // HITBOXES - SETTINGS (4 TABS)
     // =========================================================================
-    private final Rectangle[] settingsTabBounds = new Rectangle[4];
+    private final Rectangle[] settingsTabBounds = new Rectangle[SettingsData.SettingsTab.values().length];
     private int hoveredSettingsTab = -1;
 
     // Tab 1: Account
@@ -251,22 +261,6 @@ public class StudentDashboard {
     private final Rectangle cancelPrivacyBtnBox = new Rectangle();
     private boolean cancelPrivacyHovered = false;
 
-    // Tab 3: Collaboration Preferences
-    private final List<Rectangle> catRemoveBounds = new ArrayList<Rectangle>();
-    private final Rectangle addCatBox = new Rectangle();
-    private final Rectangle checkFrontendBox = new Rectangle();
-    private final Rectangle checkUiBox = new Rectangle();
-    private final Rectangle checkBackendBox = new Rectangle();
-    private final Rectangle checkLeadBox = new Rectangle();
-    private final Rectangle availDropdown = new Rectangle();
-    private final Rectangle commitDropdown = new Rectangle();
-    private final Rectangle modeRemoteBox = new Rectangle();
-    private final Rectangle modeInPersonBox = new Rectangle();
-    private final Rectangle modeEitherBox = new Rectangle();
-    private final Rectangle saveCollabBtnBox = new Rectangle();
-    private boolean saveCollabHovered = false;
-    private final Rectangle cancelCollabBtnBox = new Rectangle();
-    private boolean cancelCollabHovered = false;
 
     // Tab 4: Danger Zone
     private final Rectangle deactivateBtnBox = new Rectangle();
@@ -587,432 +581,1076 @@ public class StudentDashboard {
     }
 
     // =========================================================================
-    // 1. MY PROFILE VIEW RENDERING (ALIGNED WITH LANDING PAGE PALETTE)
+    // 1. MY PROFILE VIEW RENDERING
+    // Hero (cover, avatar, identity, about, links) · KPI cards · tabs ·
+    // Overview / Projects / Skills & Endorsements / Peer Reviews.
+    // Every block adapts to missing data (fresh accounts) and to narrow widths.
     // =========================================================================
+    private final Rectangle completeProfileBtnBox = new Rectangle();
+    private boolean completeProfileHovered = false;
+    /** profileSkillBounds[i] belongs to profileData.skills[profileSkillIndex[i]]. */
+    private final List<Integer> profileSkillIndex = new ArrayList<Integer>();
+    /** profileProjectBounds[i] belongs to profileData.projects[profileProjectIndex[i]]. */
+    private final List<Integer> profileProjectIndex = new ArrayList<Integer>();
+    private int hoveredProfileSkill = -1;
+    private int hoveredProfileProject = -1;
+
+    private static final Font PF_NAME = new Font(Font.SANS_SERIF, Font.BOLD, 24);
+    private static final Font PF_TITLE = new Font(Font.SANS_SERIF, Font.BOLD, 15);
+    private static final Font PF_SECTION = new Font(Font.SANS_SERIF, Font.BOLD, 14);
+    private static final Font PF_BOLD_13 = new Font(Font.SANS_SERIF, Font.BOLD, 13);
+    private static final Font PF_BOLD_12 = new Font(Font.SANS_SERIF, Font.BOLD, 12);
+    private static final Font PF_BOLD_11 = new Font(Font.SANS_SERIF, Font.BOLD, 11);
+    private static final Font PF_BOLD_10 = new Font(Font.SANS_SERIF, Font.BOLD, 10);
+    private static final Font PF_REG_14 = new Font(Font.SANS_SERIF, Font.PLAIN, 14);
+    private static final Font PF_REG_13 = new Font(Font.SANS_SERIF, Font.PLAIN, 13);
+    private static final Font PF_REG_12 = new Font(Font.SANS_SERIF, Font.PLAIN, 12);
+    private static final Font PF_REG_11 = new Font(Font.SANS_SERIF, Font.PLAIN, 11);
+    private static final Font PF_METRIC = new Font(Font.SANS_SERIF, Font.BOLD, 26);
+
+    private static final int ICON_PIN = 0, ICON_MAIL = 1, ICON_CODE = 2, ICON_LINK = 3, ICON_CAP = 4,
+            ICON_FOLDER = 5, ICON_PEOPLE = 6, ICON_CHECK = 7, ICON_STAR = 8, ICON_EDIT = 9, ICON_SHARE = 10;
+
+    /** Where "Edit profile" was last painted (screen coordinates) — used by UI tests. */
+    public Rectangle getEditProfileButtonBounds() {
+        return new Rectangle(editProfileBtnBox);
+    }
+
+    /** Where the Edit profile modal's "Save changes" button was last painted — used by UI tests. */
+    public Rectangle getProfileSaveButtonBounds() {
+        return modals.getProfileSaveBounds();
+    }
+
+    /** Where "Share" was last painted (screen coordinates) — used by UI tests. */
+    public Rectangle getShareProfileButtonBounds() {
+        return new Rectangle(shareProfileBtnBox);
+    }
+
     private void paintProfileContent(Graphics2D g, int startX, int startY, int width, int height) {
-        int padX = 36;
-        int padY = 24;
+        int padX = width < 760 ? 20 : 36;
         int contentW = width - padX * 2;
-        int curY = startY + padY;
+        int x = startX + padX;
+        int curY = startY + 24;
 
         profileSkillBounds.clear();
+        profileSkillIndex.clear();
         profileProjectBounds.clear();
+        profileProjectIndex.clear();
+        completeProfileBtnBox.setBounds(0, 0, 0, 0);
 
-        // Breadcrumb
-        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
+        g.setFont(PF_REG_12);
         g.setColor(TEXT_LIGHT);
-        g.drawString("Workspace / My Profile", startX + padX, curY + 14);
-        curY += 26;
+        g.drawString("Workspace  /  ", x, curY + 14);
+        int bw = g.getFontMetrics().stringWidth("Workspace  /  ");
+        g.setColor(TEXT_MUTED);
+        g.drawString("My Profile", x + bw, curY + 14);
+        curY += 30;
 
-        // HERO PROFILE CARD
-        int heroH = 220;
-        RoundRectangle2D heroCard = new RoundRectangle2D.Float(startX + padX, curY, contentW, heroH, 14, 14);
-        g.setColor(Color.WHITE);
-        g.fill(heroCard);
-        g.setColor(BORDER_COLOR);
-        g.setStroke(new BasicStroke(1.1f));
-        g.draw(heroCard);
+        curY = paintProfileHero(g, x, curY, contentW) + 20;
+        curY = paintProfileStats(g, x, curY, contentW) + 26;
+        curY = paintProfileTabs(g, x, curY, contentW) + 20;
 
-        // Cover banner strip: single accent tint, no gradient
+        int endY;
+        switch (profileData.activeTabIndex) {
+            case 1:
+                endY = paintProfileProjectGrid(g, x, curY, contentW, Integer.MAX_VALUE, contentW >= 860 ? 2 : 1);
+                break;
+            case 2:
+                endY = paintProfileSkillsFull(g, x, curY, contentW);
+                break;
+            case 3:
+                endY = paintProfileReviewsFull(g, x, curY, contentW);
+                break;
+            default:
+                if (contentW >= 900) {
+                    int gap = 20;
+                    int leftW = Math.round((contentW - gap) * 0.63f);
+                    int rightW = contentW - leftW - gap;
+                    int leftEnd = paintProfileOverviewMain(g, x, curY, leftW);
+                    int rightEnd = paintProfileOverviewSidebar(g, x + leftW + gap, curY, rightW);
+                    endY = Math.max(leftEnd, rightEnd);
+                } else {
+                    endY = paintProfileOverviewMain(g, x, curY, contentW);
+                    endY = paintProfileOverviewSidebar(g, x, endY + 8, contentW);
+                }
+                break;
+        }
+        totalContentHeight = endY - startY + 60;
+    }
+
+    // ---------------------------------------------------------------- hero
+
+    private int paintProfileHero(Graphics2D g, int x, int y, int w) {
+        int bannerH = 108;
+        int avD = 104;
+        int innerX = x + 28;
+        int innerW = w - 56;
+
+        // --- measure everything first so the card height fits its content
+        String handle = has(profileData.handle) ? profileData.handle.trim() : "";
+        List<String> eduParts = new ArrayList<String>();
+        if (has(profileData.university)) eduParts.add(profileData.university.trim());
+        if (has(profileData.department)) eduParts.add(profileData.department.trim());
+        if (has(profileData.gradYear)) eduParts.add(profileData.gradYear.trim());
+        String edu = join(eduParts, "  ·  ");
+
+        FontMetrics bioFm = g.getFontMetrics(PF_REG_13);
+        boolean hasBio = has(profileData.bio);
+        List<String> bioLines = hasBio ? wrapLines(profileData.bio.trim(), bioFm, innerW, 4)
+                : wrapLines("Add a short bio so teammates know what you build, what you're learning and what kind of team you're looking for.", bioFm, innerW, 2);
+
+        List<String[]> links = new ArrayList<String[]>(); // {iconType, text}
+        if (has(profileData.location)) links.add(new String[] { String.valueOf(ICON_PIN), profileData.location.trim() });
+        if (has(profileData.email)) links.add(new String[] { String.valueOf(ICON_MAIL), profileData.email.trim() });
+        if (has(profileData.github)) links.add(new String[] { String.valueOf(ICON_CODE), profileData.github.trim() });
+        if (has(profileData.portfolio)) links.add(new String[] { String.valueOf(ICON_LINK), profileData.portfolio.trim() });
+
+        int identityY = y + bannerH + avD / 2 + 18; // baseline area below the avatar
+        int cy = identityY + 4;
+        cy += 28; // name
+        if (has(profileData.headline)) cy += 24;
+        if (!edu.isEmpty()) cy += 22;
+        if (has(profileData.availabilityStatus)) cy += 34;
+        cy += 22; // divider gap
+        cy += 22; // "About" label
+        cy += bioLines.size() * 20;
+        int linksH = links.isEmpty() ? 0 : measureChipRows(g, links, innerW) + 16;
+        cy += linksH + 22;
+        int heroH = cy - y;
+
+        // --- card + cover
+        drawProfileCard(g, x, y, w, heroH, 16);
+        Shape oldClip = g.getClip();
+        g.clip(new RoundRectangle2D.Float(x, y, w, heroH, 16, 16));
+        g.clip(new Rectangle(x, y, w, bannerH));
         g.setColor(Theme.PASTEL_VIOLET);
-        g.fill(new RoundRectangle2D.Float(startX + padX, curY, contentW, 64, 14, 14));
-        g.fillRect(startX + padX, curY + 20, contentW, 44);
-
-        // Profile Avatar Circle "AM" (Pastel Pink background with Brand Pink initials)
-        int avD = 68;
-        int avX = startX + padX + 24;
-        int avY = curY + 30;
-        g.setColor(Color.WHITE);
-        g.fillOval(avX - 4, avY - 4, avD + 8, avD + 8);
-        drawAvatar(g, avX + avD / 2, avY + avD / 2, avD / 2, profileInitials, Theme.PASTEL_PINK, BRAND_ACCENT);
-
-        // Right Top Buttons: [✎ Edit profile] & [🔗 Share profile]
-        int btnH = 32;
-        int shareW = 104;
-        int editW = 98;
-        int btnY = curY + 76;
-
-        shareProfileBtnBox.setBounds(startX + padX + contentW - shareW - 20, btnY, shareW, btnH);
-        RoundRectangle2D shareBtn = new RoundRectangle2D.Float(shareProfileBtnBox.x, shareProfileBtnBox.y,
-                shareProfileBtnBox.width, shareProfileBtnBox.height, 8, 8);
-        g.setColor(shareProfileHovered ? BG_CANVAS : Color.WHITE);
-        g.fill(shareBtn);
-        g.setColor(BORDER_COLOR);
-        g.draw(shareBtn);
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
-        g.setColor(TEXT_DARK);
-        g.drawString("🔗 Share profile", shareProfileBtnBox.x + 12, shareProfileBtnBox.y + 20);
-
-        editProfileBtnBox.setBounds(shareProfileBtnBox.x - editW - 10, btnY, editW, btnH);
-        RoundRectangle2D editBtn = new RoundRectangle2D.Float(editProfileBtnBox.x, editProfileBtnBox.y,
-                editProfileBtnBox.width, editProfileBtnBox.height, 8, 8);
-        g.setColor(editProfileHovered ? BRAND_ACCENT_HOVER : BRAND_ACCENT);
-        g.fill(editBtn);
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
-        g.setColor(Color.WHITE);
-        g.drawString("✎ Edit profile", editProfileBtnBox.x + 14, editProfileBtnBox.y + 20);
-
-        // Name, Handle & Status Badge
-        int textX = avX + avD + 20;
-        int infoY = curY + 74;
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 20));
-        g.setColor(TEXT_DARK);
-        g.drawString(profileData.name, textX, infoY + 20);
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
-        g.setColor(TEXT_MUTED);
-        int nameW = g.getFontMetrics(new Font(Font.SANS_SERIF, Font.BOLD, 20)).stringWidth(profileData.name);
-        g.drawString(profileData.handle, textX + nameW + 10, infoY + 20);
-
-        // Status Badge Pill (Mint tint with green text)
-        int stW = 236;
-        int stH = 22;
-        int stX = textX + nameW + 80;
-        int stY = infoY + 5;
-        RoundRectangle2D stShape = new RoundRectangle2D.Float(stX, stY, stW, stH, stH, stH);
-        g.setColor(SUCCESS_BG);
-        g.fill(stShape);
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 10));
-        g.setColor(SUCCESS_GREEN);
-        g.drawString("● " + profileData.availabilityStatus, stX + 10, stY + 15);
-
-        // Headline & Academic Info
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
-        g.setColor(TEXT_DARK);
-        g.drawString(profileData.headline, textX, infoY + 42);
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
-        g.setColor(TEXT_MUTED);
-        g.drawString(profileData.university + " · " + profileData.department + " · " + profileData.gradYear, textX,
-                infoY + 60);
-
-        // Bio
-        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
-        g.setColor(TEXT_DARK);
-        g.drawString(profileData.bio, startX + padX + 24, curY + 146);
-
-        // Contact info line
-        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
-        g.setColor(TEXT_MUTED);
-        g.drawString(
-                profileData.location + "   ·   " + profileData.email + "   ·   " + profileData.github + "   ·   "
-                        + profileData.portfolio,
-                startX + padX + 24, curY + 172);
-
-        curY += heroH + 18;
-
-        // 4 STAT CARDS ROW
-        int statGap = 16;
-        int statW = (contentW - statGap * 3) / 4;
-        int statH = 92;
-
-        paintProfileStatCard(g, startX + padX, curY, statW, statH, "Active Projects",
-                String.valueOf(profileData.activeProjectsCount), "Across 3 collaborative teams", 0);
-        paintProfileStatCard(g, startX + padX + (statW + statGap), curY, statW, statH, "Teammates",
-                String.valueOf(profileData.totalTeammatesCount), "Collaborated with at UW", 1);
-        paintProfileStatCard(g, startX + padX + (statW + statGap) * 2, curY, statW, statH, "On-Time Completion",
-                profileData.completionRatePercent + "%", "Tasks delivered before deadline", 2);
-        paintProfileStatCard(g, startX + padX + (statW + statGap) * 3, curY, statW, statH, "Peer Rating",
-                profileData.peerRating + " ★", "From " + profileData.totalReviewsCount + " verified peer reviews", 3);
-
-        curY += statH + 20;
-
-        // PROFILE NAVIGATION TABS
-        int tabX = startX + padX;
-        int tabY = curY;
-        for (int i = 0; i < profileData.tabs.size(); i++) {
-            String tabText = profileData.tabs.get(i);
-            boolean isActive = (i == profileData.activeTabIndex);
-            boolean isHov = (i == hoveredProfileTab);
-
-            g.setFont(new Font(Font.SANS_SERIF, isActive ? Font.BOLD : Font.PLAIN, 13));
-            FontMetrics tfm = g.getFontMetrics();
-            int tw = tfm.stringWidth(tabText);
-            int totalTabW = tw + 16;
-
-            if (i < profileTabBounds.length) {
-                profileTabBounds[i].setBounds(tabX, tabY - 4, totalTabW, 30);
-            }
-
-            if (isActive) {
-                g.setColor(BRAND_ACCENT);
-                g.drawString(tabText, tabX + 8, tabY + 18);
-                g.fill(new RoundRectangle2D.Float(tabX + 8, tabY + 24, tw, 3, 2, 2));
-            } else {
-                g.setColor(isHov ? TEXT_DARK : TEXT_MUTED);
-                g.drawString(tabText, tabX + 8, tabY + 18);
-            }
-            tabX += totalTabW + 18;
+        g.fillRect(x, y, w, bannerH);
+        // quiet decorative rings on the cover
+        g.setStroke(new BasicStroke(1.2f));
+        g.setColor(new Color(0x7C, 0x5C, 0xFF, 28));
+        for (int i = 0; i < 4; i++) {
+            int r = 70 + i * 46;
+            g.drawOval(x + w - 150 - r, y + bannerH / 2 - r, r * 2, r * 2);
         }
-
+        g.setColor(new Color(0xEA, 0x4C, 0x89, 26));
+        g.fillOval(x + w - 260, y - 40, 120, 120);
+        g.setClip(oldClip);
         g.setColor(BORDER_COLOR);
-        g.drawLine(startX + padX, tabY + 26, startX + padX + contentW, tabY + 26);
-        curY += 44;
+        g.drawLine(x + 1, y + bannerH, x + w - 1, y + bannerH);
 
-        // TAB CONTENT
-        if (profileData.activeTabIndex == 0) {
-            int leftW = Math.round((contentW - 20) * 0.62f);
-            int rightW = contentW - leftW - 20;
-            int leftX = startX + padX;
-            int rX = leftX + leftW + 20;
-
-            int leftEndY = paintProfileProjectsList(g, leftX, curY, leftW);
-            int rightEndY = paintProfileOverviewSidebar(g, rX, curY, rightW);
-            totalContentHeight = Math.max(leftEndY, rightEndY) - startY + 60;
-        } else if (profileData.activeTabIndex == 1) {
-            int endY = paintProfileProjectsList(g, startX + padX, curY, contentW);
-            totalContentHeight = endY - startY + 60;
-        } else if (profileData.activeTabIndex == 2) {
-            int endY = paintProfileSkillsFull(g, startX + padX, curY, contentW);
-            totalContentHeight = endY - startY + 60;
-        } else {
-            int endY = paintProfileReviewsFull(g, startX + padX, curY, contentW);
-            totalContentHeight = endY - startY + 60;
-        }
-    }
-
-    private void paintProfileStatCard(Graphics2D g, int x, int y, int w, int h, String title, String val, String sub,
-            int type) {
-        RoundRectangle2D shape = new RoundRectangle2D.Float(x, y, w, h, 12, 12);
+        // --- avatar overlapping the cover
+        int avX = innerX;
+        int avY = y + bannerH - avD / 2;
         g.setColor(Color.WHITE);
-        g.fill(shape);
-        g.setColor(BORDER_COLOR);
-        g.setStroke(new BasicStroke(1.1f));
-        g.draw(shape);
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
-        g.setColor(TEXT_MUTED);
-        g.drawString(title, x + 16, y + 22);
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 22));
-        g.setColor(type == 3 ? Theme.HIGHLIGHT_WARM : TEXT_DARK);
-        g.drawString(val, x + 16, y + 54);
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 10));
-        g.setColor(TEXT_MUTED);
-        g.drawString(sub, x + 16, y + 76);
-    }
-
-    private int paintProfileProjectsList(Graphics2D g, int x, int y, int w) {
-        int curY = y;
-        for (int i = 0; i < profileData.projects.size(); i++) {
-            ProfileData.ProfileProject p = profileData.projects.get(i);
-            int cardH = 138;
-            RoundRectangle2D card = new RoundRectangle2D.Float(x, curY, w, cardH, 12, 12);
+        g.fillOval(avX - 5, avY - 5, avD + 10, avD + 10);
+        g.setColor(Theme.PASTEL_PINK);
+        g.fillOval(avX, avY, avD, avD);
+        g.setColor(BRAND_TINT_BORDER);
+        g.setStroke(new BasicStroke(1.2f));
+        g.drawOval(avX, avY, avD, avD);
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 34));
+        g.setColor(BRAND_ACCENT);
+        FontMetrics afm = g.getFontMetrics();
+        String ini = profileNameInitials();
+        g.drawString(ini, avX + (avD - afm.stringWidth(ini)) / 2, avY + (avD + afm.getAscent() - afm.getDescent()) / 2);
+        // online dot when available for teams
+        if (has(profileData.availabilityStatus)) {
+            int dotD = 20;
+            int dx = avX + avD - dotD - 2;
+            int dy = avY + avD - dotD - 4;
             g.setColor(Color.WHITE);
-            g.fill(card);
-            g.setColor(BORDER_COLOR);
-            g.draw(card);
+            g.fillOval(dx - 3, dy - 3, dotD + 6, dotD + 6);
+            g.setColor(SUCCESS_GREEN);
+            g.fillOval(dx, dy, dotD, dotD);
+        }
 
-            profileProjectBounds.add(new Rectangle(x, curY, w, cardH));
+        // --- action buttons (right, just below the cover)
+        int btnH = 36;
+        int btnY = y + bannerH + 16;
+        g.setFont(PF_BOLD_12);
+        FontMetrics bfm = g.getFontMetrics();
+        int shareW = bfm.stringWidth("Share") + 50;
+        int editW = bfm.stringWidth("Edit profile") + 50;
+        int shareX = x + w - 24 - shareW;
+        int editX = shareX - 10 - editW;
+        shareProfileBtnBox.setBounds(shareX, btnY, shareW, btnH);
+        editProfileBtnBox.setBounds(editX, btnY, editW, btnH);
 
-            g.setColor(p.accentColor);
-            g.fill(new RoundRectangle2D.Float(x, curY + 16, 4, cardH - 32, 2, 2));
+        RoundRectangle2D share = new RoundRectangle2D.Float(shareX, btnY, shareW, btnH, 10, 10);
+        g.setColor(shareProfileHovered ? BG_CANVAS : Color.WHITE);
+        g.fill(share);
+        g.setColor(shareProfileHovered ? TEXT_LIGHT : BORDER_COLOR);
+        g.setStroke(new BasicStroke(1.2f));
+        g.draw(share);
+        drawProfileIcon(g, ICON_SHARE, shareX + 16, btnY + 11, TEXT_DARK);
+        g.setColor(TEXT_DARK);
+        g.drawString("Share", shareX + 36, btnY + 23);
 
-            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
+        RoundRectangle2D edit = new RoundRectangle2D.Float(editX, btnY, editW, btnH, 10, 10);
+        g.setColor(editProfileHovered ? BRAND_ACCENT_HOVER : BRAND_ACCENT);
+        g.fill(edit);
+        drawProfileIcon(g, ICON_EDIT, editX + 16, btnY + 11, Color.WHITE);
+        g.setColor(Color.WHITE);
+        g.drawString("Edit profile", editX + 36, btnY + 23);
+
+        // --- identity
+        int ty = identityY + 26;
+        g.setFont(PF_NAME);
+        g.setColor(TEXT_DARK);
+        String name = has(profileData.name) ? profileData.name.trim() : "Your name";
+        name = ellipsize(name, g.getFontMetrics(), innerW - 140);
+        g.drawString(name, innerX, ty);
+        int nameW = g.getFontMetrics().stringWidth(name);
+        if (!handle.isEmpty()) {
+            g.setFont(PF_REG_13);
+            g.setColor(TEXT_LIGHT);
+            String hd = ellipsize(handle, g.getFontMetrics(), Math.max(40, innerW - nameW - 14));
+            g.drawString(hd, innerX + nameW + 12, ty);
+        }
+
+        if (has(profileData.headline)) {
+            ty += 24;
+            g.setFont(PF_REG_14);
             g.setColor(TEXT_DARK);
-            g.drawString(p.title, x + 18, curY + 28);
-
-            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 10));
-            int tw = g.getFontMetrics().stringWidth(p.status);
-            int badgeW = tw + 16;
-            int badgeX = x + w - badgeW - 16;
-            RoundRectangle2D bShape = new RoundRectangle2D.Float(badgeX, curY + 16, badgeW, 20, 6, 6);
-            g.setColor(BRAND_TINT_BG);
-            g.fill(bShape);
-            g.setColor(BRAND_ACCENT);
-            g.drawString(p.status, badgeX + 8, curY + 30);
-
-            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
-            g.setColor(p.accentColor);
-            g.drawString(p.role, x + 18, curY + 46);
-
-            g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
+            g.drawString(ellipsize(profileData.headline.trim(), g.getFontMetrics(), innerW), innerX, ty);
+        }
+        if (!edu.isEmpty()) {
+            ty += 22;
+            drawProfileIcon(g, ICON_CAP, innerX, ty - 10, TEXT_MUTED);
+            g.setFont(PF_REG_12);
             g.setColor(TEXT_MUTED);
-            g.drawString(p.description, x + 18, curY + 68);
+            g.drawString(ellipsize(edu, g.getFontMetrics(), innerW - 20), innerX + 20, ty);
+        }
+        if (has(profileData.availabilityStatus)) {
+            ty += 12;
+            g.setFont(PF_BOLD_11);
+            FontMetrics pfm = g.getFontMetrics();
+            String avail = ellipsize(profileData.availabilityStatus.trim(), pfm, innerW - 40);
+            int pw = pfm.stringWidth(avail) + 34;
+            RoundRectangle2D pill = new RoundRectangle2D.Float(innerX, ty, pw, 24, 24, 24);
+            g.setColor(SUCCESS_BG);
+            g.fill(pill);
+            g.setColor(SUCCESS_BORDER);
+            g.setStroke(new BasicStroke(1f));
+            g.draw(pill);
+            g.setColor(SUCCESS_GREEN);
+            g.fillOval(innerX + 12, ty + 8, 8, 8);
+            g.setColor(new Color(0x04, 0x78, 0x57));
+            g.drawString(avail, innerX + 26, ty + 16);
+            ty += 22;
+        }
 
-            int tagX = x + 18;
-            int tagY = curY + 86;
-            for (String tag : p.tags) {
-                g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 10));
-                int stw = g.getFontMetrics().stringWidth(tag);
-                RoundRectangle2D tagShape = new RoundRectangle2D.Float(tagX, tagY, stw + 14, 20, 6, 6);
-                g.setColor(BG_CANVAS);
-                g.fill(tagShape);
-                g.setColor(BORDER_COLOR);
-                g.draw(tagShape);
-                g.setColor(TEXT_MUTED);
-                g.drawString(tag, tagX + 7, tagY + 14);
-                tagX += stw + 20;
+        // --- divider + about
+        ty += 18;
+        g.setColor(BORDER_LIGHT);
+        g.setStroke(new BasicStroke(1f));
+        g.drawLine(innerX, ty, innerX + innerW, ty);
+        ty += 24;
+        g.setFont(PF_BOLD_12);
+        g.setColor(TEXT_LIGHT);
+        g.drawString("ABOUT", innerX, ty);
+        ty += 4;
+        g.setFont(PF_REG_13);
+        g.setColor(hasBio ? TEXT_DARK : TEXT_LIGHT);
+        for (String line : bioLines) {
+            ty += 20;
+            g.drawString(line, innerX, ty);
+        }
+
+        // --- contact / link chips
+        if (!links.isEmpty()) {
+            ty += 18;
+            paintLinkChips(g, links, innerX, ty, innerW);
+        }
+        return y + heroH;
+    }
+
+    /** Height of the wrapped chip rows for the hero links. */
+    private int measureChipRows(Graphics2D g, List<String[]> links, int maxW) {
+        FontMetrics fm = g.getFontMetrics(PF_REG_12);
+        int cx = 0;
+        int rows = 1;
+        for (String[] l : links) {
+            int cw = Math.min(maxW, fm.stringWidth(l[1]) + 40);
+            if (cx > 0 && cx + cw > maxW) {
+                rows++;
+                cx = 0;
+            }
+            cx += cw + 8;
+        }
+        return rows * 30 - 8 + 4;
+    }
+
+    private void paintLinkChips(Graphics2D g, List<String[]> links, int x, int y, int maxW) {
+        g.setFont(PF_REG_12);
+        FontMetrics fm = g.getFontMetrics();
+        int cx = 0;
+        int cy = y;
+        for (String[] l : links) {
+            String text = ellipsize(l[1], fm, maxW - 40);
+            int cw = fm.stringWidth(text) + 40;
+            if (cx > 0 && cx + cw > maxW) {
+                cx = 0;
+                cy += 30;
+            }
+            RoundRectangle2D chip = new RoundRectangle2D.Float(x + cx, cy, cw, 26, 8, 8);
+            g.setColor(BG_CANVAS);
+            g.fill(chip);
+            g.setColor(BORDER_COLOR);
+            g.setStroke(new BasicStroke(1f));
+            g.draw(chip);
+            drawProfileIcon(g, Integer.parseInt(l[0]), x + cx + 12, cy + 7, TEXT_MUTED);
+            g.setColor(TEXT_DARK);
+            g.drawString(text, x + cx + 30, cy + 17);
+            cx += cw + 8;
+        }
+    }
+
+    // ---------------------------------------------------------------- KPI cards
+
+    private int paintProfileStats(Graphics2D g, int x, int y, int w) {
+        int cols = w >= 900 ? 4 : 2;
+        int gap = 16;
+        int cardW = (w - gap * (cols - 1)) / cols;
+        int cardH = 112;
+
+        boolean noReviews = profileData.totalReviewsCount <= 0;
+        int ap = profileData.activeProjectsCount;
+        int tm = profileData.totalTeammatesCount;
+        String[] labels = { "Active projects", "Teammates", "On-time delivery", "Peer rating" };
+        String[] values = { String.valueOf(ap), String.valueOf(tm), profileData.completionRatePercent + "%",
+                noReviews ? "—" : String.format("%.1f", profileData.peerRating) };
+        String[] subs = {
+                ap == 1 ? "project in progress" : "projects in progress",
+                tm == 1 ? "person you've worked with" : "people you've worked with",
+                "of your tasks finished on time",
+                noReviews ? "No peer reviews yet"
+                        : "from " + profileData.totalReviewsCount + (profileData.totalReviewsCount == 1 ? " review" : " reviews") };
+        int[] icons = { ICON_FOLDER, ICON_PEOPLE, ICON_CHECK, ICON_STAR };
+        Color[] tints = { Theme.PASTEL_PINK, Theme.PASTEL_VIOLET, Theme.PASTEL_MINT, Theme.PASTEL_SUNNY };
+        Color[] inks = { BRAND_ACCENT, Theme.ACCENT_VIOLET, SUCCESS_GREEN, Theme.HIGHLIGHT_WARM };
+
+        int bottom = y;
+        for (int i = 0; i < 4; i++) {
+            int cx = x + (i % cols) * (cardW + gap);
+            int cy = y + (i / cols) * (cardH + gap);
+            drawProfileCard(g, cx, cy, cardW, cardH, 14);
+
+            g.setColor(tints[i]);
+            g.fill(new RoundRectangle2D.Float(cx + 18, cy + 18, 34, 34, 10, 10));
+            drawProfileIcon(g, icons[i], cx + 29, cy + 29, inks[i]);
+
+            g.setFont(PF_BOLD_12);
+            g.setColor(TEXT_MUTED);
+            g.drawString(labels[i], cx + 64, cy + 39);
+
+            g.setFont(PF_METRIC);
+            g.setColor(TEXT_DARK);
+            g.drawString(values[i], cx + 18, cy + 86);
+            int vw = g.getFontMetrics().stringWidth(values[i]);
+            if (i == 3 && !noReviews) {
+                drawStars(g, cx + 18 + vw + 10, cy + 72, 13, profileData.peerRating);
             }
 
-            g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 10));
+            g.setFont(PF_REG_11);
             g.setColor(TEXT_LIGHT);
-            g.drawString("Team: " + p.teamSize + " / " + p.maxTeamSize + " members", x + w - 120, curY + 100);
-
-            curY += cardH + 14;
+            g.drawString(ellipsize(subs[i], g.getFontMetrics(), cardW - 36), cx + 18, cy + 103);
+            bottom = cy + cardH;
         }
-        return curY;
+        return bottom;
+    }
+
+    // ---------------------------------------------------------------- tabs
+
+    private int paintProfileTabs(Graphics2D g, int x, int y, int w) {
+        int[] counts = { -1, profileData.projects.size(), profileData.skills.size(), profileData.totalReviewsCount };
+        int tx = x;
+        for (int i = 0; i < profileData.tabs.size() && i < profileTabBounds.length; i++) {
+            String label = profileData.tabs.get(i).replaceAll("\\s*\\(\\d+\\)\\s*$", "");
+            boolean active = i == profileData.activeTabIndex;
+            boolean hov = i == hoveredProfileTab;
+            g.setFont(active ? PF_BOLD_13 : PF_REG_13);
+            FontMetrics fm = g.getFontMetrics();
+            int lw = fm.stringWidth(label);
+            int tabW = lw;
+            String cnt = counts[i] >= 0 ? String.valueOf(counts[i]) : null;
+            int cntW = 0;
+            if (cnt != null) {
+                cntW = g.getFontMetrics(PF_BOLD_10).stringWidth(cnt) + 12;
+                tabW += 8 + cntW;
+            }
+            profileTabBounds[i].setBounds(tx - 6, y - 4, tabW + 12, 36);
+
+            g.setColor(active ? TEXT_DARK : (hov ? TEXT_DARK : TEXT_MUTED));
+            g.drawString(label, tx, y + 17);
+            if (cnt != null) {
+                int px = tx + lw + 8;
+                RoundRectangle2D pill = new RoundRectangle2D.Float(px, y + 4, cntW, 18, 18, 18);
+                g.setColor(active ? BRAND_TINT_BG : new Color(0xF1, 0xEF, 0xEA));
+                g.fill(pill);
+                g.setFont(PF_BOLD_10);
+                g.setColor(active ? BRAND_ACCENT : TEXT_MUTED);
+                g.drawString(cnt, px + 6, y + 17);
+            }
+            if (active) {
+                g.setColor(BRAND_ACCENT);
+                g.fill(new RoundRectangle2D.Float(tx, y + 30, tabW, 3, 3, 3));
+            }
+            tx += tabW + 30;
+        }
+        g.setColor(BORDER_COLOR);
+        g.setStroke(new BasicStroke(1f));
+        g.drawLine(x, y + 33, x + w, y + 33);
+        return y + 34;
+    }
+
+    // ---------------------------------------------------------------- overview tab
+
+    private int paintProfileOverviewMain(Graphics2D g, int x, int y, int w) {
+        int cy = paintSectionHeading(g, x, y, "Projects", profileData.projects.isEmpty() ? null
+                : profileData.projects.size() + (profileData.projects.size() == 1 ? " project" : " projects") + " on your profile");
+        if (profileData.projects.isEmpty()) {
+            return paintEmptyState(g, x, cy, w, ICON_FOLDER, "No projects yet",
+                    "Projects you create or join will show up here.");
+        }
+        int shown = Math.min(3, profileData.projects.size());
+        cy = paintProfileProjectGrid(g, x, cy, w, shown, 1);
+        if (profileData.projects.size() > shown) {
+            g.setFont(PF_BOLD_12);
+            g.setColor(BRAND_ACCENT);
+            g.drawString("+ " + (profileData.projects.size() - shown) + " more in the Projects tab", x + 2, cy + 4);
+            cy += 20;
+        }
+        return cy;
     }
 
     private int paintProfileOverviewSidebar(Graphics2D g, int x, int y, int w) {
-        int curY = y;
+        int cy = y;
 
-        int card1H = 220;
-        RoundRectangle2D card1 = new RoundRectangle2D.Float(x, curY, w, card1H, 12, 12);
-        g.setColor(Color.WHITE);
-        g.fill(card1);
-        g.setColor(BORDER_COLOR);
-        g.draw(card1);
+       
 
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 13));
-        g.setColor(TEXT_DARK);
-        g.drawString("Endorsed Skills", x + 16, curY + 26);
-
-        int chipX = x + 16;
-        int chipY = curY + 42;
-        for (int i = 0; i < Math.min(6, profileData.skills.size()); i++) {
-            ProfileData.ProfileSkill s = profileData.skills.get(i);
-            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 10));
-            String text = s.name + " (" + s.endorsements + (s.userEndorsed ? " ✓" : "") + ")";
-            int tw = g.getFontMetrics().stringWidth(text);
-            int chipW = tw + 18;
-
-            if (chipX + chipW > x + w - 16) {
-                chipX = x + 16;
-                chipY += 30;
+        // 2. Top skills
+        List<Integer> order = new ArrayList<Integer>();
+        for (int i = 0; i < profileData.skills.size(); i++) order.add(i);
+        java.util.Collections.sort(order, new java.util.Comparator<Integer>() {
+            public int compare(Integer a, Integer b) {
+                return profileData.skills.get(b).endorsements - profileData.skills.get(a).endorsements;
             }
-
-            Rectangle b = new Rectangle(chipX, chipY, chipW, 22);
-            profileSkillBounds.add(b);
-
-            RoundRectangle2D chip = new RoundRectangle2D.Float(chipX, chipY, chipW, 22, 6, 6);
-            g.setColor(s.userEndorsed ? BRAND_TINT_BG : BG_CANVAS);
-            g.fill(chip);
-            g.setColor(s.userEndorsed ? BRAND_ACCENT : BORDER_COLOR);
-            g.draw(chip);
-            g.setColor(s.userEndorsed ? BRAND_ACCENT : TEXT_DARK);
-            g.drawString(text, chipX + 9, chipY + 15);
-
-            chipX += chipW + 8;
-        }
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 10));
-        g.setColor(TEXT_LIGHT);
-        g.drawString("Click any skill to endorse " + getFirstName(), x + 16, curY + card1H - 14);
-
-        curY += card1H + 16;
-
-        int card2H = 180;
-        RoundRectangle2D card2 = new RoundRectangle2D.Float(x, curY, w, card2H, 12, 12);
-        g.setColor(Color.WHITE);
-        g.fill(card2);
-        g.setColor(BORDER_COLOR);
-        g.draw(card2);
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 13));
+        });
+        int shownSkills = Math.min(5, order.size());
+        int skillsH = 62 + (shownSkills == 0 ? 54 : shownSkills * 40) + 14;
+        drawProfileCard(g, x, cy, w, skillsH, 14);
+        g.setFont(PF_SECTION);
         g.setColor(TEXT_DARK);
-        g.drawString("Top Peer Feedback", x + 16, curY + 26);
+        g.drawString("Top skills", x + 20, cy + 32);
+        g.setFont(PF_REG_11);
+        g.setColor(TEXT_LIGHT);
+        g.drawString(shownSkills == 0 ? "" : "Click a skill to endorse it", x + 20, cy + 50);
+        int ry = cy + 62;
+        if (shownSkills == 0) {
+            g.setFont(PF_REG_12);
+            g.setColor(TEXT_MUTED);
+            g.drawString("No skills yet — add them via Edit profile.", x + 20, ry + 26);
+        }
+        for (int k = 0; k < shownSkills; k++) {
+            int idx = order.get(k);
+            ProfileData.ProfileSkill s = profileData.skills.get(idx);
+            Rectangle r = new Rectangle(x + 10, ry, w - 20, 36);
+            boolean hov = profileSkillBounds.size() == hoveredProfileSkill;
+            profileSkillBounds.add(r);
+            profileSkillIndex.add(idx);
+            if (hov) {
+                g.setColor(BG_CANVAS);
+                g.fill(new RoundRectangle2D.Float(r.x, r.y, r.width, r.height, 8, 8));
+            }
+            g.setFont(PF_BOLD_13);
+            g.setColor(TEXT_DARK);
+            String nm = ellipsize(s.name, g.getFontMetrics(), w - 150);
+            g.drawString(nm, x + 20, ry + 17);
+            if (has(s.category)) {
+                g.setFont(PF_REG_11);
+                g.setColor(TEXT_LIGHT);
+                g.drawString(s.category, x + 20, ry + 31);
+            }
+            paintEndorseChip(g, x + w - 20, ry + 8, s);
+            ry += 40;
+        }
+        cy += skillsH + 16;
 
+        // 3. Latest feedback
         if (!profileData.reviews.isEmpty()) {
             ProfileData.PeerReview rev = profileData.reviews.get(0);
-            drawAvatar(g, x + 30, curY + 54, 14, rev.reviewerInitials, rev.avatarBg, rev.avatarFg);
-            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
+            FontMetrics qfm = g.getFontMetrics(PF_REG_13);
+            List<String> q = wrapLines("“" + rev.feedback + "”", qfm, w - 40, 5);
+            int fbH = 120 + q.size() * 20;
+            drawProfileCard(g, x, cy, w, fbH, 14);
+            g.setFont(PF_SECTION);
             g.setColor(TEXT_DARK);
-            g.drawString(rev.reviewerName + " (" + rev.reviewerRole + ")", x + 52, curY + 52);
-            g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 10));
-            g.setColor(TEXT_MUTED);
-            g.drawString(rev.projectName + " · " + rev.date, x + 52, curY + 66);
-
-            g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
+            g.drawString("Latest feedback", x + 20, cy + 32);
+            paintReviewerLine(g, rev, x + 20, cy + 50, w - 40);
+            int qy = cy + 104;
+            g.setFont(PF_REG_13);
             g.setColor(TEXT_DARK);
-            g.drawString("\"" + rev.feedback + "\"", x + 16, curY + 92);
-
-            g.setColor(Theme.HIGHLIGHT_WARM);
-            g.drawString("★★★★★  5.0 Peer Rating", x + 16, curY + 154);
+            for (String line : q) {
+                g.drawString(line, x + 20, qy);
+                qy += 20;
+            }
+            cy += fbH + 16;
         }
-
-        return curY + card2H + 20;
+        return cy;
     }
 
-    private int paintProfileSkillsFull(Graphics2D g, int x, int y, int w) {
-        int cardH = 340;
-        RoundRectangle2D card = new RoundRectangle2D.Float(x, y, w, cardH, 12, 12);
-        g.setColor(Color.WHITE);
-        g.fill(card);
-        g.setColor(BORDER_COLOR);
-        g.draw(card);
+    // ---------------------------------------------------------------- projects
 
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 16));
+    private int paintProfileProjectGrid(Graphics2D g, int x, int y, int w, int limit, int cols) {
+        if (profileData.projects.isEmpty()) {
+            return paintEmptyState(g, x, y, w, ICON_FOLDER, "No projects yet",
+                    "Create a project or join one from Discover Projects — it will appear here.");
+        }
+        int gap = 16;
+        int cardW = (w - gap * (cols - 1)) / cols;
+        int n = Math.min(limit, profileData.projects.size());
+        int cy = y;
+        for (int i = 0; i < n; i += cols) {
+            int rowH = 0;
+            for (int c = 0; c < cols && i + c < n; c++) {
+                rowH = Math.max(rowH, measureProjectCard(g, profileData.projects.get(i + c), cardW));
+            }
+            for (int c = 0; c < cols && i + c < n; c++) {
+                paintProfileProjectCard(g, i + c, x + c * (cardW + gap), cy, cardW, rowH);
+            }
+            cy += rowH + gap;
+        }
+        return cy;
+    }
+
+    private int measureProjectCard(Graphics2D g, ProfileData.ProfileProject p, int w) {
+        int descLines = has(p.description) ? wrapLines(p.description, g.getFontMetrics(PF_REG_12), w - 40, 2).size() : 0;
+        return 84 + descLines * 18 + 50;
+    }
+
+    private void paintProfileProjectCard(Graphics2D g, int index, int x, int y, int w, int h) {
+        ProfileData.ProfileProject p = profileData.projects.get(index);
+        boolean hov = profileProjectBounds.size() == hoveredProfileProject;
+        profileProjectBounds.add(new Rectangle(x, y, w, h));
+        profileProjectIndex.add(index);
+
+        drawProfileCard(g, x, y, w, h, 14);
+        if (hov) {
+            g.setColor(BRAND_TINT_BORDER);
+            g.setStroke(new BasicStroke(1.4f));
+            g.draw(new RoundRectangle2D.Float(x, y, w, h, 14, 14));
+        }
+
+        // monogram tile
+        Color ink = p.accentColor != null ? p.accentColor : BRAND_ACCENT;
+        g.setColor(new Color(ink.getRed(), ink.getGreen(), ink.getBlue(), 28));
+        g.fill(new RoundRectangle2D.Float(x + 20, y + 20, 42, 42, 12, 12));
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 18));
+        g.setColor(ink);
+        String mono = has(p.title) ? p.title.trim().substring(0, 1).toUpperCase() : "P";
+        FontMetrics mfm = g.getFontMetrics();
+        g.drawString(mono, x + 20 + (42 - mfm.stringWidth(mono)) / 2, y + 48);
+
+        // status pill (right)
+        String status = has(p.status) ? p.status.trim() : "Active";
+        Color[] sc = statusColors(status);
+        g.setFont(PF_BOLD_10);
+        FontMetrics sfm = g.getFontMetrics();
+        int sw = sfm.stringWidth(status) + 18;
+        int sx = x + w - 20 - sw;
+        g.setColor(sc[0]);
+        g.fill(new RoundRectangle2D.Float(sx, y + 22, sw, 22, 22, 22));
+        g.setColor(sc[1]);
+        g.drawString(status, sx + 9, y + 37);
+
+        // title + role
+        g.setFont(PF_TITLE);
         g.setColor(TEXT_DARK);
-        g.drawString("Skills Matrix & Peer Endorsements", x + 24, y + 32);
+        g.drawString(ellipsize(p.title, g.getFontMetrics(), sx - (x + 76) - 10), x + 76, y + 38);
+        if (has(p.role)) {
+            g.setFont(PF_BOLD_12);
+            g.setColor(BRAND_ACCENT);
+            g.drawString(ellipsize(p.role, g.getFontMetrics(), w - 96), x + 76, y + 57);
+        }
 
-        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
-        g.setColor(TEXT_MUTED);
-        g.drawString("All skills are verified through team project commits and teammate endorsements.", x + 24, y + 52);
-
-        int curY = y + 80;
-        for (int i = 0; i < profileData.skills.size(); i++) {
-            ProfileData.ProfileSkill s = profileData.skills.get(i);
-            int rowX = x + 24 + (i % 2) * (w / 2);
-            int rowY = curY + (i / 2) * 44;
-
-            RoundRectangle2D skCard = new RoundRectangle2D.Float(rowX, rowY, w / 2 - 36, 36, 8, 8);
-            g.setColor(s.userEndorsed ? BRAND_TINT_BG : BG_CANVAS);
-            g.fill(skCard);
-            g.setColor(s.userEndorsed ? BRAND_ACCENT : BORDER_COLOR);
-            g.draw(skCard);
-
-            profileSkillBounds.add(new Rectangle(rowX, rowY, w / 2 - 36, 36));
-
-            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
-            g.setColor(TEXT_DARK);
-            g.drawString(s.name, rowX + 12, rowY + 22);
-
-            g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
+        // description
+        int dy = y + 86;
+        if (has(p.description)) {
+            g.setFont(PF_REG_12);
             g.setColor(TEXT_MUTED);
-            g.drawString(s.category, rowX + 110, rowY + 22);
+            for (String line : wrapLines(p.description, g.getFontMetrics(), w - 40, 2)) {
+                g.drawString(line, x + 20, dy);
+                dy += 18;
+            }
+        }
 
-            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
-            g.setColor(s.userEndorsed ? BRAND_ACCENT : Theme.ACCENT_VIOLET);
-            g.drawString(s.endorsements + " endorsements" + (s.userEndorsed ? " ✓" : " +"), rowX + w / 2 - 160,
-                    rowY + 22);
+        // footer: tags (left) + team fill (right)
+        int fy = y + h - 38;
+        g.setColor(BORDER_LIGHT);
+        g.drawLine(x + 20, fy - 8, x + w - 20, fy - 8);
+        String team = p.teamSize + " / " + p.maxTeamSize;
+        g.setFont(PF_BOLD_11);
+        FontMetrics tfm = g.getFontMetrics();
+        int teamTextW = tfm.stringWidth(team);
+        int barW = 54;
+        int teamBlockW = 18 + teamTextW + 8 + barW;
+        int teamX = x + w - 20 - teamBlockW;
+        drawProfileIcon(g, ICON_PEOPLE, teamX, fy + 6, TEXT_MUTED);
+        g.setColor(TEXT_DARK);
+        g.drawString(team, teamX + 18, fy + 16);
+        int bx = teamX + 18 + teamTextW + 8;
+        g.setColor(new Color(0xF1, 0xEF, 0xEA));
+        g.fill(new RoundRectangle2D.Float(bx, fy + 9, barW, 6, 6, 6));
+        float fill = p.maxTeamSize > 0 ? Math.min(1f, p.teamSize / (float) p.maxTeamSize) : 0f;
+        g.setColor(ink);
+        g.fill(new RoundRectangle2D.Float(bx, fy + 9, Math.max(6, Math.round(barW * fill)), 6, 6, 6));
+
+        int tagX = x + 20;
+        int tagLimit = teamX - 12;
+        g.setFont(PF_BOLD_10);
+        FontMetrics gfm = g.getFontMetrics();
+        int hidden = 0;
+        for (String tag : p.tags) {
+            int tw = gfm.stringWidth(tag) + 16;
+            if (tagX + tw > tagLimit) {
+                hidden++;
+                continue;
+            }
+            RoundRectangle2D chip = new RoundRectangle2D.Float(tagX, fy + 1, tw, 22, 8, 8);
+            g.setColor(BG_CANVAS);
+            g.fill(chip);
+            g.setColor(BORDER_COLOR);
+            g.draw(chip);
+            g.setColor(TEXT_MUTED);
+            g.drawString(tag, tagX + 8, fy + 16);
+            tagX += tw + 6;
+        }
+        if (hidden > 0 && tagX + 26 <= tagLimit) {
+            g.setColor(TEXT_LIGHT);
+            g.drawString("+" + hidden, tagX + 2, fy + 16);
+        }
+    }
+
+    // ---------------------------------------------------------------- skills tab
+
+    private int paintProfileSkillsFull(Graphics2D g, int x, int y, int w) {
+        if (profileData.skills.isEmpty()) {
+            return paintEmptyState(g, x, y, w, ICON_STAR, "No skills added yet",
+                    "Add your skills with Edit profile so teammates can find and endorse you.");
+        }
+        // group by category, keeping first-seen order
+        List<String> cats = new ArrayList<String>();
+        for (ProfileData.ProfileSkill s : profileData.skills) {
+            String c = has(s.category) ? s.category.trim() : "Other";
+            if (!cats.contains(c)) cats.add(c);
+        }
+        int maxEnd = 1;
+        for (ProfileData.ProfileSkill s : profileData.skills) maxEnd = Math.max(maxEnd, s.endorsements);
+
+        int rowH = 48;
+        int cardH = 86 + cats.size() * 34 + profileData.skills.size() * rowH + 10;
+        drawProfileCard(g, x, y, w, cardH, 14);
+        g.setFont(PF_SECTION);
+        g.setColor(TEXT_DARK);
+        g.drawString("Skills & endorsements", x + 24, y + 34);
+        g.setFont(PF_REG_12);
+        g.setColor(TEXT_MUTED);
+        g.drawString("Endorsements come from teammates you've worked with. Click a row to endorse.", x + 24, y + 54);
+
+        int cy = y + 86;
+        for (String cat : cats) {
+            g.setFont(PF_BOLD_10);
+            g.setColor(TEXT_LIGHT);
+            g.drawString(cat.toUpperCase(), x + 24, cy + 12);
+            g.setColor(BORDER_LIGHT);
+            g.drawLine(x + 24 + g.getFontMetrics().stringWidth(cat.toUpperCase()) + 10, cy + 8, x + w - 24, cy + 8);
+            cy += 34;
+            for (int i = 0; i < profileData.skills.size(); i++) {
+                ProfileData.ProfileSkill s = profileData.skills.get(i);
+                String sc = has(s.category) ? s.category.trim() : "Other";
+                if (!sc.equals(cat)) continue;
+                Rectangle r = new Rectangle(x + 12, cy - 6, w - 24, rowH - 4);
+                boolean hov = profileSkillBounds.size() == hoveredProfileSkill;
+                profileSkillBounds.add(r);
+                profileSkillIndex.add(i);
+                if (hov) {
+                    g.setColor(BG_CANVAS);
+                    g.fill(new RoundRectangle2D.Float(r.x, r.y, r.width, r.height, 10, 10));
+                }
+                int nameColW = Math.min(220, (w - 48) / 3);
+                g.setFont(PF_BOLD_13);
+                g.setColor(TEXT_DARK);
+                g.drawString(ellipsize(s.name, g.getFontMetrics(), nameColW - 10), x + 24, cy + 19);
+
+                int chipRight = x + w - 24;
+                int chipW = paintEndorseChip(g, chipRight, cy + 4, s, 96, false);
+                int barX = x + 24 + nameColW;
+                int barW = Math.max(40, chipRight - chipW - 24 - barX - 120);
+                g.setColor(new Color(0xF1, 0xEF, 0xEA));
+                g.fill(new RoundRectangle2D.Float(barX, cy + 11, barW, 8, 8, 8));
+                g.setColor(s.userEndorsed ? BRAND_ACCENT : Theme.ACCENT_VIOLET);
+                g.fill(new RoundRectangle2D.Float(barX, cy + 11, Math.max(8, Math.round(barW * s.endorsements / (float) maxEnd)), 8, 8, 8));
+                g.setFont(PF_REG_12);
+                g.setColor(TEXT_MUTED);
+                g.drawString(s.endorsements + (s.endorsements == 1 ? " endorsement" : " endorsements"), barX + barW + 14, cy + 20);
+                cy += rowH;
+            }
         }
         return y + cardH + 20;
     }
 
+    /** Right-aligned endorse chip ending at rightX (with endorsement count); returns its width. */
+    private int paintEndorseChip(Graphics2D g, int rightX, int y, ProfileData.ProfileSkill s) {
+        return paintEndorseChip(g, rightX, y, s, 0, true);
+    }
+
+    /** Right-aligned endorse chip; fixedW > 0 forces a uniform width so rows line up. */
+    private int paintEndorseChip(Graphics2D g, int rightX, int y, ProfileData.ProfileSkill s, int fixedW, boolean withCount) {
+        String text = (s.userEndorsed ? "✓ Endorsed" : "+ Endorse") + (withCount ? " · " + s.endorsements : "");
+        g.setFont(PF_BOLD_11);
+        FontMetrics fm = g.getFontMetrics();
+        int cw = Math.max(fixedW, fm.stringWidth(text) + 20);
+        RoundRectangle2D chip = new RoundRectangle2D.Float(rightX - cw, y, cw, 22, 22, 22);
+        g.setColor(s.userEndorsed ? BRAND_TINT_BG : Color.WHITE);
+        g.fill(chip);
+        g.setColor(s.userEndorsed ? BRAND_TINT_BORDER : BORDER_COLOR);
+        g.setStroke(new BasicStroke(1f));
+        g.draw(chip);
+        g.setColor(s.userEndorsed ? BRAND_ACCENT : TEXT_MUTED);
+        g.drawString(text, rightX - cw + (cw - fm.stringWidth(text)) / 2, y + 15);
+        return cw;
+    }
+
+    // ---------------------------------------------------------------- reviews tab
+
     private int paintProfileReviewsFull(Graphics2D g, int x, int y, int w) {
-        int curY = y;
-        for (ProfileData.PeerReview rev : profileData.reviews) {
-            int cardH = 110;
-            RoundRectangle2D card = new RoundRectangle2D.Float(x, curY, w, cardH, 12, 12);
-            g.setColor(Color.WHITE);
-            g.fill(card);
-            g.setColor(BORDER_COLOR);
-            g.draw(card);
-
-            drawAvatar(g, x + 34, curY + 36, 16, rev.reviewerInitials, rev.avatarBg, rev.avatarFg);
-
-            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 13));
-            g.setColor(TEXT_DARK);
-            g.drawString(rev.reviewerName + "  ·  " + rev.reviewerRole, x + 60, curY + 30);
-
-            g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
-            g.setColor(TEXT_MUTED);
-            g.drawString("Project: " + rev.projectName + "  ·  " + rev.date, x + 60, curY + 46);
-
-            g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
-            g.setColor(TEXT_DARK);
-            g.drawString("\"" + rev.feedback + "\"", x + 60, curY + 76);
-
-            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
-            g.setColor(Theme.HIGHLIGHT_WARM);
-            g.drawString("★★★★★ 5.0", x + w - 110, curY + 30);
-
-            curY += cardH + 14;
+        if (profileData.reviews.isEmpty() && profileData.totalReviewsCount <= 0) {
+            return paintEmptyState(g, x, y, w, ICON_STAR, "No peer reviews yet",
+                    "When teammates review your work after a project, their feedback appears here.");
         }
-        return curY;
+        // summary card: average + distribution of the loaded reviews
+        int sumH = 150;
+        drawProfileCard(g, x, y, w, sumH, 14);
+        float avg = profileData.peerRating;
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 40));
+        g.setColor(TEXT_DARK);
+        String avgStr = profileData.totalReviewsCount > 0 ? String.format("%.1f", avg) : "—";
+        g.drawString(avgStr, x + 28, y + 70);
+        drawStars(g, x + 30, y + 86, 15, avg);
+        g.setFont(PF_REG_12);
+        g.setColor(TEXT_MUTED);
+        g.drawString(profileData.totalReviewsCount + (profileData.totalReviewsCount == 1 ? " peer review" : " peer reviews"), x + 28, y + 124);
+
+        int[] dist = new int[6];
+        for (ProfileData.PeerReview r : profileData.reviews) dist[Math.max(1, Math.min(5, r.ratingStars))]++;
+        int n = Math.max(1, profileData.reviews.size());
+        int dX = x + 210;
+        int dW = Math.min(420, w - 210 - 80);
+        g.setFont(PF_BOLD_10);
+        g.setColor(TEXT_LIGHT);
+        g.drawString("BREAKDOWN OF THE " + profileData.reviews.size() + " LATEST REVIEWS", dX, y + 30);
+        for (int s = 5; s >= 1; s--) {
+            int ry = y + 44 + (5 - s) * 19;
+            g.setFont(PF_BOLD_11);
+            g.setColor(TEXT_MUTED);
+            g.drawString(s + "★", dX, ry + 10);
+            g.setColor(new Color(0xF1, 0xEF, 0xEA));
+            g.fill(new RoundRectangle2D.Float(dX + 30, ry + 2, dW, 8, 8, 8));
+            if (dist[s] > 0) {
+                g.setColor(Theme.ACCENT_SUNNY);
+                g.fill(new RoundRectangle2D.Float(dX + 30, ry + 2, Math.max(8, dW * dist[s] / n), 8, 8, 8));
+            }
+            g.setFont(PF_REG_11);
+            g.setColor(TEXT_LIGHT);
+            g.drawString(String.valueOf(dist[s]), dX + 30 + dW + 10, ry + 10);
+        }
+        int cy = y + sumH + 16;
+
+        FontMetrics qfm = g.getFontMetrics(PF_REG_13);
+        for (ProfileData.PeerReview rev : profileData.reviews) {
+            List<String> lines = wrapLines(rev.feedback, qfm, w - 48, 8);
+            int cardH = 92 + lines.size() * 20;
+            drawProfileCard(g, x, cy, w, cardH, 14);
+            paintReviewerLine(g, rev, x + 24, cy + 22, w - 48);
+            int ly = cy + 78;
+            g.setFont(PF_REG_13);
+            g.setColor(TEXT_DARK);
+            for (String line : lines) {
+                g.drawString(line, x + 24, ly);
+                ly += 20;
+            }
+            cy += cardH + 14;
+        }
+        return cy;
+    }
+
+    /** Avatar, name, role · project · date, and the star rating on the right. */
+    private void paintReviewerLine(Graphics2D g, ProfileData.PeerReview rev, int x, int y, int w) {
+        Color bg = rev.avatarBg != null ? rev.avatarBg : Theme.PASTEL_VIOLET;
+        Color fg = rev.avatarFg != null ? rev.avatarFg : Theme.ACCENT_VIOLET;
+        drawAvatar(g, x + 18, y + 18, 18, has(rev.reviewerInitials) ? rev.reviewerInitials : "TU", bg, fg);
+        int starsW = 5 * 15 - 3;
+        g.setFont(PF_BOLD_13);
+        g.setColor(TEXT_DARK);
+        g.drawString(ellipsize(rev.reviewerName, g.getFontMetrics(), w - 46 - starsW - 12), x + 46, y + 15);
+        List<String> meta = new ArrayList<String>();
+        if (has(rev.reviewerRole)) meta.add(rev.reviewerRole);
+        if (has(rev.projectName)) meta.add(rev.projectName);
+        if (has(rev.date)) meta.add(rev.date);
+        g.setFont(PF_REG_11);
+        g.setColor(TEXT_MUTED);
+        g.drawString(ellipsize(join(meta, "  ·  "), g.getFontMetrics(), w - 46 - starsW - 12), x + 46, y + 32);
+        drawStars(g, x + w - starsW, y + 6, 12, rev.ratingStars);
+    }
+
+    // ---------------------------------------------------------------- shared pieces
+
+    private int paintSectionHeading(Graphics2D g, int x, int y, String title, String sub) {
+        g.setFont(PF_SECTION);
+        g.setColor(TEXT_DARK);
+        g.drawString(title, x + 2, y + 16);
+        if (sub != null) {
+            int tw = g.getFontMetrics().stringWidth(title);
+            g.setFont(PF_REG_12);
+            g.setColor(TEXT_LIGHT);
+            g.drawString(sub, x + 2 + tw + 10, y + 16);
+        }
+        return y + 30;
+    }
+
+    private int paintEmptyState(Graphics2D g, int x, int y, int w, int icon, String title, String sub) {
+        int h = 150;
+        drawProfileCard(g, x, y, w, h, 14);
+        g.setColor(BORDER_COLOR);
+        float[] dash = { 5f, 4f };
+        g.setStroke(new BasicStroke(1.2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 1f, dash, 0f));
+        g.draw(new RoundRectangle2D.Float(x + 8, y + 8, w - 16, h - 16, 10, 10));
+        g.setStroke(new BasicStroke(1f));
+        int cx = x + w / 2;
+        g.setColor(BG_CANVAS);
+        g.fillOval(cx - 22, y + 24, 44, 44);
+        drawProfileIcon(g, icon, cx - 6, y + 40, TEXT_LIGHT);
+        g.setFont(PF_BOLD_13);
+        g.setColor(TEXT_DARK);
+        g.drawString(title, cx - g.getFontMetrics().stringWidth(title) / 2, y + 92);
+        g.setFont(PF_REG_12);
+        g.setColor(TEXT_MUTED);
+        String s = ellipsize(sub, g.getFontMetrics(), w - 40);
+        g.drawString(s, cx - g.getFontMetrics().stringWidth(s) / 2, y + 114);
+        return y + h + 16;
+    }
+
+    private void drawProfileCard(Graphics2D g, int x, int y, int w, int h, int arc) {
+        RoundRectangle2D card = new RoundRectangle2D.Float(x, y, w, h, arc, arc);
+        g.setColor(Color.WHITE);
+        g.fill(card);
+        g.setColor(BORDER_COLOR);
+        g.setStroke(new BasicStroke(1.1f));
+        g.draw(card);
+    }
+
+    /** Five stars with partial fill for fractional ratings. */
+    private void drawStars(Graphics2D g, int x, int y, int size, float rating) {
+        Shape oldClip = g.getClip();
+        for (int i = 0; i < 5; i++) {
+            Shape star = starShape(x + i * (size + 3), y, size);
+            g.setColor(new Color(0xE8, 0xE4, 0xDC));
+            g.fill(star);
+            float part = Math.max(0f, Math.min(1f, rating - i));
+            if (part > 0f) {
+                g.setClip(oldClip);
+                g.clip(new Rectangle(x + i * (size + 3), y, Math.round(size * part), size + 1));
+                g.setColor(Theme.ACCENT_SUNNY.darker());
+                g.fill(star);
+                g.setClip(oldClip);
+            }
+        }
+    }
+
+    private Shape starShape(int x, int y, int size) {
+        GeneralPath p = new GeneralPath();
+        double cx = x + size / 2.0, cy = y + size / 2.0 + size * 0.04;
+        double ro = size / 2.0, ri = ro * 0.45;
+        for (int k = 0; k < 10; k++) {
+            double ang = -Math.PI / 2 + k * Math.PI / 5;
+            double r = (k % 2 == 0) ? ro : ri;
+            double px = cx + r * Math.cos(ang), py = cy + r * Math.sin(ang);
+            if (k == 0) p.moveTo(px, py); else p.lineTo(px, py);
+        }
+        p.closePath();
+        return p;
+    }
+
+    /** 12×12 line icons, top-left at (x, y). */
+    private void drawProfileIcon(Graphics2D g, int type, int x, int y, Color c) {
+        Stroke old = g.getStroke();
+        g.setColor(c);
+        g.setStroke(new BasicStroke(1.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        switch (type) {
+            case ICON_PIN:
+                g.drawOval(x + 2, y, 8, 8);
+                g.drawLine(x + 3, y + 7, x + 6, y + 12);
+                g.drawLine(x + 9, y + 7, x + 6, y + 12);
+                g.fillOval(x + 5, y + 3, 2, 2);
+                break;
+            case ICON_MAIL:
+                g.drawRect(x, y + 2, 12, 9);
+                g.drawLine(x, y + 2, x + 6, y + 7);
+                g.drawLine(x + 12, y + 2, x + 6, y + 7);
+                break;
+            case ICON_CODE:
+                g.drawLine(x + 4, y + 2, x, y + 6);
+                g.drawLine(x, y + 6, x + 4, y + 10);
+                g.drawLine(x + 8, y + 2, x + 12, y + 6);
+                g.drawLine(x + 12, y + 6, x + 8, y + 10);
+                break;
+            case ICON_LINK:
+                g.drawOval(x, y, 12, 12);
+                g.drawLine(x, y + 6, x + 12, y + 6);
+                g.drawArc(x + 3, y, 6, 12, 90, 180);
+                g.drawArc(x + 3, y, 6, 12, 270, 180);
+                break;
+            case ICON_CAP:
+                g.drawPolygon(new int[] { x, x + 6, x + 12, x + 6 }, new int[] { y + 4, y + 1, y + 4, y + 7 }, 4);
+                g.drawLine(x + 3, y + 6, x + 3, y + 9);
+                g.drawArc(x + 3, y + 6, 6, 5, 180, 180);
+                g.drawLine(x + 9, y + 6, x + 9, y + 9);
+                break;
+            case ICON_FOLDER:
+                g.drawRoundRect(x, y + 2, 12, 9, 3, 3);
+                g.drawLine(x + 1, y + 2, x + 4, y);
+                g.drawLine(x + 4, y, x + 6, y + 2);
+                break;
+            case ICON_PEOPLE:
+                g.drawOval(x + 1, y, 5, 5);
+                g.drawArc(x - 1, y + 6, 9, 8, 0, 180);
+                g.drawOval(x + 7, y + 1, 4, 4);
+                g.drawArc(x + 7, y + 7, 6, 6, 0, 180);
+                break;
+            case ICON_CHECK:
+                g.drawOval(x, y, 12, 12);
+                g.drawLine(x + 3, y + 6, x + 5, y + 8);
+                g.drawLine(x + 5, y + 8, x + 9, y + 4);
+                break;
+            case ICON_STAR:
+                g.fill(starShape(x - 1, y - 1, 14));
+                break;
+            case ICON_EDIT:
+                g.drawLine(x + 2, y + 10, x + 10, y + 2);
+                g.drawLine(x + 8, y, x + 12, y + 4);
+                g.drawLine(x, y + 12, x + 3, y + 11);
+                break;
+            case ICON_SHARE:
+                g.drawLine(x + 6, y, x + 6, y + 8);
+                g.drawLine(x + 3, y + 3, x + 6, y);
+                g.drawLine(x + 9, y + 3, x + 6, y);
+                g.drawLine(x, y + 6, x, y + 12);
+                g.drawLine(x, y + 12, x + 12, y + 12);
+                g.drawLine(x + 12, y + 12, x + 12, y + 6);
+                break;
+            default:
+                break;
+        }
+        g.setStroke(old);
+    }
+
+    /** {background, text} colours for a project status label such as "Active · Sprint 3". */
+    private Color[] statusColors(String status) {
+        String s = status.toLowerCase();
+        if (s.startsWith("completed") || s.startsWith("done"))
+            return new Color[] { new Color(0xF1, 0xEF, 0xEA), TEXT_MUTED };
+        if (s.startsWith("recruit"))
+            return new Color[] { AMBER_BG, new Color(0xB4, 0x53, 0x09) };
+        if (s.startsWith("under review") || s.startsWith("review"))
+            return new Color[] { Theme.PASTEL_VIOLET, Theme.ACCENT_VIOLET };
+        return new Color[] { SUCCESS_BG, new Color(0x04, 0x78, 0x57) };
+    }
+
+    // ---------------------------------------------------------------- profile text helpers
+
+    private static boolean has(String s) {
+        return s != null && !s.trim().isEmpty();
+    }
+
+    private static String join(List<String> parts, String sep) {
+        StringBuilder sb = new StringBuilder();
+        for (String p : parts) {
+            if (sb.length() > 0) sb.append(sep);
+            sb.append(p);
+        }
+        return sb.toString();
+    }
+
+    private static String ellipsize(String s, FontMetrics fm, int maxW) {
+        if (s == null) return "";
+        if (fm.stringWidth(s) <= maxW) return s;
+        String t = s;
+        while (t.length() > 1 && fm.stringWidth(t + "…") > maxW) t = t.substring(0, t.length() - 1);
+        return t.trim() + "…";
+    }
+
+    /** Greedy word wrap; the last allowed line is ellipsized when text remains. */
+    private static List<String> wrapLines(String text, FontMetrics fm, int maxW, int maxLines) {
+        List<String> out = new ArrayList<String>();
+        if (text == null) return out;
+        String[] words = text.trim().split("\\s+");
+        StringBuilder line = new StringBuilder();
+        int i = 0;
+        while (i < words.length) {
+            String candidate = line.length() == 0 ? words[i] : line + " " + words[i];
+            if (fm.stringWidth(candidate) <= maxW || line.length() == 0) {
+                line.setLength(0);
+                line.append(candidate);
+                i++;
+            } else {
+                out.add(line.toString());
+                line.setLength(0);
+                if (out.size() == maxLines) break;
+            }
+        }
+        if (out.size() < maxLines && line.length() > 0) {
+            out.add(line.toString());
+        } else if (!out.isEmpty() && (i < words.length || line.length() > 0)) {
+            int last = out.size() - 1;
+            StringBuilder rest = new StringBuilder(out.get(last));
+            if (line.length() > 0) rest.append(' ').append(line);
+            for (int k = i; k < words.length; k++) rest.append(' ').append(words[k]);
+            out.set(last, ellipsize(rest.toString(), fm, maxW));
+        }
+        for (int k = 0; k < out.size(); k++) out.set(k, ellipsize(out.get(k), fm, maxW));
+        return out;
+    }
+
+    private String profileNameInitials() {
+        String n = has(profileData.name) ? profileData.name.trim() : "";
+        if (n.isEmpty()) return has(profileInitials) ? profileInitials : "?";
+        return initialsFor(n);
+    }
+
+    /** Human-readable checklist of profile fields that are still empty. */
+    private List<String> missingProfileItems() {
+        List<String> m = new ArrayList<String>();
+        if (!has(profileData.headline)) m.add("Add a headline");
+        if (!has(profileData.bio)) m.add("Write a short bio");
+        if (profileData.skills.size() < 3) m.add("List at least 3 skills");
+        if (!has(profileData.university)) m.add("Add your university");
+        if (!has(profileData.availabilityStatus)) m.add("Set your availability");
+        if (!has(profileData.github) && !has(profileData.portfolio)) m.add("Link GitHub or a portfolio");
+        if (!has(profileData.location)) m.add("Add your location");
+        if (!has(profileData.department) || !has(profileData.gradYear)) m.add("Add department & graduation year");
+        return m;
+    }
+
+    private int profileStrength() {
+        int total = 8;
+        return Math.round((total - missingProfileItems().size()) * 100f / total);
+    }
+
+    private static String strengthLabel(int pct) {
+        if (pct >= 80) return "Strong — just a few details left.";
+        if (pct >= 50) return "Good start — fill in the rest to stand out.";
+        return "Teams are more likely to invite complete profiles.";
     }
 
     // =========================================================================
@@ -1036,7 +1674,7 @@ public class StudentDashboard {
 
         g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
         g.setColor(TEXT_MUTED);
-        g.drawString("Manage your account and collaboration preferences.", startX + padX, titleY + 22);
+        g.drawString("Manage your account, profile privacy and security.", startX + padX, titleY + 22);
 
         curY += 68;
 
@@ -1055,9 +1693,6 @@ public class StudentDashboard {
                 break;
             case PROFILE_PRIVACY:
                 rightBottomY = paintProfilePrivacyTab(g, rightX, curY, rightW);
-                break;
-            case COLLAB_PREFERENCES:
-                rightBottomY = paintCollabPreferencesTab(g, rightX, curY, rightW);
                 break;
             case DANGER_ZONE:
                 rightBottomY = paintDangerZoneTab(g, rightX, curY, rightW);
@@ -1100,7 +1735,7 @@ public class StudentDashboard {
             Color iconCol = isSel ? BRAND_ACCENT : TEXT_MUTED;
             Color textCol = isSel ? BRAND_ACCENT : TEXT_DARK;
 
-            drawSettingsTabIcon(g, i, itemX + 12, curY + 12, iconCol);
+            drawSettingsTabIcon(g, tab, itemX + 12, curY + 12, iconCol);
 
             g.setFont(new Font(Font.SANS_SERIF, isSel ? Font.BOLD : Font.PLAIN, 12));
             g.setColor(textCol);
@@ -1110,20 +1745,16 @@ public class StudentDashboard {
         }
     }
 
-    private void drawSettingsTabIcon(Graphics2D g, int tabIndex, int x, int y, Color c) {
+    /** Icon per settings tab (chosen by the tab, so removing or reordering tabs keeps the right icon). */
+    private void drawSettingsTabIcon(Graphics2D g, SettingsData.SettingsTab tab, int x, int y, Color c) {
         g.setColor(c);
         g.setStroke(new BasicStroke(1.4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-        if (tabIndex == 0) {
+        if (tab == SettingsData.SettingsTab.ACCOUNT) {
             g.drawOval(x + 3, y, 6, 6);
             g.drawArc(x, y + 7, 12, 7, 0, 180);
-        } else if (tabIndex == 1) {
+        } else if (tab == SettingsData.SettingsTab.PROFILE_PRIVACY) {
             g.drawOval(x + 1, y + 2, 12, 8);
             g.drawOval(x + 5, y + 4, 4, 4);
-        } else if (tabIndex == 2) {
-            g.drawOval(x + 2, y + 1, 4, 4);
-            g.drawArc(x, y + 6, 8, 5, 0, 180);
-            g.drawOval(x + 8, y + 4, 4, 4);
-            g.drawArc(x + 6, y + 9, 8, 5, 0, 180);
         } else {
             Path2D.Float p = new Path2D.Float();
             p.moveTo(x + 6, y);
@@ -1458,212 +2089,6 @@ public class StudentDashboard {
         int knobY = b.y + 2;
         g.setColor(Color.WHITE);
         g.fillOval(knobX, knobY, knobSize, knobSize);
-    }
-
-    private int paintCollabPreferencesTab(Graphics2D g, int x, int y, int w) {
-        int curY = y;
-        int cardH = 520;
-        catRemoveBounds.clear();
-
-        RoundRectangle2D card = new RoundRectangle2D.Float(x, curY, w, cardH, 14, 14);
-        g.setColor(Color.WHITE);
-        g.fill(card);
-        g.setColor(BORDER_COLOR);
-        g.draw(card);
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 16));
-        g.setColor(TEXT_DARK);
-        g.drawString("Collaboration Preferences", x + 24, curY + 30);
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
-        g.setColor(TEXT_MUTED);
-        g.drawString("Help us connect you with projects that fit your interests and schedule.", x + 24, curY + 48);
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
-        g.setColor(TEXT_DARK);
-        g.drawString("Project categories", x + 24, curY + 76);
-
-        int chipX = x + 24;
-        int chipY = curY + 86;
-        for (int i = 0; i < settingsData.categories.size(); i++) {
-            String cat = settingsData.categories.get(i);
-            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
-            int tw = g.getFontMetrics().stringWidth(cat);
-            int chipW = tw + 28;
-            int chipH = 24;
-
-            RoundRectangle2D chip = new RoundRectangle2D.Float(chipX, chipY, chipW, chipH, 6, 6);
-            g.setColor(BRAND_TINT_BG);
-            g.fill(chip);
-            g.setColor(BRAND_TINT_BORDER);
-            g.draw(chip);
-
-            g.setColor(BRAND_ACCENT);
-            g.drawString(cat, chipX + 8, chipY + 16);
-            g.drawString("×", chipX + tw + 14, chipY + 16);
-
-            catRemoveBounds.add(new Rectangle(chipX, chipY, chipW, chipH));
-            chipX += chipW + 10;
-        }
-
-        int addY = chipY + 36;
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
-        g.setColor(TEXT_DARK);
-        g.drawString("Add a category", x + 24, addY + 12);
-
-        int fullInputW = w - 48;
-        addCatBox.setBounds(x + 24, addY + 20, fullInputW, 36);
-        RoundRectangle2D addCatShape = new RoundRectangle2D.Float(addCatBox.x, addCatBox.y, addCatBox.width,
-                addCatBox.height, 8, 8);
-        g.setColor(Color.WHITE);
-        g.fill(addCatShape);
-        g.setColor(BORDER_COLOR);
-        g.draw(addCatShape);
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
-        g.setColor(TEXT_MUTED);
-        g.drawString("Search project categories...", addCatBox.x + 14, addCatBox.y + 22);
-        Draw.drawChevronDown(g, addCatBox.x + addCatBox.width - 24, addCatBox.y + 14, 8, TEXT_MUTED, 0f);
-
-        int rolesY = addCatBox.y + 50;
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
-        g.setColor(TEXT_DARK);
-        g.drawString("Preferred roles", x + 24, rolesY + 12);
-
-        int row1Y = rolesY + 24;
-        int halfW = (w - 48) / 2;
-
-        checkFrontendBox.setBounds(x + 24, row1Y, 18, 18);
-        paintCheckbox(g, checkFrontendBox, settingsData.roleFrontendDev, "Frontend Developer");
-
-        checkUiBox.setBounds(x + 24 + halfW, row1Y, 18, 18);
-        paintCheckbox(g, checkUiBox, settingsData.roleUiDev, "UI Developer");
-
-        int row2Y = row1Y + 28;
-        checkBackendBox.setBounds(x + 24, row2Y, 18, 18);
-        paintCheckbox(g, checkBackendBox, settingsData.roleBackendDev, "Backend Developer");
-
-        checkLeadBox.setBounds(x + 24 + halfW, row2Y, 18, 18);
-        paintCheckbox(g, checkLeadBox, settingsData.roleProjectLead, "Project Lead");
-
-        int ddY = row2Y + 36;
-        int ddW = (w - 48 - 16) / 2;
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
-        g.setColor(TEXT_DARK);
-        g.drawString("Weekly availability", x + 24, ddY + 12);
-        availDropdown.setBounds(x + 24, ddY + 20, ddW, 36);
-        paintDropdownInput(g, availDropdown, settingsData.weeklyAvailability);
-
-        g.drawString("Preferred commitment", x + 24 + ddW + 16, ddY + 12);
-        commitDropdown.setBounds(x + 24 + ddW + 16, ddY + 20, ddW, 36);
-        paintDropdownInput(g, commitDropdown, settingsData.preferredCommitment);
-
-        int collabY = ddY + 70;
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
-        g.setColor(TEXT_DARK);
-        g.drawString("How would you like to collaborate?", x + 24, collabY + 12);
-
-        int segW = w - 48;
-        int segH = 38;
-        int segX = x + 24;
-        int segY = collabY + 20;
-
-        RoundRectangle2D segBg = new RoundRectangle2D.Float(segX, segY, segW, segH, 8, 8);
-        g.setColor(BG_CANVAS);
-        g.fill(segBg);
-        g.setColor(BORDER_COLOR);
-        g.draw(segBg);
-
-        int itemSegW = (segW - 8) / 3;
-        modeRemoteBox.setBounds(segX + 4, segY + 4, itemSegW, segH - 8);
-        paintSegmentItem(g, modeRemoteBox, "Remote", settingsData.collabMode == SettingsData.CollabMode.REMOTE);
-
-        modeInPersonBox.setBounds(segX + 4 + itemSegW, segY + 4, itemSegW, segH - 8);
-        paintSegmentItem(g, modeInPersonBox, "In person", settingsData.collabMode == SettingsData.CollabMode.IN_PERSON);
-
-        modeEitherBox.setBounds(segX + 4 + itemSegW * 2, segY + 4, itemSegW, segH - 8);
-        paintSegmentItem(g, modeEitherBox, "Either works", settingsData.collabMode == SettingsData.CollabMode.EITHER);
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 10));
-        g.setColor(TEXT_LIGHT);
-        g.drawString(settingsData.timeZoneInfo, x + 24, segY + segH + 16);
-
-        int btnY = segY + segH + 32;
-        saveCollabBtnBox.setBounds(x + 24, btnY, 104, 34);
-        RoundRectangle2D saveBtn = new RoundRectangle2D.Float(saveCollabBtnBox.x, saveCollabBtnBox.y,
-                saveCollabBtnBox.width, saveCollabBtnBox.height, 8, 8);
-        g.setColor(saveCollabHovered ? BRAND_ACCENT_HOVER : BRAND_ACCENT);
-        g.fill(saveBtn);
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
-        g.setColor(Color.WHITE);
-        g.drawString("Save changes", saveCollabBtnBox.x + 16, saveCollabBtnBox.y + 21);
-
-        cancelCollabBtnBox.setBounds(saveCollabBtnBox.x + 104 + 10, btnY, 72, 34);
-        RoundRectangle2D canBtn = new RoundRectangle2D.Float(cancelCollabBtnBox.x, cancelCollabBtnBox.y,
-                cancelCollabBtnBox.width, cancelCollabBtnBox.height, 8, 8);
-        g.setColor(cancelCollabHovered ? BG_CANVAS : Color.WHITE);
-        g.fill(canBtn);
-        g.setColor(BORDER_COLOR);
-        g.draw(canBtn);
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
-        g.setColor(TEXT_DARK);
-        g.drawString("Cancel", cancelCollabBtnBox.x + 16, cancelCollabBtnBox.y + 21);
-
-        return curY + cardH + 30;
-    }
-
-    private void paintCheckbox(Graphics2D g, Rectangle b, boolean checked, String label) {
-        RoundRectangle2D box = new RoundRectangle2D.Float(b.x, b.y, b.width, b.height, 4, 4);
-        if (checked) {
-            g.setColor(BRAND_ACCENT);
-            g.fill(box);
-            g.setColor(Color.WHITE);
-            g.setStroke(new BasicStroke(1.8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-            g.drawLine(b.x + 4, b.y + 9, b.x + 7, b.y + 13);
-            g.drawLine(b.x + 7, b.y + 13, b.x + 13, b.y + 5);
-        } else {
-            g.setColor(Color.WHITE);
-            g.fill(box);
-            g.setColor(BORDER_COLOR);
-            g.draw(box);
-        }
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
-        g.setColor(TEXT_DARK);
-        g.drawString(label, b.x + b.width + 10, b.y + 14);
-    }
-
-    private void paintDropdownInput(Graphics2D g, Rectangle b, String text) {
-        RoundRectangle2D shape = new RoundRectangle2D.Float(b.x, b.y, b.width, b.height, 8, 8);
-        g.setColor(Color.WHITE);
-        g.fill(shape);
-        g.setColor(BORDER_COLOR);
-        g.draw(shape);
-
-        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
-        g.setColor(TEXT_DARK);
-        g.drawString(text, b.x + 14, b.y + 22);
-
-        Draw.drawChevronDown(g, b.x + b.width - 24, b.y + 14, 8, TEXT_MUTED, 0f);
-    }
-
-    private void paintSegmentItem(Graphics2D g, Rectangle b, String label, boolean isSelected) {
-        RoundRectangle2D shape = new RoundRectangle2D.Float(b.x, b.y, b.width, b.height, 6, 6);
-        if (isSelected) {
-            g.setColor(Color.WHITE);
-            g.fill(shape);
-            g.setColor(BORDER_COLOR);
-            g.draw(shape);
-            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
-            g.setColor(BRAND_ACCENT);
-        } else {
-            g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
-            g.setColor(TEXT_MUTED);
-        }
-        FontMetrics fm = g.getFontMetrics();
-        int lw = fm.stringWidth(label);
-        g.drawString(label, b.x + (b.width - lw) / 2, b.y + 20);
     }
 
     private int paintDangerZoneTab(Graphics2D g, int x, int y, int w) {
@@ -2344,7 +2769,20 @@ public class StudentDashboard {
             return true;
         }
 
-        // 2. Active View's High Z-index overlays take priority (Dropdowns & Profile
+        // 2. Header bar + its popups (search suggestions, avatar menu) come before the page,
+        //    unless a page-level full-screen overlay (task board, profile modal) is open.
+        //    Previously Discover / Find Teammates swallowed clicks on the search box.
+        boolean pageOverlay = (activeNav == NavItem.MY_PROJECTS && myProjectsView.hasOverlay())
+                || (activeNav == NavItem.FIND_TEAMMATES && teammatesView.hasOverlay());
+        if (header != null && !pageOverlay && header.wantsClick(mx, my)) {
+            header.onClick(mx, my, this);
+            return true;
+        }
+        if (header != null) {
+            header.blurSearch(); // clicking the page leaves the header search box
+        }
+
+        // 3. Active View's High Z-index overlays take priority (Dropdowns & Profile
         // Modals)
         if (activeNav == NavItem.MY_PROJECTS) {
             if (myProjectsView.onClick(mx, my, this))
@@ -2355,11 +2793,6 @@ public class StudentDashboard {
         } else if (activeNav == NavItem.DISCOVER_PROJECTS) {
             if (projectsView.onClick(mx, my, this))
                 return true;
-        }
-
-        // 3. Header controls
-        if (header != null && header.onClick(mx, my, this)) {
-            return true;
         }
 
         // 4. Sidebar controls
@@ -2425,10 +2858,16 @@ public class StudentDashboard {
             return true;
         }
 
-        for (int i = 0; i < profileSkillBounds.size(); i++) {
+        if (completeProfileBtnBox.contains(mx, my)) {
+            openModal(ActiveModal.COMPLETE_PROFILE);
+            return true;
+        }
+
+        for (int i = 0; i < profileSkillBounds.size() && i < profileSkillIndex.size(); i++) {
             if (profileSkillBounds.get(i).contains(mx, my)) {
-                profileData.toggleEndorsement(i % profileData.skills.size());
-                ProfileData.ProfileSkill s = profileData.skills.get(i % profileData.skills.size());
+                int skillIdx = profileSkillIndex.get(i);
+                profileData.toggleEndorsement(skillIdx);
+                ProfileData.ProfileSkill s = profileData.skills.get(skillIdx);
                 DashboardSync.setEndorsement(this, s.name, s.userEndorsed);
                 showToast(s.userEndorsed ? ("Endorsed " + s.name + " (" + s.endorsements + ")")
                         : ("Removed endorsement for " + s.name));
@@ -2436,9 +2875,9 @@ public class StudentDashboard {
             }
         }
 
-        for (int i = 0; i < profileProjectBounds.size(); i++) {
+        for (int i = 0; i < profileProjectBounds.size() && i < profileProjectIndex.size(); i++) {
             if (profileProjectBounds.get(i).contains(mx, my)) {
-                ProfileData.ProfileProject p = profileData.projects.get(i % profileData.projects.size());
+                ProfileData.ProfileProject p = profileData.projects.get(profileProjectIndex.get(i));
                 showToast("Opening workspace for " + p.title + "...");
                 return true;
             }
@@ -2546,72 +2985,6 @@ public class StudentDashboard {
             }
             if (cancelPrivacyBtnBox.contains(mx, my)) {
                 showToast("Privacy changes cancelled.");
-                return true;
-            }
-        }
-
-        if (settingsData.activeTab == SettingsData.SettingsTab.COLLAB_PREFERENCES) {
-            for (int i = 0; i < catRemoveBounds.size(); i++) {
-                if (catRemoveBounds.get(i).contains(mx, my)) {
-                    String rem = settingsData.categories.get(i);
-                    settingsData.removeCategory(i);
-                    showToast("Removed: " + rem);
-                    return true;
-                }
-            }
-            if (addCatBox.contains(mx, my)) {
-                settingsData.addCategory("Mobile Development");
-                showToast("Added 'Mobile Development' category!");
-                return true;
-            }
-            if (checkFrontendBox.contains(mx, my)) {
-                settingsData.roleFrontendDev = !settingsData.roleFrontendDev;
-                showToast("Frontend Dev: " + (settingsData.roleFrontendDev ? "Checked" : "Unchecked"));
-                return true;
-            }
-            if (checkUiBox.contains(mx, my)) {
-                settingsData.roleUiDev = !settingsData.roleUiDev;
-                showToast("UI Dev: " + (settingsData.roleUiDev ? "Checked" : "Unchecked"));
-                return true;
-            }
-            if (checkBackendBox.contains(mx, my)) {
-                settingsData.roleBackendDev = !settingsData.roleBackendDev;
-                showToast("Backend Dev: " + (settingsData.roleBackendDev ? "Checked" : "Unchecked"));
-                return true;
-            }
-            if (checkLeadBox.contains(mx, my)) {
-                settingsData.roleProjectLead = !settingsData.roleProjectLead;
-                showToast("Project Lead: " + (settingsData.roleProjectLead ? "Checked" : "Unchecked"));
-                return true;
-            }
-            if (availDropdown.contains(mx, my)) {
-                settingsData.toggleWeeklyAvailability();
-                showToast("Availability: " + settingsData.weeklyAvailability);
-                return true;
-            }
-            if (commitDropdown.contains(mx, my)) {
-                settingsData.toggleCommitment();
-                showToast("Commitment: " + settingsData.preferredCommitment);
-                return true;
-            }
-            if (modeRemoteBox.contains(mx, my)) {
-                settingsData.collabMode = SettingsData.CollabMode.REMOTE;
-                showToast("Collab: Remote");
-                return true;
-            }
-            if (modeInPersonBox.contains(mx, my)) {
-                settingsData.collabMode = SettingsData.CollabMode.IN_PERSON;
-                showToast("Collab: In person");
-                return true;
-            }
-            if (modeEitherBox.contains(mx, my)) {
-                settingsData.collabMode = SettingsData.CollabMode.EITHER;
-                showToast("Collab: Either works");
-                return true;
-            }
-            if (saveCollabBtnBox.contains(mx, my)) {
-                DashboardSync.savePreferences(this, settingsData);
-                showToast("Collaboration preferences saved!");
                 return true;
             }
         }
@@ -2753,7 +3126,36 @@ public class StudentDashboard {
         }
         if (hoveredProfileTab != oldTabHov)
             changed = true;
-        return changed || editProfileHovered;
+
+        boolean pComplete = completeProfileHovered;
+        completeProfileHovered = completeProfileBtnBox.contains(mx, my);
+        if (completeProfileHovered != pComplete)
+            changed = true;
+
+        int oldSkill = hoveredProfileSkill;
+        hoveredProfileSkill = -1;
+        for (int i = 0; i < profileSkillBounds.size(); i++) {
+            if (profileSkillBounds.get(i).contains(mx, my)) {
+                hoveredProfileSkill = i;
+                break;
+            }
+        }
+        if (hoveredProfileSkill != oldSkill)
+            changed = true;
+
+        int oldProject = hoveredProfileProject;
+        hoveredProfileProject = -1;
+        for (int i = 0; i < profileProjectBounds.size(); i++) {
+            if (profileProjectBounds.get(i).contains(mx, my)) {
+                hoveredProfileProject = i;
+                break;
+            }
+        }
+        if (hoveredProfileProject != oldProject)
+            changed = true;
+        // true = pointer over something clickable (drives the hand cursor)
+        return changed || editProfileHovered || shareProfileHovered || hoveredProfileTab >= 0
+                || completeProfileHovered || hoveredProfileSkill >= 0 || hoveredProfileProject >= 0;
     }
 
     private boolean handleSettingsMouseMove(int mx, int my) {
@@ -2824,6 +3226,10 @@ public class StudentDashboard {
     }
 
     public void onMouseWheel(int wheelRotation, int screenH) {
+        // An open task board scrolls its own list instead of the page behind it
+        if (activeNav == NavItem.MY_PROJECTS && myProjectsView.onMouseWheel(wheelRotation)) {
+            return;
+        }
         int maxScroll = Math.max(0, getCurrentContentHeight() - (screenH - 60));
         targetScrollY = Math.max(0, Math.min(targetScrollY + wheelRotation * 45, maxScroll));
     }
@@ -2981,13 +3387,38 @@ public class StudentDashboard {
             settingsData.fullName = n;
             settingsData.originalFullName = n;
         }
-        // Recalculate initials
-        String[] parts = n.trim().split("\\s+");
-        if (parts.length >= 2 && !parts[0].isEmpty() && !parts[1].isEmpty()) {
-            setProfileInitials(("" + parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase());
-        } else if (parts.length == 1 && !parts[0].isEmpty()) {
-            setProfileInitials(parts[0].substring(0, Math.min(2, parts[0].length())).toUpperCase());
+        // Avatar initials always follow the name (header, sidebar, profile)
+        if (!n.trim().isEmpty()) {
+            setProfileInitials(initialsFor(n));
         }
+    }
+
+    /**
+     * Two-letter avatar initials for a display name. Mirrors server/src/utils/format.js initials():
+     *  "Md Shakib Akando" → "MA" (first + last word), "Test Admin User 123" → "TU" (skips number-only words),
+     *  "testPro" → "TP" (camelCase), "john_doe" / "john.doe" → "JD", "Prena" → "PR".
+     */
+    public static String initialsFor(String name) {
+        if (name == null || name.trim().isEmpty()) return "TU";
+        List<String> words = new ArrayList<String>();
+        for (String w : name.trim().split("[\\s._-]+")) {
+            if (!w.isEmpty()) words.add(w);
+        }
+        if (words.isEmpty()) return "TU";
+        if (words.size() >= 2) {
+            String last = words.get(words.size() - 1);
+            for (int i = words.size() - 1; i > 0; i--) {
+                if (Character.isLetter(words.get(i).charAt(0))) { last = words.get(i); break; }
+            }
+            return ("" + words.get(0).charAt(0) + last.charAt(0)).toUpperCase();
+        }
+        String w = words.get(0);
+        for (int i = 1; i < w.length(); i++) {
+            if (Character.isUpperCase(w.charAt(i)) && Character.isLowerCase(w.charAt(i - 1))) {
+                return ("" + w.charAt(0) + w.charAt(i)).toUpperCase(); // camelCase: testPro → TP
+            }
+        }
+        return w.substring(0, Math.min(2, w.length())).toUpperCase();
     }
 
     public String getProfileBio() {
@@ -3018,6 +3449,14 @@ public class StudentDashboard {
 
     public void setProfileInitials(String i) {
         this.profileInitials = i;
+    }
+
+    public String getProfileUserId() {
+        return profileUserId;
+    }
+
+    public void setProfileUserId(String id) {
+        this.profileUserId = id == null ? "" : id;
     }
 
     public String getProfileRole() {

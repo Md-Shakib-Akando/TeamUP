@@ -100,15 +100,25 @@ public class DashboardSidebar {
         String ini = dashboard.getProfileInitials();
         g.drawString(ini, avX + (avSize - g.getFontMetrics().stringWidth(ini)) / 2, avY + 23);
 
+        // Name + role (ellipsized to the sidebar width)
+        int textX = avX + 44;
+        int textW = x + w - padX - textX;
         g.setFont(DashboardTheme.FONT_BOLD_12);
         g.setColor(DashboardTheme.TEXT_DARK);
-        g.drawString(dashboard.getProfileName(), avX + 44, avY + 16);
+        g.drawString(fitText(g, dashboard.getProfileName(), textW), textX, avY + 16);
 
         g.setFont(DashboardTheme.FONT_REG_11);
         g.setColor(DashboardTheme.TEXT_LIGHT);
-        g.drawString(dashboard.getProfileRole() + " · Free plan", avX + 44, avY + 31);
+        g.drawString(fitText(g, dashboard.getProfileRole(), textW), textX, avY + 31);
+    }
 
-        Draw.drawChevronDown(g, x + w - padX - 10, avY + 14, 10, DashboardTheme.TEXT_LIGHT, 0f);
+    private static String fitText(Graphics2D g, String s, int maxW) {
+        if (s == null) return "";
+        FontMetrics fm = g.getFontMetrics();
+        if (fm.stringWidth(s) <= maxW) return s;
+        String t = s;
+        while (t.length() > 1 && fm.stringWidth(t + "…") > maxW) t = t.substring(0, t.length() - 1);
+        return t.trim() + "…";
     }
 
     private void paintLogo(Graphics2D g, int x, int y) {

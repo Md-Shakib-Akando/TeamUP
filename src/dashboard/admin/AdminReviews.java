@@ -95,12 +95,12 @@ public class AdminReviews {
         public boolean inspectHovered = false;
     }
 
-    private final TabHitbox[] tabBoxes = new TabHitbox[4];
+    private final TabHitbox[] tabBoxes = new TabHitbox[5];
     private final List<ReviewCardHitbox> cardHitboxes = new ArrayList<>();
     private final List<DropdownItemHitbox> popoverHitboxes = new ArrayList<>();
     private final List<PageBtnHitbox> pageHitboxes = new ArrayList<>();
 
-    private int selectedTab = 0; // 0=All, 1=Team Reviews, 2=User Ratings, 3=Reported
+    private int selectedTab = 0; // 0=All, 1=Team Reviews, 2=User Ratings, 3=Reported, 4=Pending approval
     private String searchQuery = "";
     private boolean searchFocused = false;
     private int searchX, searchY, searchW = 320, searchH = 36;
@@ -114,12 +114,12 @@ public class AdminReviews {
     private int starDropX, starDropY, starDropW = 120, starDropH = 36;
     private boolean starDropHovered = false;
 
-    private final String[] typeOptions = { "All types", "Team Member Review", "User Rating", "Peer Collaboration" };
+    private final String[] typeOptions = { "All types", "Team Member Review", "User Rating", "Peer Collaboration", "Community Voice" };
     private int typeFilterIdx = 0;
     private int typeDropX, typeDropY, typeDropW = 145, typeDropH = 36;
     private boolean typeDropHovered = false;
 
-    private final String[] statusOptions = { "All statuses", "Published", "Reported", "Under review", "Hidden" };
+    private final String[] statusOptions = { "All statuses", "Published", "Pending", "Reported", "Under review", "Hidden" };
     private int statusFilterIdx = 0;
     private int statusDropX, statusDropY, statusDropW = 120, statusDropH = 36;
     private boolean statusDropHovered = false;
@@ -274,30 +274,54 @@ public class AdminReviews {
         g.drawString(sub, cx + 14, cy + 74);
     }
 
+    private static final int TAB_ROW_STEP = 42;
+
+    private String[] tabLabels() {
+        AdminDataStore ds = AdminDataStore.getInstance();
+        return new String[] {
+                "All Reviews (" + ds.getAllReviews().size() + ")",
+                "Team Member Reviews (" + ds.getTeamReviewsCount() + ")",
+                "User Ratings (" + ds.getUserRatingsCount() + ")",
+                "Reported Feedback (" + ds.getReportedReviewsCount() + ")",
+                "Pending approval (" + ds.getPendingReviewsCount() + ")"
+        };
+    }
+
+    /** Extra height when the tab row wraps (same rule as paintTabsAndControls). */
+    private int extraTabRowsHeight(int w) {
+        String[] labels = tabLabels();
+        Graphics2D g = scratch();
+        int curX = 0, rows = 1;
+        for (int i = 0; i < labels.length; i++) {
+            g.setFont(i == selectedTab ? AdminTheme.FONT_BOLD_12 : AdminTheme.FONT_REG_12);
+            int tabW = g.getFontMetrics().stringWidth(labels[i]) + 24;
+            if (curX > 0 && curX + tabW > w) { curX = 0; rows++; }
+            curX += tabW + 8;
+        }
+        return (rows - 1) * TAB_ROW_STEP;
+    }
+
     private int paintTabsAndControls(Graphics2D g, int x, int y, int w) {
         AdminDataStore ds = AdminDataStore.getInstance();
-        int totalCount = ds.getAllReviews().size();
-        int teamCount = ds.getTeamReviewsCount();
-        int userCount = ds.getUserRatingsCount();
         int reportedCount = ds.getReportedReviewsCount();
+        int pendingCount = ds.getPendingReviewsCount();
+        String[] tabLabels = tabLabels();
 
-        String[] tabLabels = {
-                "All Reviews (" + totalCount + ")",
-                "Team Member Reviews (" + teamCount + ")",
-                "User Ratings (" + userCount + ")",
-                "Reported Feedback (" + reportedCount + ")"
-        };
-
-        // Render Tabs
+        // Render Tabs (wrap onto another row when the page is narrow)
         int curX = x;
-        for (int i = 0; i < 4; i++) {
+        int rowY = y;
+        for (int i = 0; i < tabLabels.length; i++) {
             boolean isSel = (i == selectedTab);
             g.setFont(isSel ? AdminTheme.FONT_BOLD_12 : AdminTheme.FONT_REG_12);
             FontMetrics tfm = g.getFontMetrics();
             int tabW = tfm.stringWidth(tabLabels[i]) + 24;
             int tabH = 34;
+            if (curX > x && curX + tabW > x + w) {
+                curX = x;
+                rowY += TAB_ROW_STEP;
+            }
 
-            RoundRectangle2D tabShape = new RoundRectangle2D.Float(curX, y, tabW, tabH, 8, 8);
+            RoundRectangle2D tabShape = new RoundRectangle2D.Float(curX, rowY, tabW, tabH, 8, 8);
             if (isSel) {
                 g.setColor(AdminTheme.BRAND_GREEN_DARK);
                 g.fill(tabShape);
@@ -312,15 +336,17 @@ public class AdminReviews {
                 // If reported tab has items, highlight text red/amber
                 if (i == 3 && reportedCount > 0) {
                     g.setColor(AdminTheme.ACCENT_RED);
+                } else if (i == 4 && pendingCount > 0) {
+                    g.setColor(new Color(0xB4, 0x53, 0x09));
                 } else {
                     g.setColor(AdminTheme.TEXT_DARK);
                 }
             }
 
-            g.drawString(tabLabels[i], curX + 12, y + 21);
+            g.drawString(tabLabels[i], curX + 12, rowY + 21);
 
             tabBoxes[i].x = curX;
-            tabBoxes[i].y = y;
+            tabBoxes[i].y = rowY;
             tabBoxes[i].w = tabW;
             tabBoxes[i].h = tabH;
             tabBoxes[i].label = tabLabels[i];
@@ -329,7 +355,7 @@ public class AdminReviews {
         }
 
         // Controls Row
-        int filterY = y + 44;
+        int filterY = rowY + 44;
         searchX = x;
         searchY = filterY;
         searchW = Math.min(300, Math.max(220, w / 3));
@@ -469,299 +495,593 @@ public class AdminReviews {
         return curY;
     }
 
+    // ================================================================ review card
+
+    /** Hover state survives repaints (hitboxes are rebuilt every frame). */
+    private String hoveredCardAction = "";
+    /** True while a card is laid out only to learn its height. */
+    private boolean measuring = false;
+    private Graphics2D scratchG;
+
+    private static final int CARD_PAD = 20;
+    private static final int AV_SIZE = 40;
+    private static final int BTN_H = 32;
+    private static final int BTN_GAP = 8;
+    private static final Color GREEN_SOLID = new Color(0x05, 0x96, 0x69);
+    private static final Color GREEN_HOVER = new Color(0x04, 0x78, 0x57);
+    private static final Color AMBER_TEXT = new Color(0xB4, 0x53, 0x09);
+    private static final Color AMBER_BORDER = new Color(0xF5, 0x9E, 0x0B);
+
+    private Graphics2D scratch() {
+        if (scratchG == null) {
+            scratchG = new java.awt.image.BufferedImage(4, 4, java.awt.image.BufferedImage.TYPE_INT_ARGB).createGraphics();
+            scratchG.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        }
+        return scratchG;
+    }
+
+    private static boolean isPending(AdminDataStore.ReviewModel r) {
+        return "Pending".equalsIgnoreCase(r.status);
+    }
+
+    private static boolean isCommunity(AdminDataStore.ReviewModel r) {
+        return "Community Voice".equalsIgnoreCase(r.reviewType);
+    }
+
+    private static boolean isReported(AdminDataStore.ReviewModel r) {
+        return "Reported".equalsIgnoreCase(r.status) || "Under review".equalsIgnoreCase(r.status);
+    }
+
+    /** Height a card will take at this width (lays it out without drawing anything visible). */
+    private int measureCardHeight(AdminDataStore.ReviewModel rev, int cw) {
+        boolean was = measuring;
+        measuring = true;
+        int h = paintCardBody(scratch(), 0, 0, cw, rev);
+        measuring = was;
+        return h;
+    }
+
     private int paintReviewCard(Graphics2D g, int cx, int cy, int cw, AdminDataStore.ReviewModel rev,
             AdminDashboard dashboard) {
-        boolean isReported = "Reported".equalsIgnoreCase(rev.status) || "Under review".equalsIgnoreCase(rev.status);
-        boolean isHidden = "Hidden".equalsIgnoreCase(rev.status);
+        int cardH = measureCardHeight(rev, cw);
+        boolean reported = isReported(rev);
+        boolean hidden = "Hidden".equalsIgnoreCase(rev.status);
+        boolean underReview = "Under review".equalsIgnoreCase(rev.status);
+        boolean pending = isPending(rev);
 
-        // Compute card height dynamically: reported cards have an alert box (+42px)
-        int cardH = isReported ? 172 : 136;
+        Graphics2D c = (Graphics2D) g.create();
+        c.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        RoundRectangle2D box = new RoundRectangle2D.Float(cx, cy, cw, cardH, 14, 14);
+        // soft shadow
+        c.setColor(new Color(15, 23, 42, 10));
+        c.fill(new RoundRectangle2D.Float(cx, cy + 2, cw, cardH, 14, 14));
+        c.setColor(hidden ? new Color(0xFA, 0xFA, 0xFB) : Color.WHITE);
+        c.fill(box);
 
-        RoundRectangle2D cardBox = new RoundRectangle2D.Float(cx, cy, cw, cardH, 12, 12);
-        g.setColor(isHidden ? new Color(0xFA, 0xFA, 0xFA) : Color.WHITE);
-        g.fill(cardBox);
-
-        // Border: highlight red/amber if reported
-        if (isReported) {
-            g.setColor(new Color(0xFE, 0xCA, 0xCA));
-            g.setStroke(new BasicStroke(1.5f));
-        } else {
-            g.setColor(AdminTheme.BORDER_COLOR);
-            g.setStroke(new BasicStroke(1.2f));
+        // status accent along the left edge
+        if (reported || hidden || pending) {
+            Color accent = hidden ? new Color(0xCB, 0xD5, 0xE1)
+                    : (underReview || pending) ? AMBER_BORDER : AdminTheme.ACCENT_RED;
+            Shape old = c.getClip();
+            c.clip(box);
+            c.setColor(accent);
+            c.fillRect(cx, cy, 4, cardH);
+            c.setClip(old);
         }
-        g.draw(cardBox);
+        c.setColor(pending || underReview ? new Color(0xFD, 0xE6, 0x8A)
+                : reported ? new Color(0xFE, 0xCD, 0xD3) : AdminTheme.BORDER_COLOR);
+        c.setStroke(new BasicStroke(1f));
+        c.draw(box);
 
-        ReviewCardHitbox hb = new ReviewCardHitbox();
-        hb.review = rev;
-        hb.cardX = cx;
-        hb.cardY = cy;
-        hb.cardW = cw;
-        hb.cardH = cardH;
-
-        int row1Y = cy + 18;
-
-        // 1. Reviewer Avatar (Circle with initials)
-        int avSize = 34;
-        int avX = cx + 18;
-        int avY = cy + 14;
-        g.setColor(AdminTheme.BRAND_TINT);
-        g.fillOval(avX, avY, avSize, avSize);
-        g.setFont(AdminTheme.FONT_BOLD_11);
-        g.setColor(AdminTheme.BRAND_PRIMARY);
-        String inits = rev.reviewerInitials != null ? rev.reviewerInitials : "U";
-        FontMetrics ifm = g.getFontMetrics();
-        g.drawString(inits, avX + (avSize - ifm.stringWidth(inits)) / 2, avY + 22);
-
-        // Reviewer Name & Context
-        int textX = avX + avSize + 12;
-        g.setFont(AdminTheme.FONT_BOLD_13);
-        g.setColor(AdminTheme.TEXT_DARK);
-        g.drawString(rev.reviewerName, textX, row1Y + 4);
-
-        int rwNameW = g.getFontMetrics().stringWidth(rev.reviewerName);
-        int tagX = textX + rwNameW + 8;
-
-        // Arrow and Reviewee
-        g.setFont(AdminTheme.FONT_REG_11);
-        g.setColor(AdminTheme.TEXT_MUTED);
-        g.drawString("evaluated", tagX, row1Y + 3);
-        tagX += 54;
-
-        g.setFont(AdminTheme.FONT_BOLD_12);
-        g.setColor(AdminTheme.BRAND_PRIMARY);
-        g.drawString(rev.revieweeName, tagX, row1Y + 3);
-        tagX += g.getFontMetrics().stringWidth(rev.revieweeName) + 12;
-
-        // Project Pill
-        if (rev.projectName != null && !rev.projectName.isEmpty()) {
-            g.setFont(AdminTheme.FONT_BOLD_10);
-            FontMetrics pfm = g.getFontMetrics();
-            int pw = pfm.stringWidth(rev.projectName) + 16;
-            RoundRectangle2D ppill = new RoundRectangle2D.Float(tagX, row1Y - 11, pw, 20, 10, 10);
-            g.setColor(new Color(0xEE, 0xF2, 0xFF));
-            g.fill(ppill);
-            g.setColor(AdminTheme.BRAND_PRIMARY);
-            g.drawString(rev.projectName, tagX + 8, row1Y + 3);
-            tagX += pw + 8;
-        }
-
-        // Role / Context Pill
-        if (rev.roleOrContext != null && !rev.roleOrContext.isEmpty() && tagX < cx + cw - 280) {
-            g.setFont(AdminTheme.FONT_REG_10);
-            FontMetrics rfm = g.getFontMetrics();
-            int rw = rfm.stringWidth(rev.roleOrContext) + 14;
-            RoundRectangle2D rpill = new RoundRectangle2D.Float(tagX, row1Y - 11, rw, 20, 10, 10);
-            g.setColor(new Color(0xF1, 0xF5, 0xF9));
-            g.fill(rpill);
-            g.setColor(AdminTheme.TEXT_MUTED);
-            g.drawString(rev.roleOrContext, tagX + 7, row1Y + 3);
-        }
-
-        // Right side badges: Star Rating + Status Pill
-        int rightBadgeX = cx + cw - 18;
-
-        // Status Pill
-        int sW = 84;
-        int sH = 22;
-        int sX = rightBadgeX - sW;
-        int sY = row1Y - 12;
-        RoundRectangle2D sp = new RoundRectangle2D.Float(sX, sY, sW, sH, 11, 11);
-
-        if ("Published".equalsIgnoreCase(rev.status)) {
-            g.setColor(new Color(0xDC, 0xFC, 0xE7));
-            g.fill(sp);
-            g.setFont(AdminTheme.FONT_BOLD_10);
-            g.setColor(AdminTheme.BRAND_GREEN_DARK);
-            g.drawString("✓ Published", sX + 11, sY + 15);
-        } else if ("Reported".equalsIgnoreCase(rev.status)) {
-            g.setColor(new Color(0xFE, 0xE2, 0xE2));
-            g.fill(sp);
-            g.setFont(AdminTheme.FONT_BOLD_10);
-            g.setColor(AdminTheme.ACCENT_RED);
-            g.drawString("⚠️ Reported", sX + 11, sY + 15);
-        } else if ("Under review".equalsIgnoreCase(rev.status)) {
-            g.setColor(new Color(0xFE, 0xF3, 0xC7));
-            g.fill(sp);
-            g.setFont(AdminTheme.FONT_BOLD_10);
-            g.setColor(new Color(0xB4, 0x53, 0x09));
-            g.drawString("⏳ Under review", sX + 7, sY + 15);
-        } else {
-            g.setColor(new Color(0xF1, 0xF5, 0xF9));
-            g.fill(sp);
-            g.setFont(AdminTheme.FONT_BOLD_10);
-            g.setColor(AdminTheme.TEXT_MUTED);
-            g.drawString("👁️ Hidden", sX + 16, sY + 15);
-        }
-
-        // Stars display (Gold stars)
-        int starEndX = sX - 16;
-        paintStarRating(g, starEndX - 88, sY + 3, rev.rating);
-
-        // Second Row: Review Content Text
-        int contentY = cy + 56;
-        g.setFont(AdminTheme.FONT_REG_12);
-        g.setColor(isHidden ? AdminTheme.TEXT_MUTED : AdminTheme.TEXT_DARK);
-
-        String text = (rev.reviewText != null) ? rev.reviewText : "";
-        // Fit text within width
-        FontMetrics tfm = g.getFontMetrics();
-        int maxTextW = cw - 36;
-        if (tfm.stringWidth("\"" + text + "\"") > maxTextW) {
-            String truncated = text;
-            while (!truncated.isEmpty() && tfm.stringWidth("\"" + truncated + "…\"") > maxTextW) {
-                truncated = truncated.substring(0, truncated.length() - 1);
-            }
-            text = truncated + "…";
-        }
-        g.drawString("\"" + text + "\"", cx + 18, contentY);
-
-        int alertOffset = 0;
-
-        // Third Row: If Reported Alert Callout Box
-        if (isReported) {
-            int alertY = cy + 74;
-            int alertW = cw - 36;
-            int alertH = 32;
-            RoundRectangle2D alertBox = new RoundRectangle2D.Float(cx + 18, alertY, alertW, alertH, 6, 6);
-            g.setColor(new Color(0xFF, 0xF1, 0xF2));
-            g.fill(alertBox);
-            g.setColor(new Color(0xFE, 0xCD, 0xD3));
-            g.setStroke(new BasicStroke(1.0f));
-            g.draw(alertBox);
-
-            g.setFont(AdminTheme.FONT_BOLD_11);
-            g.setColor(AdminTheme.ACCENT_RED);
-            g.drawString("⚠️ Flagged for moderation:", cx + 28, alertY + 20);
-
-            String reason = (rev.reportReason != null) ? rev.reportReason : "Reported as inappropriate content";
-            g.setFont(AdminTheme.FONT_REG_11);
-            g.setColor(new Color(0x9F, 0x12, 0x39));
-            g.drawString("\"" + reason + "\"" + (rev.reportedBy != null ? " · by " + rev.reportedBy : ""), cx + 182,
-                    alertY + 20);
-
-            alertOffset = 38;
-        }
-
-        // Bottom Row: Date / Verification / Helpful Votes + Action Buttons
-        int bottomY = cy + 78 + alertOffset;
-
-        // Meta info
-        g.setFont(AdminTheme.FONT_REG_11);
-        g.setColor(AdminTheme.TEXT_MUTED);
-        String meta = rev.date + "  ·  " + rev.reviewType;
-        if (rev.verifiedCollaboration)
-            meta += "  ·  ✓ Verified Sprint";
-        if (rev.helpfulVotes > 0)
-            meta += "  ·  👍 " + rev.helpfulVotes + " helpful";
-        g.drawString(meta, cx + 18, bottomY + 16);
-
-        // Action Buttons on Right
-        int btnRight = cx + cw - 18;
-
-        // 1. "Delete Feedback" / "Delete Inappropriate Feedback" (Crimson Button)
-        hb.deleteW = 124;
-        hb.deleteH = 28;
-        hb.deleteX = btnRight - hb.deleteW;
-        hb.deleteY = bottomY;
-
-        RoundRectangle2D delBox = new RoundRectangle2D.Float(hb.deleteX, hb.deleteY, hb.deleteW, hb.deleteH, 6, 6);
-        g.setColor(hb.deleteHovered ? new Color(0xFE, 0xE2, 0xE2) : Color.WHITE);
-        g.fill(delBox);
-        g.setColor(AdminTheme.ACCENT_RED);
-        g.setStroke(new BasicStroke(1.2f));
-        g.draw(delBox);
-
-        g.setFont(AdminTheme.FONT_BOLD_11);
-        g.drawString("🗑 Delete feedback", hb.deleteX + 11, hb.deleteY + 18);
-
-        int prevBtnX = hb.deleteX;
-
-        // 2. "Approve Review" Button (if reported)
-        if (isReported) {
-            hb.approveW = 105;
-            hb.approveH = 28;
-            hb.approveX = prevBtnX - 8 - hb.approveW;
-            hb.approveY = bottomY;
-
-            RoundRectangle2D appBox = new RoundRectangle2D.Float(hb.approveX, hb.approveY, hb.approveW, hb.approveH, 6,
-                    6);
-            g.setColor(hb.approveHovered ? AdminTheme.BRAND_GREEN_DARK.darker() : AdminTheme.BRAND_GREEN_DARK);
-            g.fill(appBox);
-            g.setFont(AdminTheme.FONT_BOLD_11);
-            g.setColor(Color.WHITE);
-            g.drawString("✓ Approve & keep", hb.approveX + 8, hb.approveY + 18);
-
-            prevBtnX = hb.approveX;
-        }
-
-        // 3. "Hide / Unhide" Button
-        String hideLabel = isHidden ? "👁 Unhide" : "Hide";
-        g.setFont(AdminTheme.FONT_REG_11);
-        hb.hideW = isHidden ? 78 : 58;
-        hb.hideH = 28;
-        hb.hideX = prevBtnX - 8 - hb.hideW;
-        hb.hideY = bottomY;
-
-        RoundRectangle2D hideBox = new RoundRectangle2D.Float(hb.hideX, hb.hideY, hb.hideW, hb.hideH, 6, 6);
-        g.setColor(hb.hideHovered ? new Color(0xF1, 0xF5, 0xF9) : Color.WHITE);
-        g.fill(hideBox);
-        g.setColor(AdminTheme.BORDER_COLOR);
-        g.setStroke(new BasicStroke(1.0f));
-        g.draw(hideBox);
-        g.setColor(AdminTheme.TEXT_MUTED);
-        g.drawString(hideLabel, hb.hideX + 14, hb.hideY + 18);
-
-        prevBtnX = hb.hideX;
-
-        // 4. "Warn Author" Button (if reported)
-        if (isReported) {
-            hb.warnW = 90;
-            hb.warnH = 28;
-            hb.warnX = prevBtnX - 8 - hb.warnW;
-            hb.warnY = bottomY;
-
-            RoundRectangle2D warnBox = new RoundRectangle2D.Float(hb.warnX, hb.warnY, hb.warnW, hb.warnH, 6, 6);
-            g.setColor(hb.warnHovered ? new Color(0xFE, 0xF3, 0xC7) : Color.WHITE);
-            g.fill(warnBox);
-            g.setColor(new Color(0xD9, 0x77, 0x06));
-            g.setStroke(new BasicStroke(1.0f));
-            g.draw(warnBox);
-            g.setFont(AdminTheme.FONT_BOLD_11);
-            g.drawString("⚠️ Warn author", hb.warnX + 8, hb.warnY + 18);
-
-            prevBtnX = hb.warnX;
-        }
-
-        // 5. "Inspect Details" Button
-        hb.inspectW = 72;
-        hb.inspectH = 28;
-        hb.inspectX = prevBtnX - 8 - hb.inspectW;
-        hb.inspectY = bottomY;
-
-        RoundRectangle2D insBox = new RoundRectangle2D.Float(hb.inspectX, hb.inspectY, hb.inspectW, hb.inspectH, 6, 6);
-        g.setColor(hb.inspectHovered ? new Color(0xEE, 0xF2, 0xFF) : Color.WHITE);
-        g.fill(insBox);
-        g.setColor(AdminTheme.BRAND_PRIMARY);
-        g.setStroke(new BasicStroke(1.0f));
-        g.draw(insBox);
-        g.setFont(AdminTheme.FONT_BOLD_11);
-        g.drawString("Inspect →", hb.inspectX + 11, hb.inspectY + 18);
-
-        cardHitboxes.add(hb);
+        paintCardBody(c, cx, cy, cw, rev);
+        c.dispose();
         return cy + cardH;
     }
 
-    private void paintStarRating(Graphics2D g, int x, int y, int rating) {
-        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
-        int starSpacing = 16;
-        for (int i = 1; i <= 5; i++) {
-            if (i <= rating) {
-                g.setColor(AdminTheme.BRAND_AMBER);
-            } else {
-                g.setColor(new Color(0xE2, 0xE8, 0xF0));
-            }
-            g.drawString("★", x + (i - 1) * starSpacing, y + 12);
+    /** Lays out (and, unless measuring, draws) one card's content. Returns its height. */
+    private int paintCardBody(Graphics2D g, int cx, int cy, int cw, AdminDataStore.ReviewModel rev) {
+        boolean reported = isReported(rev);
+        boolean pending = isPending(rev);
+        boolean community = isCommunity(rev);
+        boolean hidden = "Hidden".equalsIgnoreCase(rev.status);
+        boolean draw = !measuring;
+        int pad = CARD_PAD;
+        int innerX = cx + pad;
+        int innerW = cw - pad * 2;
+        boolean compact = innerW < 560;
+
+        // ---- right side of the header: rating + status
+        String statusLabel = statusLabel(rev.status);
+        g.setFont(AdminTheme.FONT_BOLD_11);
+        int pillW = g.getFontMetrics().stringWidth(statusLabel) + 32;
+        int pillH = 24;
+        int starsW = 5 * 15 + 26; // five stars + "4.0"
+        int rightW = compact ? pillW : pillW + 16 + starsW;
+
+        // ---- avatar
+        int avX = innerX, avY = cy + pad;
+        if (draw) {
+            g.setColor(hidden ? AdminTheme.STATUS_GRAY_BG : AdminTheme.BRAND_TINT);
+            g.fillOval(avX, avY, AV_SIZE, AV_SIZE);
+            g.setFont(AdminTheme.FONT_BOLD_13);
+            g.setColor(hidden ? AdminTheme.STATUS_GRAY_TEXT : AdminTheme.BRAND_PRIMARY);
+            String inits = safe(rev.reviewerInitials, "U");
+            FontMetrics ifm = g.getFontMetrics();
+            g.drawString(inits, avX + (AV_SIZE - ifm.stringWidth(inits)) / 2,
+                    avY + (AV_SIZE + ifm.getAscent() - ifm.getDescent()) / 2);
         }
+
+        // ---- names: Reviewer -> Reviewee, then type · date
+        int textX = avX + AV_SIZE + 14;
+        int nameMaxW = Math.max(80, innerX + innerW - textX - rightW - 16);
+        String reviewer = safe(rev.reviewerName, "Unknown");
+        String reviewee = safe(rev.revieweeName, "-");
+        g.setFont(AdminTheme.FONT_BOLD_14);
+        FontMetrics nfm = g.getFontMetrics();
+        int arrowW = 28;
+        int half = Math.max(40, (nameMaxW - arrowW) / 2);
+        String rName = fit(nfm, reviewer, Math.max(half, nameMaxW - arrowW - nfm.stringWidth(reviewee)));
+        int rW = nfm.stringWidth(rName);
+        String eName = fit(nfm, reviewee, Math.max(40, nameMaxW - arrowW - rW));
+        int nameY = avY + 16;
+        if (draw) {
+            g.setColor(AdminTheme.TEXT_DARK);
+            g.drawString(rName, textX, nameY);
+            drawArrow(g, textX + rW + 8, nameY - 5, AdminTheme.TEXT_LIGHT);
+            g.setFont(AdminTheme.FONT_BOLD_14);
+            g.setColor(hidden ? AdminTheme.TEXT_MUTED : AdminTheme.BRAND_PRIMARY);
+            g.drawString(eName, textX + rW + arrowW, nameY);
+        }
+        g.setFont(AdminTheme.FONT_REG_12);
+        String sub = safe(rev.reviewType, "Review") + "  ·  " + safe(rev.date, "");
+        if (draw) {
+            g.setColor(AdminTheme.TEXT_LIGHT);
+            g.drawString(fit(g.getFontMetrics(), sub, nameMaxW), textX, nameY + 19);
+        }
+
+        // status pill (top-right) and stars
+        int pillX = innerX + innerW - pillW;
+        int pillY = avY + 2;
+        if (draw) {
+            paintStatusPill(g, pillX, pillY, pillW, pillH, rev.status, statusLabel);
+            if (!compact) paintStarRating(g, pillX - 16 - starsW, pillY + 4, rev.rating);
+        }
+
+        int y = avY + AV_SIZE;
+        if (compact) { // stars get their own line under the names on narrow cards
+            y += 8;
+            if (draw) paintStarRating(g, textX, y, rev.rating);
+            y += 16;
+        }
+
+        // ---- review text (quote bar + up to 4 wrapped lines)
+        y += 16;
+        String text = safe(rev.reviewText, "");
+        g.setFont(AdminTheme.FONT_REG_13);
+        FontMetrics tfm = g.getFontMetrics();
+        int bodyX = innerX + 14;
+        List<String> lines = wrap(tfm, text.isEmpty() ? "No written feedback." : text, innerX + innerW - bodyX, 4);
+        int lineH = 21;
+        int textTop = y;
+        if (draw) {
+            g.setColor(hidden ? AdminTheme.BORDER_COLOR : new Color(0xF9, 0xC6, 0xDA));
+            g.fillRoundRect(innerX, textTop, 3, lines.size() * lineH - 4, 3, 3);
+            g.setColor(text.isEmpty() || hidden ? AdminTheme.TEXT_MUTED : new Color(0x33, 0x41, 0x55));
+            for (int i = 0; i < lines.size(); i++)
+                g.drawString(lines.get(i), bodyX, textTop + 15 + i * lineH);
+        }
+        y = textTop + lines.size() * lineH - 4;
+
+        // ---- context tags: project + role
+        boolean hasProject = rev.projectName != null && !rev.projectName.trim().isEmpty();
+        boolean hasRole = rev.roleOrContext != null && !rev.roleOrContext.trim().isEmpty();
+        if (hasProject || hasRole) {
+            y += 14;
+            int tx = innerX;
+            if (hasProject) {
+                g.setFont(AdminTheme.FONT_BOLD_11);
+                FontMetrics pfm = g.getFontMetrics();
+                String p = fit(pfm, rev.projectName.trim(), Math.min(320, innerW - 34));
+                int pw = pfm.stringWidth(p) + 34;
+                if (draw) {
+                    g.setColor(new Color(0xFD, 0xF2, 0xF8));
+                    g.fillRoundRect(tx, y, pw, 24, 12, 12);
+                    drawFolder(g, tx + 10, y + 7, AdminTheme.BRAND_PRIMARY);
+                    g.setFont(AdminTheme.FONT_BOLD_11);
+                    g.setColor(AdminTheme.BRAND_PRIMARY);
+                    g.drawString(p, tx + 26, y + 16);
+                }
+                tx += pw + 8;
+            }
+            if (hasRole) {
+                g.setFont(AdminTheme.FONT_REG_11);
+                FontMetrics rfm = g.getFontMetrics();
+                int room = innerX + innerW - tx;
+                if (room < 90) { tx = innerX; y += 30; room = innerW; }
+                String roleText = community ? "Who it's for \u00B7 " + rev.roleOrContext.trim() : rev.roleOrContext.trim();
+                String r = fit(rfm, roleText, room - 20);
+                int rw = rfm.stringWidth(r) + 20;
+                if (draw) {
+                    g.setColor(AdminTheme.STATUS_GRAY_BG);
+                    g.fillRoundRect(tx, y, rw, 24, 12, 12);
+                    g.setColor(AdminTheme.STATUS_GRAY_TEXT);
+                    g.drawString(r, tx + 10, y + 16);
+                }
+            }
+            y += 24;
+        }
+
+        // ---- waiting for approval (Community Voice from the landing page)
+        if (pending) {
+            y += 14;
+            String tab = safe(rev.roleOrContext, "Students");
+            String msg = "Once approved it appears on the landing page under \u201C" + tab
+                    + "\u201D in Who it's for. Reject keeps it hidden.";
+            g.setFont(AdminTheme.FONT_REG_12);
+            FontMetrics pfm = g.getFontMetrics();
+            int pTextX = innerX + 36;
+            int pTextW = innerX + innerW - 14 - pTextX;
+            List<String> pl = wrap(pfm, msg, pTextW, 3);
+            int pH = 34 + pl.size() * 18 + 4;
+            if (draw) {
+                g.setColor(new Color(0xFF, 0xFB, 0xEB));
+                g.fillRoundRect(innerX, y, innerW, pH, 10, 10);
+                g.setColor(new Color(0xFD, 0xE6, 0x8A));
+                g.drawRoundRect(innerX, y, innerW, pH, 10, 10);
+                drawClock(g, innerX + 14, y + 13, AMBER_TEXT);
+                g.setFont(AdminTheme.FONT_BOLD_12);
+                g.setColor(AMBER_TEXT);
+                g.drawString("Waiting for your approval", pTextX, y + 26);
+                g.setFont(AdminTheme.FONT_REG_12);
+                g.setColor(new Color(0x92, 0x40, 0x0E));
+                for (int i = 0; i < pl.size(); i++) g.drawString(pl.get(i), pTextX, y + 45 + i * 18);
+            }
+            y += pH;
+        }
+
+        // ---- moderation alert
+        if (reported) {
+            y += 14;
+            boolean underReview = "Under review".equalsIgnoreCase(rev.status);
+            Color bg = underReview ? new Color(0xFF, 0xFB, 0xEB) : new Color(0xFF, 0xF1, 0xF2);
+            Color border = underReview ? new Color(0xFD, 0xE6, 0x8A) : new Color(0xFE, 0xCD, 0xD3);
+            Color strong = underReview ? AMBER_TEXT : AdminTheme.ACCENT_RED;
+            Color soft = underReview ? new Color(0x92, 0x40, 0x0E) : new Color(0x9F, 0x12, 0x39);
+            String reason = safe(rev.reportReason, "Reported as inappropriate content");
+            g.setFont(AdminTheme.FONT_REG_12);
+            FontMetrics afm = g.getFontMetrics();
+            int aTextX = innerX + 36;
+            int aTextW = innerX + innerW - 14 - aTextX;
+            List<String> rl = wrap(afm, "“" + reason + "”", aTextW, 2);
+            String by = rev.reportedBy != null && !rev.reportedBy.trim().isEmpty()
+                    ? "Reported by " + rev.reportedBy.trim() : "";
+            int aH = 34 + rl.size() * 18 + (by.isEmpty() ? 0 : 18) + 4;
+            if (draw) {
+                g.setColor(bg);
+                g.fillRoundRect(innerX, y, innerW, aH, 10, 10);
+                g.setColor(border);
+                g.drawRoundRect(innerX, y, innerW, aH, 10, 10);
+                drawFlag(g, innerX + 14, y + 14, strong);
+                g.setFont(AdminTheme.FONT_BOLD_12);
+                g.setColor(strong);
+                g.drawString(underReview ? "Under moderation review" : "Flagged for moderation", aTextX, y + 26);
+                g.setFont(AdminTheme.FONT_REG_12);
+                g.setColor(soft);
+                for (int i = 0; i < rl.size(); i++) g.drawString(rl.get(i), aTextX, y + 45 + i * 18);
+                if (!by.isEmpty()) {
+                    g.setFont(AdminTheme.FONT_REG_11);
+                    g.setColor(AdminTheme.TEXT_MUTED);
+                    g.drawString(fit(g.getFontMetrics(), by, aTextW), aTextX, y + 45 + rl.size() * 18);
+                }
+            }
+            y += aH;
+        }
+
+        // ---- divider + footer (meta left, actions right)
+        y += 16;
+        if (draw) {
+            g.setColor(new Color(0xF1, 0xF5, 0xF9));
+            g.drawLine(innerX, y, innerX + innerW, y);
+        }
+        y += 14;
+
+        String[] ids = reported ? new String[] { "inspect", "hide", "warn", "delete", "approve" }
+                : pending ? new String[] { "inspect", "hide", "delete", "approve" }
+                : new String[] { "inspect", "hide", "delete" };
+        String[] labels = new String[ids.length];
+        int[] widths = new int[ids.length];
+        g.setFont(AdminTheme.FONT_BOLD_12);
+        FontMetrics bfm = g.getFontMetrics();
+        int btnTotal = 0;
+        for (int i = 0; i < ids.length; i++) {
+            labels[i] = buttonLabel(ids[i], hidden, pending);
+            int icon = "delete".equals(ids[i]) || "approve".equals(ids[i]) ? 18 : 0;
+            widths[i] = bfm.stringWidth(labels[i]) + 28 + icon;
+            btnTotal += widths[i] + (i > 0 ? BTN_GAP : 0);
+        }
+
+        // meta: verified collaboration · N found this helpful
+        g.setFont(AdminTheme.FONT_REG_12);
+        FontMetrics m2 = g.getFontMetrics();
+        String verified = "Verified collaboration";
+        String helpful = rev.helpfulVotes > 0
+                ? rev.helpfulVotes + (rev.helpfulVotes == 1 ? " person" : " people") + " found this helpful" : "";
+        int metaW = (rev.verifiedCollaboration ? 18 + m2.stringWidth(verified) : 0)
+                + (rev.verifiedCollaboration && !helpful.isEmpty() ? 24 : 0)
+                + (helpful.isEmpty() ? 0 : m2.stringWidth(helpful));
+        String fallbackMeta = community ? "Submitted from the landing page  \u00B7  " + rev.id : "Review ID " + rev.id;
+        if (metaW == 0) metaW = m2.stringWidth(fallbackMeta);
+
+        boolean stacked = metaW + 24 + btnTotal > innerW;
+        int metaY = stacked ? y + 12 : y + BTN_H / 2 + 4;
+        int btnY = stacked ? y + 26 : y;
+        if (draw) {
+            g.setFont(AdminTheme.FONT_REG_12);
+            int mx = innerX;
+            if (rev.verifiedCollaboration) {
+                drawCheck(g, mx, metaY - 10, GREEN_SOLID);
+                g.setFont(AdminTheme.FONT_REG_12);
+                g.setColor(GREEN_SOLID);
+                g.drawString(verified, mx + 18, metaY);
+                mx += 18 + m2.stringWidth(verified);
+                if (!helpful.isEmpty()) {
+                    g.setColor(new Color(0xCB, 0xD5, 0xE1));
+                    g.fillOval(mx + 10, metaY - 6, 4, 4);
+                    mx += 24;
+                }
+            }
+            if (!helpful.isEmpty()) {
+                g.setColor(AdminTheme.TEXT_MUTED);
+                g.drawString(helpful, mx, metaY);
+            } else if (!rev.verifiedCollaboration) {
+                g.setColor(AdminTheme.TEXT_LIGHT);
+                g.drawString(fallbackMeta, mx, metaY);
+            }
+        }
+
+        // buttons: right-aligned on one row; when stacked they start at the left and wrap as needed
+        ReviewCardHitbox hb = new ReviewCardHitbox();
+        hb.review = rev;
+        int rowStart = 0;
+        int rowY = btnY;
+        while (rowStart < ids.length) {
+            int used = 0, end = rowStart;
+            while (end < ids.length && used + widths[end] + (end > rowStart ? BTN_GAP : 0) <= innerW) {
+                used += widths[end] + (end > rowStart ? BTN_GAP : 0);
+                end++;
+            }
+            if (end == rowStart) { used = widths[end]; end++; } // single over-wide button
+            int bx = stacked ? innerX : innerX + innerW - used;
+            for (int i = rowStart; i < end; i++) {
+                paintActionButton(g, bx, rowY, widths[i], ids[i], labels[i], rev, hb, draw);
+                bx += widths[i] + BTN_GAP;
+            }
+            rowStart = end;
+            if (rowStart < ids.length) rowY += BTN_H + BTN_GAP;
+        }
+        y = rowY + BTN_H + pad - 2;
+
+        int cardH = y - cy;
+        if (draw) {
+            hb.cardX = cx;
+            hb.cardY = cy;
+            hb.cardW = cw;
+            hb.cardH = cardH;
+            cardHitboxes.add(hb);
+        }
+        return cardH;
+    }
+
+    private static String buttonLabel(String id, boolean hidden, boolean pending) {
+        switch (id) {
+            case "inspect": return "View details";
+            case "hide": return pending ? "Reject" : hidden ? "Unhide" : "Hide";
+            case "warn": return "Warn author";
+            case "delete": return "Delete";
+            default: return pending ? "Approve & publish" : "Approve & keep";
+        }
+    }
+
+    private void paintActionButton(Graphics2D g, int bx, int by, int bw, String id, String label,
+            AdminDataStore.ReviewModel rev, ReviewCardHitbox hb, boolean draw) {
+        switch (id) {
+            case "inspect": hb.inspectX = bx; hb.inspectY = by; hb.inspectW = bw; hb.inspectH = BTN_H; break;
+            case "hide": hb.hideX = bx; hb.hideY = by; hb.hideW = bw; hb.hideH = BTN_H; break;
+            case "warn": hb.warnX = bx; hb.warnY = by; hb.warnW = bw; hb.warnH = BTN_H; break;
+            case "delete": hb.deleteX = bx; hb.deleteY = by; hb.deleteW = bw; hb.deleteH = BTN_H; break;
+            default: hb.approveX = bx; hb.approveY = by; hb.approveW = bw; hb.approveH = BTN_H; break;
+        }
+        if (!draw) return;
+        boolean hov = (rev.id + ":" + id).equals(hoveredCardAction);
+        Color fill, border, text;
+        switch (id) {
+            case "approve":
+                fill = hov ? GREEN_HOVER : GREEN_SOLID; border = fill; text = Color.WHITE; break;
+            case "delete":
+                fill = hov ? new Color(0xFF, 0xE4, 0xE6) : Color.WHITE; border = new Color(0xFE, 0xCD, 0xD3);
+                text = AdminTheme.ACCENT_RED; break;
+            case "warn":
+                fill = hov ? new Color(0xFE, 0xF3, 0xC7) : Color.WHITE; border = new Color(0xFD, 0xE6, 0x8A);
+                text = AMBER_TEXT; break;
+            case "inspect":
+                fill = hov ? AdminTheme.BRAND_TINT : Color.WHITE; border = new Color(0xF9, 0xC6, 0xDA);
+                text = AdminTheme.BRAND_PRIMARY; break;
+            default:
+                fill = hov ? AdminTheme.STATUS_GRAY_BG : Color.WHITE; border = AdminTheme.BORDER_COLOR;
+                text = AdminTheme.TEXT_MUTED; break;
+        }
+        g.setColor(fill);
+        g.fillRoundRect(bx, by, bw, BTN_H, 9, 9);
+        g.setColor(border);
+        g.setStroke(new BasicStroke(1f));
+        g.drawRoundRect(bx, by, bw, BTN_H, 9, 9);
+        int tx = bx + 14;
+        if ("delete".equals(id)) { drawTrash(g, tx, by + 9, text); tx += 18; }
+        if ("approve".equals(id)) { drawCheck(g, tx, by + 10, text); tx += 18; }
+        g.setFont(AdminTheme.FONT_BOLD_12);
+        FontMetrics fm = g.getFontMetrics();
+        g.setColor(text);
+        g.drawString(label, tx, by + (BTN_H + fm.getAscent() - fm.getDescent()) / 2);
+    }
+
+    private static String statusLabel(String status) {
+        if ("Published".equalsIgnoreCase(status)) return "Published";
+        if ("Reported".equalsIgnoreCase(status)) return "Reported";
+        if ("Under review".equalsIgnoreCase(status)) return "Under review";
+        if ("Pending".equalsIgnoreCase(status)) return "Pending approval";
+        if ("Hidden".equalsIgnoreCase(status)) return "Hidden";
+        return status == null || status.isEmpty() ? "Unknown" : status;
+    }
+
+    private void paintStatusPill(Graphics2D g, int x, int y, int w, int h, String status, String label) {
+        Color bg, fg;
+        if ("Published".equalsIgnoreCase(status)) { bg = AdminTheme.STATUS_GREEN_BG; fg = AdminTheme.STATUS_GREEN_TEXT; }
+        else if ("Reported".equalsIgnoreCase(status)) { bg = AdminTheme.STATUS_RED_BG; fg = AdminTheme.STATUS_RED_TEXT; }
+        else if ("Under review".equalsIgnoreCase(status) || "Pending".equalsIgnoreCase(status)) {
+            bg = AdminTheme.STATUS_PENDING_BG; fg = AdminTheme.STATUS_PENDING_TXT;
+        }
+        else { bg = AdminTheme.STATUS_GRAY_BG; fg = AdminTheme.STATUS_GRAY_TEXT; }
+        g.setColor(bg);
+        g.fillRoundRect(x, y, w, h, h, h);
+        g.setColor(fg);
+        g.fillOval(x + 11, y + h / 2 - 3, 6, 6);
+        g.setFont(AdminTheme.FONT_BOLD_11);
+        FontMetrics fm = g.getFontMetrics();
+        g.drawString(label, x + 22, y + (h + fm.getAscent() - fm.getDescent()) / 2);
+    }
+
+    /** Five drawn stars plus the numeric score (e.g. "4.0"). */
+    private void paintStarRating(Graphics2D g, int x, int y, int rating) {
+        Object aa = g.getRenderingHint(RenderingHints.KEY_ANTIALIASING);
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        for (int i = 0; i < 5; i++) {
+            g.setColor(i < rating ? AdminTheme.BRAND_AMBER : new Color(0xE2, 0xE8, 0xF0));
+            g.fill(starShape(x + i * 15 + 6.5, y + 7.5, 7, 3));
+        }
+        g.setFont(AdminTheme.FONT_BOLD_12);
+        g.setColor(AdminTheme.TEXT_DARK);
+        g.drawString(Math.max(0, Math.min(5, rating)) + ".0", x + 5 * 15 + 4, y + 12);
+        if (aa != null) g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, aa);
+    }
+
+    private static Shape starShape(double cx, double cy, double outer, double inner) {
+        java.awt.geom.Path2D.Double p = new java.awt.geom.Path2D.Double();
+        for (int i = 0; i < 10; i++) {
+            double r = i % 2 == 0 ? outer : inner;
+            double a = -Math.PI / 2 + i * Math.PI / 5;
+            double px = cx + Math.cos(a) * r, py = cy + Math.sin(a) * r;
+            if (i == 0) p.moveTo(px, py); else p.lineTo(px, py);
+        }
+        p.closePath();
+        return p;
+    }
+
+    // ---- tiny vector icons (emoji glyphs render inconsistently in Java2D)
+
+    private static void drawArrow(Graphics2D g, int x, int y, Color c) {
+        g.setColor(c);
+        g.setStroke(new BasicStroke(1.6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.drawLine(x, y, x + 11, y);
+        g.drawLine(x + 7, y - 4, x + 11, y);
+        g.drawLine(x + 7, y + 4, x + 11, y);
+        g.setStroke(new BasicStroke(1f));
+    }
+
+    private static void drawCheck(Graphics2D g, int x, int y, Color c) {
+        g.setColor(c);
+        g.setStroke(new BasicStroke(1.8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.drawLine(x + 1, y + 6, x + 5, y + 10);
+        g.drawLine(x + 5, y + 10, x + 12, y + 2);
+        g.setStroke(new BasicStroke(1f));
+    }
+
+    private static void drawTrash(Graphics2D g, int x, int y, Color c) {
+        g.setColor(c);
+        g.setStroke(new BasicStroke(1.4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.drawLine(x, y + 3, x + 12, y + 3);
+        g.drawLine(x + 4, y + 1, x + 8, y + 1);
+        g.drawRoundRect(x + 2, y + 3, 8, 11, 2, 2);
+        g.drawLine(x + 5, y + 6, x + 5, y + 11);
+        g.drawLine(x + 7, y + 6, x + 7, y + 11);
+        g.setStroke(new BasicStroke(1f));
+    }
+
+    private static void drawClock(Graphics2D g, int x, int y, Color c) {
+        g.setColor(c);
+        g.setStroke(new BasicStroke(1.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.drawOval(x, y, 14, 14);
+        g.drawLine(x + 7, y + 3, x + 7, y + 7);
+        g.drawLine(x + 7, y + 7, x + 10, y + 9);
+        g.setStroke(new BasicStroke(1f));
+    }
+
+    private static void drawFlag(Graphics2D g, int x, int y, Color c) {
+        g.setColor(c);
+        g.setStroke(new BasicStroke(1.6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.drawLine(x + 1, y, x + 1, y + 15);
+        g.fillPolygon(new int[] { x + 2, x + 13, x + 10, x + 13, x + 2 }, new int[] { y, y, y + 4, y + 8, y + 8 }, 5);
+        g.setStroke(new BasicStroke(1f));
+    }
+
+    private static void drawFolder(Graphics2D g, int x, int y, Color c) {
+        g.setColor(c);
+        g.setStroke(new BasicStroke(1.3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.drawRoundRect(x, y + 2, 11, 8, 2, 2);
+        g.drawLine(x, y + 2, x + 4, y + 2);
+        g.drawLine(x + 4, y + 2, x + 5, y);
+        g.drawLine(x + 5, y, x + 1, y);
+        g.setStroke(new BasicStroke(1f));
+    }
+
+    private static String safe(String s, String def) {
+        return s == null || s.trim().isEmpty() ? def : s.trim();
+    }
+
+    private static String fit(FontMetrics fm, String s, int maxW) {
+        if (s == null) return "";
+        if (fm.stringWidth(s) <= maxW) return s;
+        String t = s;
+        while (t.length() > 1 && fm.stringWidth(t + "…") > maxW) t = t.substring(0, t.length() - 1);
+        return t.trim() + "…";
+    }
+
+    /** Word-wraps to at most maxLines; the last line ends with an ellipsis if text was cut. */
+    private static List<String> wrap(FontMetrics fm, String text, int maxW, int maxLines) {
+        List<String> out = new ArrayList<>();
+        String[] words = text.replace('\n', ' ').trim().split("\\s+");
+        StringBuilder line = new StringBuilder();
+        boolean cut = false;
+        for (int i = 0; i < words.length; i++) {
+            String w = words[i];
+            String cand = line.length() == 0 ? w : line + " " + w;
+            if (fm.stringWidth(cand) <= maxW) {
+                line.setLength(0);
+                line.append(cand);
+                continue;
+            }
+            if (line.length() == 0) { // one very long word
+                out.add(fit(fm, w, maxW));
+            } else {
+                out.add(line.toString());
+                line.setLength(0);
+                line.append(w);
+            }
+            if (out.size() == maxLines) {
+                cut = line.length() > 0 || i < words.length - 1;
+                line.setLength(0);
+                break;
+            }
+            if (line.length() == 0) continue;
+        }
+        if (line.length() > 0) out.add(line.toString());
+        if (out.isEmpty()) out.add("");
+        if (cut) {
+            int last = out.size() - 1;
+            String l = out.get(last);
+            while (l.length() > 1 && fm.stringWidth(l + "…") > maxW) l = l.substring(0, l.length() - 1);
+            out.set(last, l.replaceAll("[\\s.,;:!?]+$", "") + "…");
+        }
+        return out;
     }
 
     private int paintEmptyState(Graphics2D g, int x, int y, int w) {
@@ -1072,16 +1392,20 @@ public class AdminReviews {
             // Approve & Keep Button
             if (ch.approveW > 0 && mx >= ch.approveX && mx <= ch.approveX + ch.approveW && my >= ch.approveY
                     && my <= ch.approveY + ch.approveH) {
+                boolean wasPending = isPending(ch.review);
                 AdminDataStore.getInstance().approveReportedReview(ch.review.id);
-                dashboard.showToast("Feedback #" + ch.review.id + " approved & published");
+                dashboard.showToast(wasPending ? "Review #" + ch.review.id + " approved \u2014 now live on the landing page"
+                        : "Feedback #" + ch.review.id + " approved & published");
                 return true;
             }
 
             // Hide / Unhide Button
             if (mx >= ch.hideX && mx <= ch.hideX + ch.hideW && my >= ch.hideY && my <= ch.hideY + ch.hideH) {
+                boolean wasPending = isPending(ch.review);
                 AdminDataStore.getInstance().hideReview(ch.review.id);
                 boolean isNowHidden = "Hidden".equalsIgnoreCase(ch.review.status);
-                dashboard.showToast(isNowHidden ? "Feedback #" + ch.review.id + " hidden"
+                dashboard.showToast(wasPending ? "Review #" + ch.review.id + " rejected \u2014 it won't be shown"
+                        : isNowHidden ? "Feedback #" + ch.review.id + " hidden"
                         : "Feedback #" + ch.review.id + " published");
                 return true;
             }
@@ -1158,6 +1482,8 @@ public class AdminReviews {
         if (resetBtnHovered != p7)
             changed = true;
 
+        String prevCardHover = hoveredCardAction;
+        hoveredCardAction = "";
         for (ReviewCardHitbox ch : cardHitboxes) {
             ch.deleteHovered = (mx >= ch.deleteX && mx <= ch.deleteX + ch.deleteW && my >= ch.deleteY
                     && my <= ch.deleteY + ch.deleteH);
@@ -1169,7 +1495,15 @@ public class AdminReviews {
                     && my <= ch.warnY + ch.warnH);
             ch.inspectHovered = (mx >= ch.inspectX && mx <= ch.inspectX + ch.inspectW && my >= ch.inspectY
                     && my <= ch.inspectY + ch.inspectH);
+            String id = ch.review.id + ":";
+            if (ch.deleteHovered) hoveredCardAction = id + "delete";
+            else if (ch.approveHovered) hoveredCardAction = id + "approve";
+            else if (ch.hideHovered) hoveredCardAction = id + "hide";
+            else if (ch.warnHovered) hoveredCardAction = id + "warn";
+            else if (ch.inspectHovered) hoveredCardAction = id + "inspect";
         }
+        if (!hoveredCardAction.equals(prevCardHover))
+            changed = true;
 
         boolean pPrev = prevHovered;
         prevHovered = (prevEnabled && mx >= prevBtnX && mx <= prevBtnX + prevBtnW && my >= prevBtnY
@@ -1234,14 +1568,17 @@ public class AdminReviews {
         if (filtered.isEmpty()) {
             return 640;
         }
-        int pageItems = Math.min(pageSize, filtered.size());
-        int estimatedListH = 0;
-        for (int i = 0; i < pageItems; i++) {
-            AdminDataStore.ReviewModel r = filtered.get(i);
-            boolean isReported = "Reported".equalsIgnoreCase(r.status) || "Under review".equalsIgnoreCase(r.status);
-            estimatedListH += (isReported ? 172 : 136) + 14;
+        int cardW = contentW - 48; // paint() uses 24px side padding
+        int tabsExtra = extraTabRowsHeight(cardW);
+        int totalPages = Math.max(1, (int) Math.ceil((double) filtered.size() / pageSize));
+        int page = Math.min(currentPage, totalPages);
+        int start = (page - 1) * pageSize;
+        int end = Math.min(start + pageSize, filtered.size());
+        int listH = 0;
+        for (int i = start; i < end; i++) {
+            listH += measureCardHeight(filtered.get(i), cardW) + 14;
         }
-        return 170 + estimatedListH + 100;
+        return 170 + tabsExtra + listH + 100;
     }
 
     // Getters for automated tests
