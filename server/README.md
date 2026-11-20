@@ -101,6 +101,10 @@ npm run dev
 | `GET` | `/api/auth/users` | সমস্ত রেজিস্ট্রেশন করা ইউজারের লিস্ট | Admin (JWT) |
 | `GET` | `/api/platform-stats` | Landing page numbers: verified members, active teams (2+ members), match accuracy, ghosting rate | Public |
 | `GET` | `/api/match-demo` | Landing "See matching in real time": public student profiles (shortened names), most requested skills | Public |
+| `GET` | `/api/match-demo/search?q=` | Landing hero search bar: public profiles matching a skill / free text (skills, headline, bio; synonyms like "backend", "ml"), best first | Public |
+| `GET` | `/api/community-reviews` | Landing "Who it's for" Community Voice: only admin-approved reviews (shortened names) | Public |
+| `GET` | `/api/community-reviews/mine` | Your own community review and its status (Pending / Published / Hidden) | Bearer token |
+| `POST` | `/api/community-reviews` | Write or update your review `{ text, rating }`; tab comes from your account role; saved as Pending until an admin approves it | Bearer token (not Admin) |
 | `GET` | `/api/admin/bootstrap` | পুরো Admin Dashboard ডাটা + `stats` (Overview analytics) | Admin panel |
 | `GET` | `/api/admin/overview` | শুধু Overview analytics — users, monthly growth, project lifecycle, success rate, active teams, requests, tasks, top skills (সব MongoDB থেকে হিসাব করা) | Admin panel |
 

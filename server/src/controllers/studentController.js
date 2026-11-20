@@ -410,6 +410,9 @@ const createReport = async (req, res) => {
   try {
     const { title, category, description, severity, reportedUserId } = req.body || {};
     if (!title || !title.trim()) return bad(res, 'Report title / reason is required.');
+    if (reportedUserId && idStr(reportedUserId) === idStr(req.user._id)) {
+      return bad(res, 'You cannot report yourself.');
+    }
     let flaggedAuthor = 'Platform User';
     if (reportedUserId && f.isId(reportedUserId)) {
       const flagged = await User.findById(reportedUserId).select('name');
@@ -456,8 +459,7 @@ const createReview = async (req, res) => {
       project = await Project.findById(req.body.projectId).select('title');
     }
 
-    const revCount = await Review.countDocuments();
-    const reviewId = `REV-${501 + revCount}`;
+    const reviewId = await require('./communityController').nextReviewId();
     const now = new Date();
     const review = await Review.create({
       reviewId,

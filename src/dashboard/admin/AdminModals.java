@@ -1761,6 +1761,7 @@ public class AdminModals {
         modalW = Math.min(560, viewW - 40);
         boolean isReported = "Reported".equalsIgnoreCase(selectedReview.status)
                 || "Under review".equalsIgnoreCase(selectedReview.status);
+        boolean isPending = "Pending".equalsIgnoreCase(selectedReview.status);
         modalH = isReported ? 450 : 390;
         modalX = (viewW - modalW) / 2;
         modalY = (viewH - modalH) / 2;
@@ -1811,6 +1812,12 @@ public class AdminModals {
             g.setFont(AdminTheme.FONT_BOLD_10);
             g.setColor(new Color(0xB4, 0x53, 0x09));
             g.drawString("⏳ Under review", sX + 8, curY + 15);
+        } else if (isPending) {
+            g.setColor(new Color(0xFE, 0xF3, 0xC7));
+            g.fill(sp);
+            g.setFont(AdminTheme.FONT_BOLD_10);
+            g.setColor(new Color(0xB4, 0x53, 0x09));
+            g.drawString("Pending approval", sX + 6, curY + 15);
         } else {
             g.setColor(new Color(0xF1, 0xF5, 0xF9));
             g.fill(sp);
@@ -1827,8 +1834,11 @@ public class AdminModals {
 
         paintDetailMiniCard(g, modalX + 28, curY, miniCardW, miniCardH, "REVIEWER", selectedReview.reviewerName + " ("
                 + (selectedReview.roleOrContext != null ? selectedReview.roleOrContext : "Member") + ")");
-        paintDetailMiniCard(g, modalX + 28 + miniCardW + 14, curY, miniCardW, miniCardH, "TARGET & PROJECT",
-                selectedReview.revieweeName + " · " + selectedReview.projectName);
+        boolean community = "Community Voice".equalsIgnoreCase(selectedReview.reviewType);
+        paintDetailMiniCard(g, modalX + 28 + miniCardW + 14, curY, miniCardW, miniCardH,
+                community ? "SHOWN ON LANDING PAGE" : "TARGET & PROJECT",
+                community ? "Who it's for · " + selectedReview.roleOrContext
+                        : selectedReview.revieweeName + " · " + selectedReview.projectName);
 
         curY += miniCardH + 14;
 
@@ -1908,7 +1918,7 @@ public class AdminModals {
         rightX = revModalCloseBtnX - 10;
 
         // "Hide / Unhide" Button
-        String hideLbl = "Hidden".equalsIgnoreCase(selectedReview.status) ? "Unhide" : "Hide";
+        String hideLbl = isPending ? "Reject" : ("Hidden".equalsIgnoreCase(selectedReview.status) ? "Unhide" : "Hide");
         revModalHideBtnW = 76;
         revModalHideBtnH = 34;
         revModalHideBtnX = rightX - revModalHideBtnW;
@@ -1919,8 +1929,8 @@ public class AdminModals {
 
         rightX = revModalHideBtnX - 10;
 
-        // If reported: "Approve & Keep" Button
-        if (isReported) {
+        // If reported or waiting for approval: "Approve" Button
+        if (isReported || isPending) {
             revModalApproveBtnW = 120;
             revModalApproveBtnH = 34;
             revModalApproveBtnX = rightX - revModalApproveBtnW;
@@ -2554,9 +2564,11 @@ public class AdminModals {
             // Hide / Unhide
             if (mx >= revModalHideBtnX && mx <= revModalHideBtnX + revModalHideBtnW &&
                     my >= revModalHideBtnY && my <= revModalHideBtnY + revModalHideBtnH) {
+                boolean wasPending = "Pending".equalsIgnoreCase(selectedReview.status);
                 AdminDataStore.getInstance().hideReview(selectedReview.id);
                 boolean isNowHidden = "Hidden".equalsIgnoreCase(selectedReview.status);
-                dashboard.showToast(isNowHidden ? "Feedback #" + selectedReview.id + " hidden"
+                dashboard.showToast(wasPending ? "Review #" + selectedReview.id + " rejected — it won't be shown"
+                        : isNowHidden ? "Feedback #" + selectedReview.id + " hidden"
                         : "Feedback #" + selectedReview.id + " published");
                 selectedReview = AdminDataStore.getInstance().getReviewById(selectedReview.id);
                 return true;

@@ -8,6 +8,14 @@ const s = require('../controllers/studentController');
 const landing = require('../controllers/landingController');
 router.get('/platform-stats', landing.getPlatformStats);
 router.get('/match-demo', landing.getMatchDemo);
+router.get('/match-demo/search', landing.searchMatchDemo); // hero search bar
+
+// Community Voice reviews (landing page "Who it's for"): read is public, writing needs login,
+// and new reviews stay hidden until an admin approves them.
+const community = require('../controllers/communityController');
+router.get('/community-reviews', community.listPublished);
+router.get('/community-reviews/mine', protect, community.getMine);
+router.post('/community-reviews', protect, community.submit);
 
 // Every student dashboard endpoint requires a valid JWT (Authorization: Bearer <token>)
 router.get('/dashboard', protect, getDashboard);

@@ -96,9 +96,10 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
         if (hero != null) {
             final MatchDemo fDemo = demo;
             hero.setOnSearch(q -> {
-                if (fDemo != null) fDemo.applyQuery(q);
+                if (fDemo != null) fDemo.search(q); // database search (GET /api/match-demo/search)
                 scrollToSection("demo");
             });
+            if (demo != null) demo.setOnPopularSkills(hero::setPopularSkills);
         }
 
         // Event listeners
@@ -399,6 +400,15 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
 
     @Override
     public void openModal(String title, String message, boolean isRegister) {
+        // Already signed in: "Get started" / "Join early access" etc. take you to your dashboard,
+        // not to the sign-up form again.
+        AuthStore.UserRecord user = AuthStore.getCurrentUser();
+        if (user != null && !showDashboard && !showAdminDashboard) {
+            navBar.closeMenu();
+            if ("Admin".equalsIgnoreCase(user.role)) openAdminDashboard();
+            else switchToStudentDashboard();
+            return;
+        }
         modal.show(title, message, isRegister);
     }
 
@@ -759,8 +769,7 @@ public class LandingWindow extends Frame implements MouseListener, MouseMotionLi
 
     private boolean hasFocusedInput(Section s) {
         return (s instanceof Hero && ((Hero) s).hasFocus())
-                || (s instanceof MatchDemo && ((MatchDemo) s).hasFocus())
-                || (s instanceof Audience && ((Audience) s).hasFocus());
+                || (s instanceof MatchDemo && ((MatchDemo) s).hasFocus());
     }
 
     @Override

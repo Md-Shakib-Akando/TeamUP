@@ -119,8 +119,6 @@ public class AdminSidebar {
         g.setFont(AdminTheme.FONT_REG_11);
         g.setColor(AdminTheme.TEXT_LIGHT);
         g.drawString(adminRole, avX + 44, avY + 31);
-
-        AdminTheme.drawChevronDown(g, x + w - padX - 8, avY + 14, 10, AdminTheme.TEXT_LIGHT, 0f);
     }
 
     private void paintLogo(Graphics2D g, int x, int y) {

@@ -128,6 +128,27 @@ public class Hero extends LpSection {
     /** Called with the search query when the user searches from the hero. */
     public void setOnSearch(Consumer<String> c) { this.onSearch = c; }
 
+    /**
+     * "Popular:" pills under the search bar = the most requested / most common skills in the
+     * database (sent by MatchDemo after it loads GET /api/match-demo). Keeps the defaults if empty.
+     */
+    public void setPopularSkills(List<String> skills) {
+        if (skills == null || skills.isEmpty()) return;
+        List<String> top = new ArrayList<>();
+        for (String s : skills) {
+            if (s != null && !s.trim().isEmpty() && top.size() < 6) top.add(s.trim());
+        }
+        boolean same = top.size() == pills.size();
+        for (int i = 0; same && i < top.size(); i++) same = top.get(i).equals(pills.get(i).label);
+        if (same) return;
+        pills.clear();
+        for (String s : top) pills.add(new Pill(s));
+        StringBuilder ph = new StringBuilder("Search by skill \u2014 ");
+        for (int i = 0; i < Math.min(3, top.size()); i++) ph.append(i > 0 ? ", " : "").append(top.get(i));
+        searchBox.placeholder = ph.append("...").toString();
+        invalidateHeight();
+    }
+
     private void submitSearch() {
         String q = searchBox.getText().trim();
         if (onSearch != null) onSearch.accept(q);
@@ -408,8 +429,14 @@ public class Hero extends LpSection {
             FontMetrics pfm = s.getFontMetrics();
             String lbl = "Popular:";
             int total = s.getFontMetrics(lf).stringWidth(lbl) + 10;
-            int shown = mobile ? 4 : pills.size();
-            for (int i = 0; i < shown; i++) total += pfm.stringWidth(pills.get(i).label) + 26 + 8;
+            int shown = 0;
+            int maxShown = mobile ? 4 : pills.size();
+            for (int i = 0; i < maxShown; i++) {
+                int add = pfm.stringWidth(pills.get(i).label) + 26 + 8;
+                if (total + add > width - 48) break;
+                total += add;
+                shown++;
+            }
             int x = Math.round(cx - total / 2f);
             s.setFont(lf);
             s.setColor(Fx.text3());

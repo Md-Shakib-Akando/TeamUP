@@ -352,9 +352,12 @@ public class DashboardHeader {
 
     // ---------------------------------------------------------------- user menu
 
+    /** Avatar menu height: header (name + email) plus three rows. */
+    private static final int MENU_H = 160;
+
     private void paintUserMenuDropdown(Graphics2D g, int width, String profileName) {
         int w = 210;
-        int h = 196;
+        int h = MENU_H;
         int x = width - w - 20;
         int y = 64;
 
@@ -382,14 +385,11 @@ public class DashboardHeader {
         g.drawLine(x, y + 54, x + w, y + 54);
 
         int itemY = y + 78;
-        String[] menuItems = {"Profile Settings", "Switch Workspace", "← Back to Landing Page", "Log Out"};
+        // No "Log Out" here: signing out happens only from the landing page.
+        String[] menuItems = {"Profile Settings", "Switch Workspace", "← Back to Landing Page"};
         g.setFont(DashboardTheme.FONT_REG_12);
         for (String mi : menuItems) {
-            if ("Log Out".equals(mi)) {
-                g.setColor(Theme.ERROR_RED);
-            } else {
-                g.setColor(mi.startsWith("←") ? DashboardTheme.BRAND_PURPLE : DashboardTheme.TEXT_DARK);
-            }
+            g.setColor(mi.startsWith("←") ? DashboardTheme.BRAND_PURPLE : DashboardTheme.TEXT_DARK);
             g.drawString(mi, x + 16, itemY);
             itemY += 30;
         }
@@ -438,20 +438,17 @@ public class DashboardHeader {
 
         // User menu dropdown click
         if (userMenuOpen) {
-            int menuW = 210, menuH = 196;
+            int menuW = 210, menuH = MENU_H;
             int menuX = avatarBtnX + avatarBtnSize - menuW, menuY = 64;
             if (mx >= menuX && mx <= menuX + menuW && my >= menuY && my <= menuY + menuH) {
-                int clickedIdx = (my - (menuY + 70)) / 30;
+                if (my < menuY + 56) return true; // name / email area: keep the menu open
+                int clickedIdx = (my - (menuY + 58)) / 30;
                 userMenuOpen = false;
                 if (clickedIdx == 0) {
                     dashboard.openModal(StudentDashboard.ActiveModal.COMPLETE_PROFILE);
                 } else if (clickedIdx == 1) {
                     dashboard.showToast("Switched active workspace.");
                 } else if (clickedIdx == 2) {
-                    dashboard.returnToLanding();
-                } else if (clickedIdx >= 3) {
-                    AuthStore.logout();
-                    dashboard.showToast("Logged out successfully.");
                     dashboard.returnToLanding();
                 }
                 return true;
