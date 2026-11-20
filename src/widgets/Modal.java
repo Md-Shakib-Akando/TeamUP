@@ -67,6 +67,12 @@ public class Modal {
     private AuthStore.UserRecord pendingUser = null;
     private float successTransitionTimer = 0f;
 
+    // Login / register run on a background thread (the hosted backend can take a while to wake up)
+    private volatile AuthStore.AuthResult authResult = null;
+    private volatile boolean authBusy = false;
+    private boolean authWasRegister = false;
+    private String authEmail = "", authRole = "";
+
     public void setAuthListener(AuthListener listener) {
         this.authListener = listener;
     }
@@ -166,6 +172,12 @@ public class Modal {
         heightAnim.setTarget(contentHeight());
         heightAnim.update(dt);
 
+        AuthStore.AuthResult done = authResult;
+        if (done != null) {
+            authResult = null;
+            applyAuthResult(done);
+        }
+
         if (visible && isSuccess && pendingUser != null) {
             successTransitionTimer += dt;
             if (successTransitionTimer >= 0.75f) {
@@ -224,28 +236,46 @@ public class Modal {
                 setFeedback("Please accept the Terms to continue.", false);
                 return;
             }
-            AuthStore.AuthResult res = AuthStore.register(
-                    nameInput.getText().trim(), email, pass, roleSelect.getSelected());
-            if (res.success) {
-                LeadStore.saveLead(email, roleSelect.getSelected());
-                setFeedback(res.message, true);
-                this.pendingUser = res.user;
-                this.successTransitionTimer = 0f;
-            } else {
-                emailInput.hasError = true;
-                setFeedback(res.message, false);
+        }
+        startAuth(isRegister, nameInput.getText().trim(), email, pass, roleSelect.getSelected());
+    }
+
+    /** Runs login / register in the background; the result is applied in update(). */
+    private void startAuth(boolean register, String name, String email, String pass, String role) {
+        if (authBusy) return;
+        authBusy = true;
+        authWasRegister = register;
+        authEmail = email;
+        authRole = role;
+        setFeedback(register ? "Creating your account\u2026" : "Signing you in\u2026", true);
+        Thread t = new Thread(() -> {
+            AuthStore.AuthResult res;
+            try {
+                res = register ? AuthStore.register(name, email, pass, role) : AuthStore.login(email, pass);
+            } catch (Exception e) {
+                res = new AuthStore.AuthResult(false, "Something went wrong. Please try again.", null);
             }
+            authResult = res;
+            authBusy = false;
+        }, "TeamUp-Auth");
+        t.setDaemon(true);
+        t.start();
+    }
+
+    private void applyAuthResult(AuthStore.AuthResult res) {
+        if (res.success) {
+            if (authWasRegister) LeadStore.saveLead(authEmail, authRole);
+            if (!visible) { // closed while waiting: still finish signing in
+                if (authListener != null) authListener.onAuthSuccess(res.user);
+                return;
+            }
+            setFeedback(res.message, true);
+            this.pendingUser = res.user;
+            this.successTransitionTimer = 0f;
         } else {
-            AuthStore.AuthResult res = AuthStore.login(email, pass);
-            if (res.success) {
-                setFeedback(res.message, true);
-                this.pendingUser = res.user;
-                this.successTransitionTimer = 0f;
-            } else {
-                if (res.message.toLowerCase().contains("password")) passInput.hasError = true;
-                else emailInput.hasError = true;
-                setFeedback(res.message, false);
-            }
+            if (!authWasRegister && res.message.toLowerCase().contains("password")) passInput.hasError = true;
+            else emailInput.hasError = true;
+            setFeedback(res.message, false);
         }
     }
 

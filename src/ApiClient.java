@@ -76,8 +76,10 @@ public final class ApiClient {
 
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod(method);
-        conn.setConnectTimeout(5000);
-        conn.setReadTimeout(15000);
+        // the hosted backend (Render) may need up to a minute to wake from sleep
+        boolean local = AuthStore.isLocalApi();
+        conn.setConnectTimeout(local ? 5000 : 20000);
+        conn.setReadTimeout(local ? 15000 : 70000);
         conn.setRequestProperty("Accept", "application/json");
         String token = AuthStore.getCurrentToken();
         if (token != null) conn.setRequestProperty("Authorization", "Bearer " + token);

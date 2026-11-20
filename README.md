@@ -83,6 +83,19 @@ run.bat
 run.bat --dashboard
 ```
 
+#### Backend
+
+The app uses the live backend on Render by default: **https://teamup-r3oz.onrender.com/api**
+(health check: https://teamup-r3oz.onrender.com/api/health). The free instance sleeps when idle,
+so the first request after a quiet period can take up to a minute.
+
+To use a local backend instead (`npm start` in `server/`, port 5050):
+
+```cmd
+set TEAMUP_API_URL=http://localhost:5050/api
+run.bat
+```
+
 #### Direct Compilation & Execution:
 
 ```bash

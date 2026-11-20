@@ -26,7 +26,9 @@ import javax.crypto.spec.PBEKeySpec;
 
 /**
  * AuthStore handles user registration and authentication backed by:
- * 1. Node.js + Express + MongoDB Atlas backend REST API (http://localhost:5000/api)
+ * 1. Node.js + Express + MongoDB Atlas backend REST API — hosted on Render
+ *    (https://teamup-r3oz.onrender.com/api). Override with -Dteamup.api.url=... or the
+ *    TEAMUP_API_URL environment variable (e.g. http://localhost:5050/api for local development).
  * 2. Automatic offline fallback with salted PBKDF2-HMAC-SHA256 password hashing
  *    and thread-safe persistent storage in data/users.csv.
  */
@@ -44,8 +46,10 @@ public class AuthStore {
     private static final SecureRandom RANDOM = new SecureRandom();
 
     // Node.js Backend API configuration
+    /** The live TeamUp backend (Render). */
+    public static final String DEFAULT_API_URL = "https://teamup-r3oz.onrender.com/api";
     private static volatile String apiBaseUrl = System.getProperty("teamup.api.url",
-            System.getenv("TEAMUP_API_URL") != null ? System.getenv("TEAMUP_API_URL") : "http://localhost:5050/api");
+            System.getenv("TEAMUP_API_URL") != null ? System.getenv("TEAMUP_API_URL") : DEFAULT_API_URL);
     private static volatile String currentToken = null;
     private static volatile UserRecord currentUser = null;
     private static volatile boolean offlineMode = false;
@@ -89,8 +93,12 @@ public class AuthStore {
 
     static {
         ensureStoreInitialized();
-        // Check / start Node backend asynchronously on startup
-        Thread starter = new Thread(() -> ensureServerRunning());
+        // Local backend: start it if needed. Hosted backend: wake it up (Render free instances
+        // sleep when idle and take up to a minute to start) so it's ready by the time you log in.
+        Thread starter = new Thread(() -> {
+            if (isLocalApi()) ensureServerRunning();
+            else warmUpRemote();
+        }, "TeamUp-Backend-Warmup");
         starter.setDaemon(true);
         starter.start();
     }
@@ -126,8 +134,40 @@ public class AuthStore {
         currentToken = null;
     }
 
+    private static String connectionErrorMessage() {
+        return isLocalApi()
+                ? "Could not connect to the local backend at " + apiBaseUrl + ". Run 'npm start' in the server/ folder."
+                : "Could not reach the TeamUp server. Check your internet connection and try again.";
+    }
+
+    /** True when the API points at this computer (local development), not the hosted backend. */
+    public static boolean isLocalApi() {
+        try {
+            String host = URI.create(apiBaseUrl).getHost();
+            return host != null && (host.equalsIgnoreCase("localhost") || host.equals("127.0.0.1") || host.equals("::1"));
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /** One slow health request so a sleeping hosted backend starts booting in the background. */
+    private static void warmUpRemote() {
+        try {
+            String fullUrl = apiBaseUrl.endsWith("/") ? (apiBaseUrl + "health") : (apiBaseUrl + "/health");
+            HttpURLConnection conn = (HttpURLConnection) URI.create(fullUrl).toURL().openConnection();
+            conn.setConnectTimeout(20000);
+            conn.setReadTimeout(70000);
+            conn.getResponseCode();
+            conn.disconnect();
+        } catch (Exception ignored) {
+            // offline: the app keeps working with what it has
+        }
+    }
+
+    /** Starts the local Node server (server/) when the API is local and nothing is listening yet. */
     public static synchronized void ensureServerRunning() {
         if (offlineMode) return;
+        if (!isLocalApi()) return; // hosted backend: never spawn a local server
         if (isServerAlive()) return;
 
         File serverDir = new File("server");
@@ -167,8 +207,8 @@ public class AuthStore {
             URL url = URI.create(fullUrl).toURL();
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
-            conn.setConnectTimeout(800);
-            conn.setReadTimeout(800);
+            conn.setConnectTimeout(isLocalApi() ? 800 : 10000);
+            conn.setReadTimeout(isLocalApi() ? 800 : 10000);
             int code = conn.getResponseCode();
             if (code >= 200 && code < 300) {
                 try (InputStream is = conn.getInputStream(); ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
@@ -278,7 +318,7 @@ public class AuthStore {
                 }
             } catch (IOException e) {
                 return new AuthResult(false,
-                        "Could not connect to MongoDB Atlas backend at " + apiBaseUrl + ". Please ensure 'npm start' is running in the server/ directory.",
+                        connectionErrorMessage(),
                         null);
             }
         }
@@ -357,7 +397,7 @@ public class AuthStore {
                     }
                 }
                 return new AuthResult(false,
-                        "Could not connect to MongoDB Atlas backend at " + apiBaseUrl + ". Please ensure 'npm start' is running in the server/ directory.",
+                        connectionErrorMessage(),
                         null);
             }
         }
@@ -502,8 +542,9 @@ public class AuthStore {
         URL url = URI.create(fullUrl).toURL();
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("POST");
-        conn.setConnectTimeout(5000);
-        conn.setReadTimeout(10000);
+        // the hosted backend may need up to a minute to wake from sleep
+        conn.setConnectTimeout(isLocalApi() ? 5000 : 20000);
+        conn.setReadTimeout(isLocalApi() ? 10000 : 70000);
         conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
         conn.setRequestProperty("Accept", "application/json");
         conn.setDoOutput(true);

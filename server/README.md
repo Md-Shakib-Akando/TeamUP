@@ -129,7 +129,12 @@ Collections: `users, projects, tasks, joinrequests, invitations, activities, not
 
 ---
 
+## 🌐 Live Deployment (Render)
+- API: **https://teamup-r3oz.onrender.com/api** — health check: https://teamup-r3oz.onrender.com/api/health
+- Java ক্লায়েন্ট ডিফল্টভাবে এই লাইভ API ব্যবহার করে। লোকাল সার্ভার দিয়ে চালাতে: `TEAMUP_API_URL=http://localhost:5050/api` (অথবা `-Dteamup.api.url=...`)।
+- Render: Root Directory `server`, Build `npm install`, Start `npm start`; env: `MONGODB_URI`, `MONGODB_DB_NAME`, `JWT_SECRET`, `JWT_EXPIRES_IN`।
+
 ## 🔄 Client Fallback (অফলাইন সাপোর্ট)
-TeamUp Java ক্লায়েন্ট (`AuthStore.java`) স্বয়ংক্রিয়ভাবে `http://localhost:5000/api` কল করে। যদি কোনো কারণে ব্যাকএন্ড সার্ভার সাময়িকভাবে বন্ধ থাকে, ক্লায়েন্ট অ্যাপ ক্র্যাশ না করে স্বয়ংক্রিয়ভাবে লোকাল স্টোরেজে (`data/users.csv`) PBKDF2 হ্যাশিং সহ কাজ চালিয়ে যাবে।
+TeamUp Java ক্লায়েন্ট (`AuthStore.java`) স্বয়ংক্রিয়ভাবে `https://teamup-r3oz.onrender.com/api` (লাইভ API) কল করে। যদি কোনো কারণে ব্যাকএন্ড সার্ভার সাময়িকভাবে বন্ধ থাকে, ক্লায়েন্ট অ্যাপ ক্র্যাশ না করে স্বয়ংক্রিয়ভাবে লোকাল স্টোরেজে (`data/users.csv`) PBKDF2 হ্যাশিং সহ কাজ চালিয়ে যাবে।
 
 লগইন করার পর Java ড্যাশবোর্ড (`DashboardSync.java`) `/api/dashboard` থেকে ইউজারের আসল ডাটা লোড করে এবং প্রতিটি অ্যাকশন (বুকমার্ক, জয়েন, টাস্ক, সেটিংস...) ব্যাকএন্ডে সেভ করে। লগইন ছাড়া (F2) বা ব্যাকএন্ড বন্ধ থাকলে ড্যাশবোর্ড আগের মতো বিল্ট-ইন ডেমো ডাটা দেখায়।
